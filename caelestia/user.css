@@ -1,0 +1,1009 @@
+/* ==========================================================================
+   Spotify Caelestia — islas flotantes (IntelliJ New UI / Zed)
+   Los colores salen de color.ini, que Caelestia regenera al cambiar de
+   esquema (claro/oscuro incluido). Aquí no hay ningún color fijo: todo
+   deriva de las variables --spice-*.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   0. Tokens
+   -------------------------------------------------------------------------- */
+:root {
+    --cs-gap: 16px;
+    /* Curvas concéntricas: panel 28 → (12 de margen) → dock/tarjetas 16 */
+    --cs-radius: 28px;
+    --cs-inset: 12px;
+    --cs-r-inner: 16px;
+    --cs-radius-sm: 14px;
+    --cs-radius-xs: 10px;
+    --cs-border: rgba(var(--spice-rgb-text), 0.11);
+    --cs-border-soft: rgba(var(--spice-rgb-text), 0.05);
+    --cs-shadow: 0 6px 26px rgba(var(--spice-rgb-shadow), 0.32);
+    --cs-shadow-lg: 0 8px 32px rgba(var(--spice-rgb-shadow), 0.4);
+    /* Las islas dejan pasar un poco del resplandor de la carátula */
+    --cs-island: color-mix(in srgb, var(--spice-main) 90%, transparent);
+    --cs-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root[data-cs-mode="light"] {
+    --cs-shadow: 0 4px 20px rgba(var(--spice-rgb-shadow), 0.1);
+    --cs-shadow-lg: 0 6px 26px rgba(var(--spice-rgb-shadow), 0.14);
+    --cs-island: color-mix(in srgb, var(--spice-main) 94%, transparent);
+}
+
+/* Acento: theme.js pone --cs-accent con el color dominante de la carátula y la
+   transición lo funde entre canciones. Todo lo que Spotify pinta con
+   --spice-button(-active) (sliders, texto activo, botones) lo hereda. */
+@property --cs-accent {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: #c6c6c6;
+}
+
+:root { transition: --cs-accent 1.4s ease; }
+
+:root,
+body,
+.encore-dark-theme,
+.encore-light-theme {
+    --spice-button-active: var(--cs-accent) !important;
+    --spice-button: var(--cs-accent) !important;
+}
+
+/* Sin barras de scroll (la rueda y el arrastre siguen funcionando) */
+* { scrollbar-width: none !important; }
+*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+.os-scrollbar,
+.os-scrollbar-track,
+.os-scrollbar-handle { display: none !important; }
+
+/* --------------------------------------------------------------------------
+   1. Contenedor raíz y fondo ambiental
+   -------------------------------------------------------------------------- */
+.Root__top-container {
+    padding: var(--cs-gap) !important;
+    /* Filas: banner (0) · barra superior · paneles · dock (0, flota encima) */
+    grid-template-rows: 0 auto minmax(0, 1fr) 0 !important;
+    gap: 0 var(--cs-gap) !important;
+    background-color: var(--spice-sidebar) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+/* Fondo con la carátula (lo inyecta theme.js). Dos capas que se alternan. */
+#caelestia-dynamic-bg {
+    position: absolute !important;
+    inset: 0 !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+    overflow: hidden !important;
+    contain: strict;
+}
+
+.caelestia-bg-image {
+    position: absolute !important;
+    inset: -12% !important;
+    background-size: cover !important;
+    background-position: center !important;
+    filter: blur(60px) saturate(2) brightness(0.7) !important;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    will-change: opacity;
+}
+.caelestia-bg-image.is-on { opacity: 1; }
+
+/* Viñeta que oscurece hacia los bordes, con el color de fondo del esquema */
+.caelestia-bg-overlay {
+    position: absolute !important;
+    inset: 0 !important;
+    background: radial-gradient(circle at 50% 50%,
+        rgba(var(--spice-rgb-sidebar), 0.15) 0%,
+        rgba(var(--spice-rgb-sidebar), 0.55) 100%) !important;
+}
+
+/* Resplandor de reserva mientras no hay carátula (los degradados ya son
+   suaves: no hace falta filter: blur) */
+.Root__top-container::before {
+    content: "" !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background:
+        radial-gradient(circle at 14% 18%, color-mix(in srgb, var(--cs-accent) 16%, transparent) 0%, transparent 55%),
+        radial-gradient(circle at 86% 82%, color-mix(in srgb, var(--cs-accent) 10%, transparent) 0%, transparent 60%) !important;
+    pointer-events: none !important;
+    z-index: 0 !important;
+}
+
+/* --------------------------------------------------------------------------
+   2. Islas
+   -------------------------------------------------------------------------- */
+.Root__nav-bar,
+.Root__main-view,
+.Root__right-sidebar {
+    background-color: var(--cs-island) !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: var(--cs-radius) !important;
+    box-shadow: var(--cs-shadow) !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+}
+
+.Root__nav-bar,
+.Root__main-view,
+.Root__right-sidebar { z-index: 1 !important; }
+
+/* Contenedores internos: sin fondo ni borde propio (evita bordes dobles) */
+.main-yourLibraryX-entryPoints {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 10px !important;
+}
+
+.main-yourLibraryX-header { padding: 10px 14px 6px !important; }
+
+.main-view-container,
+.main-nowPlayingView-section {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* Barra superior interna: transparente, pero conserva su altura para que la
+   cabecera pegajosa (título + botón de play al hacer scroll) siga funcionando */
+.main-topBar-background,
+.main-topBar-overlay { background: transparent !important; }
+
+.main-topBar-container {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Barra lateral derecha
+   -------------------------------------------------------------------------- */
+.main-nowPlayingView-content { padding: 16px !important; }
+
+.main-nowPlayingView-aboutArtist,
+.main-nowPlayingView-queue,
+.main-nowPlayingView-credits {
+    background-color: var(--spice-main-elevated) !important;
+    border: 1px solid var(--cs-border-soft) !important;
+    border-radius: var(--cs-radius-sm) !important;
+    padding: 14px !important;
+    margin-bottom: 14px !important;
+}
+
+.main-nowPlayingView-coverArt img {
+    border-radius: var(--cs-radius-sm) !important;
+    box-shadow: 0 8px 24px rgba(var(--spice-rgb-shadow), 0.4) !important;
+}
+
+/* --------------------------------------------------------------------------
+   4. Búsqueda
+   -------------------------------------------------------------------------- */
+.main-topBar-searchBar,
+.x-searchInput-searchInputInput {
+    background-color: var(--spice-main-elevated) !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 12px !important;
+    color: var(--spice-text) !important;
+    font-size: 13px !important;
+}
+
+.main-topBar-searchBar:focus-within,
+.x-searchInput-searchInputInput:focus {
+    border-color: var(--spice-button-active) !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Playlist / álbum: una sola superficie (sin cajas)
+   El velo del acento vive en el propio panel; los controles suben a la cabecera,
+   bajo el título; la lista va directa sobre el panel.
+   -------------------------------------------------------------------------- */
+.main-home-homeHeader,
+.main-entityHeader-backgroundColor,
+.main-actionBarBackground-background,
+.playlist-playlist-actionBarBackground-background,
+.search-searchCategory-contentArea::before,
+.search-searchCategory-contentArea::after {
+    display: none !important;
+    background: transparent !important;
+    background-image: none !important;
+}
+
+.Root__main-view {
+    background-image: radial-gradient(110% 420px at 30% -12%,
+        color-mix(in srgb, var(--cs-accent) 20%, transparent), transparent 72%) !important;
+    background-repeat: no-repeat !important;
+    box-shadow: inset 0 1px 0 rgba(var(--spice-rgb-text), 0.06), var(--cs-shadow) !important;
+}
+
+.main-entityHeader-containerNormal {
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 28px 24px 46px !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+.main-entityHeader-containerNormal .main-entityHeader-contentWrapper { min-height: 0 !important; height: auto !important; }
+
+.main-entityHeader-containerNormal .main-entityHeader-imageContainer,
+.main-entityHeader-containerNormal .main-entityHeader-imageContainer div { width: 168px !important; height: 168px !important; }
+
+.main-entityHeader-containerNormal .main-entityHeader-image {
+    border-radius: var(--cs-r-inner) !important;
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--cs-accent) 32%, rgba(var(--spice-rgb-shadow), 0.5)) !important;
+}
+
+/* 70px libres al pie del texto: ahí se sientan los controles */
+.main-entityHeader-containerNormal .main-entityHeader-headerText {
+    height: auto !important;
+    justify-content: flex-end !important;
+    padding-bottom: 70px !important;
+}
+
+.main-entityHeader-containerNormal .main-entityHeader-title {
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    font-size: clamp(28px, 3.6vw, 46px) !important;
+    line-height: 1.05 !important;
+}
+
+.main-entityHeader-withBackgroundImage .main-entityHeader-title { letter-spacing: -0.02em !important; }
+
+/* Controles: play · aleatorio · descargar · … a la izquierda, buscar/orden a la derecha */
+section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] {
+    margin-top: -92px !important;
+    height: 56px !important;
+    overflow: visible !important;
+    position: relative !important;
+    z-index: 3 !important;
+}
+
+section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"],
+section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] > div,
+section:has(.main-entityHeader-containerNormal) .playlist-playlist-playlistContent { background: transparent !important; background-image: none !important; }
+
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
+    height: 56px !important;
+    padding: 0 24px 0 233px !important; /* 233 = alinea con el título */
+    background: transparent !important;
+}
+
+.main-actionBar-ActionBarRow {
+    height: 56px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+}
+
+/* Sin "···" de la fila, sin "Descubrir" (la miniatura junto al play) */
+.main-actionBar-ActionBarRow button[aria-label^="Más opciones"],
+.main-actionBar-ActionBarRow button[aria-label^="More options"],
+.main-actionBar-ActionBarRow button[aria-label^="Descubrir"],
+.main-actionBar-ActionBarRow button[aria-label^="Discover"] { display: none !important; }
+
+/* La lista, sin caja; la cabecera de columnas solo tiene fondo al hacer scroll */
+.main-trackList-trackListContainer {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+}
+
+.main-trackList-trackListHeader {
+    border-radius: 12px !important;
+    z-index: 4 !important;
+    transition: background-color 200ms ease !important;
+}
+
+html[data-cs-scrolled] .main-trackList-trackListHeader {
+    background: color-mix(in srgb, var(--spice-main) 88%, transparent) !important;
+    backdrop-filter: blur(14px) !important;
+}
+
+/* Título fijo que aparece al hacer scroll: con fondo solo cuando Spotify lo muestra */
+.main-topBar-overlay { background: transparent !important; }
+
+.main-topBar-background {
+    background: color-mix(in srgb, var(--spice-main) 86%, transparent) !important;
+    backdrop-filter: blur(16px) !important;
+    border-bottom: 1px solid var(--cs-border-soft) !important;
+}
+
+/* Los "···" por canción se quedan; el equalizador deja de ser verde Spotify */
+.main-trackList-playingIcon,
+img[class*="playingIcon"] { filter: grayscale(1) brightness(1.6) !important; }
+
+/* --------------------------------------------------------------------------
+   6. Lista de canciones (filas tipo IDE)
+   -------------------------------------------------------------------------- */
+.main-trackList-trackListRow {
+    border-radius: var(--cs-radius-xs) !important;
+    border: 1px solid transparent !important;
+    transition: background-color 140ms ease, border-color 140ms ease !important;
+}
+
+.main-trackList-trackListRow:hover {
+    background-color: var(--spice-main-elevated) !important;
+    border-color: var(--cs-border-soft) !important;
+}
+
+/* El mismo hover con borde en las filas de la biblioteca */
+.main-rootlist-wrapper [role="row"] .e-10451-box--interactive {
+    border: 1px solid transparent !important;
+    border-radius: 12px !important;
+    box-sizing: border-box !important;
+    transition: background-color 140ms ease, border-color 140ms ease !important;
+}
+.main-rootlist-wrapper [role="row"] .e-10451-box--interactive:hover {
+    background-color: var(--spice-main-elevated) !important;
+    border-color: var(--cs-border-soft) !important;
+}
+
+/* La marca de la fila activa es un box-shadow inset: no desplaza el contenido
+   3px como hacía border-left */
+.main-trackList-trackListRow.main-trackList-selected,
+.main-trackList-trackListRow.main-trackList-active {
+    background-color: var(--spice-card) !important;
+    box-shadow: inset 3px 0 0 var(--spice-button-active) !important;
+}
+
+.main-trackList-trackListRow.main-trackList-active .main-trackList-rowTitle {
+    color: var(--spice-button-active) !important;
+    font-weight: 600 !important;
+}
+
+.main-trackList-rowImage { border-radius: 8px !important; }
+
+/* --------------------------------------------------------------------------
+   7. Controles del reproductor
+   -------------------------------------------------------------------------- */
+.x-progressBar-progressBarBg {
+    background-color: var(--spice-card) !important;
+    border-radius: 999px !important;
+}
+
+.x-progressBar-fillColor {
+    background-color: var(--spice-button-active) !important;
+    border-radius: 999px !important;
+}
+
+.main-nowPlayingWidget-coverArt img {
+    border-radius: var(--cs-radius-xs) !important;
+    box-shadow: 0 4px 12px rgba(var(--spice-rgb-shadow), 0.3) !important;
+}
+
+/* --------------------------------------------------------------------------
+   8. Menús contextuales y tooltips
+   -------------------------------------------------------------------------- */
+.main-contextMenu-menu,
+.tippy-box {
+    background-color: var(--spice-card) !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 30px rgba(var(--spice-rgb-shadow), 0.5) !important;
+}
+
+.main-contextMenu-menuItemButton {
+    border-radius: 8px !important;
+    transition: background-color 120ms ease !important;
+}
+
+.main-contextMenu-menuItemButton:hover {
+    background-color: var(--spice-main-elevated) !important;
+}
+
+/* --------------------------------------------------------------------------
+   9. Detalles: scrollbars, selección, foco, movimiento reducido
+   -------------------------------------------------------------------------- */
+.os-scrollbar-handle,
+::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--spice-button-disabled) 60%, transparent) !important;
+    border-radius: 8px !important;
+}
+
+.os-scrollbar-handle:hover,
+::-webkit-scrollbar-thumb:hover {
+    background: var(--spice-button) !important;
+}
+
+::selection {
+    background: color-mix(in srgb, var(--cs-accent) 32%, transparent);
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible {
+    outline: 2px solid var(--spice-button-active) !important;
+    outline-offset: 2px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .caelestia-bg-image,
+    .main-trackList-trackListRow,
+    .main-playPauseButton-button { transition: none !important; }
+}
+
+/* --------------------------------------------------------------------------
+   10. Barra superior: tres píldoras sueltas, sin barra
+   Botones circulares de 36px con 6px de aire: concéntricos con la píldora de 48px.
+   -------------------------------------------------------------------------- */
+.Root__globalNav {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+    height: 48px !important;
+    margin: 0 0 var(--cs-gap) !important;
+    z-index: 2 !important;
+}
+
+.main-globalNav-historyButtonsContainer,
+.main-globalNav-searchContainer,
+.main-globalNav-contentRight {
+    display: flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    box-sizing: border-box !important;
+    height: 48px !important;
+    padding: 6px !important;
+    background: var(--cs-island) !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 999px !important;
+    box-shadow: var(--cs-shadow) !important;
+}
+
+.main-globalNav-historyButtonsContainer button,
+.main-globalNav-searchContainer > button,
+.main-globalNav-contentRight button,
+.main-globalNav-searchContainer .e-10451-form-input-icon__icon button {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
+}
+
+.main-globalNav-contentRight figure,
+.main-globalNav-contentRight figure > div,
+.main-globalNav-contentRight figure img { width: 32px !important; height: 32px !important; border-radius: 50% !important; }
+
+.main-globalNav-historyButtonsSpacer { display: none !important; }
+.main-globalNav-contentRight .main-topBar-topbarContentRight { align-items: center !important; }
+
+/* La búsqueda vive dentro de su píldora: el campo no lleva caja propia */
+.main-globalNav-searchInputSection form,
+.main-globalNav-searchInputWrapper,
+.main-globalNav-searchInputSection input {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+
+.main-globalNav-searchContainer { transition: border-color 200ms ease, box-shadow 200ms ease !important; }
+.main-globalNav-searchContainer:focus-within {
+    border-color: var(--cs-accent) !important;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--cs-accent) 22%, transparent), var(--cs-shadow) !important;
+}
+
+/* --------------------------------------------------------------------------
+   11. Reproductor: dock flotante, concéntrico con el panel central
+   Misma celda que el panel: 12px de margen por izquierda, derecha y abajo, y
+   radio 16 = 28 (panel) − 12 (margen). La carátula, a 8px del borde, lleva 8.
+   El progreso es el borde inferior del propio dock.
+   -------------------------------------------------------------------------- */
+.Root__now-playing-bar {
+    grid-area: main-view !important;
+    align-self: end !important;
+    position: relative !important;
+    inset: auto !important;
+    transform: none !important;
+    width: auto !important;
+    height: 68px !important;
+    margin: 0 var(--cs-inset) var(--cs-inset) !important;
+    padding: 0 8px !important;
+    overflow: hidden !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: var(--cs-r-inner) !important;
+    background: color-mix(in srgb, var(--spice-main) 72%, transparent) !important;
+    backdrop-filter: blur(28px) saturate(1.5) !important;
+    box-shadow: var(--cs-shadow-lg) !important;
+    z-index: 5 !important;
+}
+
+/* Tres columnas: las laterales iguales (simetría), la central fija */
+.main-nowPlayingBar-container,
+.main-nowPlayingBar-nowPlayingBar { height: 100% !important; }
+
+.main-nowPlayingBar-nowPlayingBar {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 272px minmax(0, 1fr) !important;
+    align-items: center !important;
+    position: static !important;
+}
+
+.main-nowPlayingBar-left,
+.main-nowPlayingBar-center,
+.main-nowPlayingBar-right {
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+    min-width: 0 !important;
+}
+.main-nowPlayingBar-center { width: 272px !important; justify-content: center !important; position: static !important; }
+.main-nowPlayingBar-right { justify-self: end !important; }
+
+.player-controls { position: static !important; width: 100% !important; justify-content: center !important; }
+.player-controls__buttons { width: 100% !important; margin: 0 !important; justify-content: center !important; }
+
+.main-nowPlayingWidget-nowPlaying { display: flex !important; align-items: center !important; gap: 12px !important; height: 100% !important; }
+.main-nowPlayingWidget-trackInfo { display: flex !important; flex-direction: column !important; justify-content: center !important; }
+.main-nowPlayingWidget-trackInfo button { display: none !important; } /* "Audio sin pérdida" */
+
+.main-coverSlotCollapsed-container {
+    width: 52px !important;
+    height: 52px !important;
+    flex: none !important;
+    transform: none !important;
+    filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--cs-accent) 40%, transparent));
+}
+.main-coverSlotCollapsed-container img,
+.main-coverSlotCollapsed-container > div {
+    width: 52px !important;
+    height: 52px !important;
+    border-radius: calc(var(--cs-r-inner) - 8px) !important;
+}
+
+/* Barra de progreso = borde inferior del dock; los tiempos aparecen al pasar el ratón */
+.playback-bar,
+.playback-progressbar-container {
+    position: absolute !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 12px !important;
+    width: auto !important;
+    margin: 0 !important;
+}
+.playback-bar { display: block !important; }
+.playback-progressbar,
+.playback-progressbar .progress-bar { width: 100% !important; height: 12px !important; --progress-bar-height: 3px; }
+
+[data-testid="playback-position"],
+[data-testid="playback-duration"] {
+    position: absolute !important;
+    bottom: 10px !important;
+    font-size: 10px !important;
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+[data-testid="playback-position"] { left: 14px !important; }
+[data-testid="playback-duration"] { right: 14px !important; }
+.Root__now-playing-bar:hover [data-testid="playback-position"],
+.Root__now-playing-bar:hover [data-testid="playback-duration"] { opacity: 0.85; }
+
+/* Volumen más corto y sin mini-reproductor: caben los controles laterales */
+.volume-bar__slider-container { width: 64px !important; }
+[data-testid="pip-toggle-button"] { display: none !important; }
+
+/* El play del dock es el blanco de Spotify, sin anillo ni relleno propios */
+.main-playPauseButton-button,
+[data-testid="control-button-playpause"] {
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 999px !important;
+    transition: transform 150ms var(--cs-ease) !important;
+}
+[data-testid="control-button-playpause"]:hover { transform: scale(1.06) !important; }
+
+.x-progressBar-fillColor { box-shadow: 0 0 10px color-mix(in srgb, var(--cs-accent) 70%, transparent) !important; }
+
+/* --------------------------------------------------------------------------
+   12. Sin fondos dobles: los botones dentro de una píldora/panel no llevan caja
+   -------------------------------------------------------------------------- */
+.main-globalNav-historyButtonsContainer button,
+.main-globalNav-searchContainer button,
+.main-globalNav-contentRight button,
+.spicetify-sc-chevronBtn {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+.main-globalNav-historyButtonsContainer button:hover,
+.main-globalNav-searchContainer button:hover,
+.main-globalNav-contentRight button:hover {
+    background: rgba(var(--spice-rgb-text), 0.08) !important;
+}
+
+/* La caja interior de "Tu biblioteca" */
+.main-yourLibraryX-libraryContainer,
+.main-yourLibraryX-libraryContainer > div { background: transparent !important; }
+
+/* --------------------------------------------------------------------------
+   13. Ajustes v4
+   -------------------------------------------------------------------------- */
+
+/* Los "···" de arriba a la izquierda son el menú NATIVO de la ventana de Spotify
+   (no están en la página: se dibujan encima, en x≈26–48, y≈36). No se pueden
+   quitar desde el tema, así que la píldora de navegación les deja su hueco. */
+.main-globalNav-historyButtonsContainer { margin-left: 44px !important; }
+
+.main-globalNav-historyButtonsWrapper,
+.main-globalNav-historyButtons {
+    display: flex !important;
+    align-items: center !important;
+    gap: 2px !important;
+    width: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+.custom-navlinks-scrollable_container { width: 36px !important; flex: none !important; }
+.spicetify-sc-chevronBtn { display: none !important; }
+
+/* Iconos centrados en su círculo */
+.main-globalNav-historyButtonsContainer button .e-10451-button__icon-wrapper,
+.main-globalNav-searchContainer button .e-10451-button__icon-wrapper,
+.main-globalNav-contentRight button .e-10451-button__icon-wrapper {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 24px !important;
+    height: 24px !important;
+    margin: 0 !important;
+}
+
+/* Búsqueda: sin barra vertical, sin hueco sobrante a la derecha */
+.main-globalNav-browseButtonWrapper {
+    border: 0 !important;
+    padding: 0 !important;
+    width: 36px !important;
+    margin: 0 !important;
+}
+.main-globalNav-searchInputSection form,
+.main-globalNav-searchInputWrapper { padding-right: 0 !important; }
+.main-globalNav-searchContainer { padding-right: 6px !important; }
+
+/* La X de borrar solo aparece si hay algo escrito */
+.main-globalNav-searchInputSection form:has(input:placeholder-shown)
+    .e-10451-form-input-icon__icon--trailing > button { display: none !important; }
+
+/* Los tres paneles con el mismo velo del acento (antes solo lo llevaba el central) */
+.Root__nav-bar,
+.Root__right-sidebar {
+    background-image: radial-gradient(110% 420px at 30% -12%,
+        color-mix(in srgb, var(--cs-accent) 14%, transparent), transparent 72%) !important;
+    background-repeat: no-repeat !important;
+    box-shadow: inset 0 1px 0 rgba(var(--spice-rgb-text), 0.06), var(--cs-shadow) !important;
+}
+
+/* Título y portada: mismo tamaño en todas las playlists y alineados por abajo */
+.main-entityHeader-containerNormal .main-entityHeader-contentWrapper { align-items: flex-end !important; }
+.main-entityHeader-containerNormal .main-entityHeader-title,
+.main-entityHeader-containerNormal .main-entityHeader-title * {
+    font-size: clamp(24px, 2.7vw, 36px) !important;
+    line-height: 1.08 !important;
+    text-wrap: wrap !important; /* llena la línea antes de saltar (Spotify usa balance) */
+}
+
+/* Cabecera de columnas y ordenación */
+.main-trackList-column.main-trackList-sortable,
+button.main-trackList-column {
+    border-radius: 8px !important;
+    transition: background-color 140ms ease, color 140ms ease !important;
+}
+button.main-trackList-column:hover {
+    background-color: rgba(var(--spice-rgb-text), 0.08) !important;
+    color: var(--spice-text) !important;
+}
+button.main-trackList-column[aria-sort="ascending"],
+button.main-trackList-column[aria-sort="descending"],
+button.main-trackList-column[aria-sort="ascending"] *,
+button.main-trackList-column[aria-sort="descending"] * { color: var(--cs-accent) !important; }
+
+.x-sortBox-sortDropdown,
+.x-filterBox-expandButton {
+    border-radius: 999px !important;
+    transition: background-color 140ms ease !important;
+}
+.x-sortBox-sortDropdown:hover,
+.x-filterBox-expandButton:hover { background-color: rgba(var(--spice-rgb-text), 0.08) !important; }
+
+/* Al hacer scroll: título fijo y cabecera de columnas forman UNA sola barra */
+.main-topBar-background {
+    border-bottom: 0 !important;
+    border-radius: 0 !important;
+    background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
+    backdrop-filter: blur(22px) saturate(1.3) !important;
+}
+/* La cabecera solo es cristal cuando ya está pegada (theme.js pone data-cs-stuck);
+   el contenido se desvanece bajo ella en vez de cortarse en seco */
+html[data-cs-stuck] .main-trackList-trackListHeader {
+    border-radius: 0 !important;
+    border: 0 !important;
+    background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
+    backdrop-filter: blur(22px) saturate(1.3) !important;
+}
+html[data-cs-stuck] .main-trackList-trackListHeader::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 30px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--spice-main) 42%, transparent), transparent);
+    backdrop-filter: blur(22px) saturate(1.3);
+    -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
+    mask-image: linear-gradient(to bottom, #000, transparent);
+}
+/* El play fijo deja el mismo aire que el resto respecto a la esquina redondeada */
+.main-topBar-topbarContentContainer { padding-left: 22px !important; }
+
+/* --------------------------------------------------------------------------
+   Panel flotante v4
+   -------------------------------------------------------------------------- */
+.Root__now-playing-bar {
+    height: 76px !important;
+    border-color: color-mix(in srgb, var(--cs-accent) 10%, var(--cs-border)) !important;
+    background:
+        radial-gradient(120% 160% at 50% 140%, color-mix(in srgb, var(--cs-accent) 7%, transparent), transparent 62%),
+        color-mix(in srgb, var(--spice-main) 72%, transparent) !important;
+    /* glow dinámico muy sutil, solo por DENTRO de los bordes: fuera solo la sombra
+       neutra, para no teñir lo que hay debajo del panel */
+    box-shadow:
+        inset 0 0 14px -8px color-mix(in srgb, var(--cs-accent) 14%, transparent),
+        var(--cs-shadow-lg) !important;
+}
+
+.main-coverSlotCollapsed-container,
+.main-coverSlotCollapsed-container img,
+.main-coverSlotCollapsed-container > div { width: 60px !important; height: 60px !important; }
+
+/* La info de la canción nunca invade la columna central */
+.main-nowPlayingBar-left { width: 100% !important; justify-self: stretch !important; }
+.main-nowPlayingWidget-nowPlaying { width: 100% !important; min-width: 0 !important; }
+.main-nowPlayingWidget-trackInfo { flex: 1 1 0 !important; min-width: 0 !important; overflow: hidden !important; }
+.main-nowPlayingWidget-actionButtonWrapper { flex: none !important; margin: 0 !important; padding: 0 !important; }
+.main-coverSlotCollapsed-container { align-self: center !important; margin: 0 !important; }
+.main-nowPlayingWidget-nowPlaying { gap: 10px !important; }
+.main-nowPlayingWidget-trackInfo .main-trackInfo-xsmallBadges { display: none !important; } /* la línea con el ▶ suelta */
+
+/* Progreso: entre dos tiempos, pegado al borde inferior y simétrico.
+   Los tiempos van a la altura de la carátula: 78px = 8 (margen) + 60 (carátula) + 10. */
+.playback-bar {
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    height: 26px !important;
+    pointer-events: none;
+}
+[data-testid="playback-position"],
+[data-testid="playback-duration"] {
+    opacity: 0.8 !important;
+    bottom: 7px !important;
+    width: 34px !important;
+    font-size: 11px !important;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+[data-testid="playback-position"] { left: 90px !important; text-align: left !important; }
+[data-testid="playback-duration"] { right: 90px !important; left: auto !important; text-align: right !important; }
+
+.playback-progressbar-container {
+    left: 132px !important;
+    right: 132px !important;
+    bottom: 0 !important;
+    height: 14px !important;
+    pointer-events: auto;
+}
+.playback-progressbar,
+.playback-progressbar .progress-bar { height: 14px !important; --progress-bar-height: 3px; }
+
+/* La barra ES el borde inferior del panel: pegada abajo, plana, y al pasar el
+   ratón crece un poco hacia arriba */
+.playback-progressbar .progress-bar { display: flex !important; align-items: flex-end !important; }
+.playback-progressbar .x-progressBar-progressBarBg {
+    top: auto !important;
+    bottom: 0 !important;
+    transform: none !important;
+    height: 3px !important;
+    border-radius: 0 !important;
+    background-color: rgba(var(--spice-rgb-text), 0.12) !important;
+    transition: height 140ms ease !important;
+}
+.playback-progressbar-container:hover .x-progressBar-progressBarBg { height: 6px !important; }
+.playback-progressbar .x-progressBar-sliderArea,
+.playback-progressbar .x-progressBar-progressFillColor,
+.playback-progressbar .x-progressBar-fillColor { height: 100% !important; border-radius: 0 !important; }
+.playback-progressbar .x-progressBar-fillColor { box-shadow: none !important; }
+
+/* --------------------------------------------------------------------------
+   14. Panel flotante: liquid glass
+   Cristal translúcido con borde especular y brillo interior. NO hay blanco fijo:
+   el tinte (cuerpo, filo y brillo) sale del color dominante de la carátula, así
+   que cambia con el fondo al cambiar de canción. Sin sombra de color por fuera.
+   -------------------------------------------------------------------------- */
+.Root__now-playing-bar {
+    --cs-glass: color-mix(in srgb, var(--cs-accent) 55%, var(--spice-main));
+    --cs-rim: color-mix(in srgb, var(--cs-accent) 62%, #fff);
+
+    background:
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--cs-glass) 34%, transparent) 0%,
+            color-mix(in srgb, var(--cs-glass) 8%, transparent) 40%,
+            color-mix(in srgb, var(--cs-glass) 20%, transparent) 100%),
+        color-mix(in srgb, var(--spice-main) 34%, transparent) !important;
+    backdrop-filter: blur(26px) saturate(1.9) brightness(1.04) !important;
+    border: 1px solid color-mix(in srgb, var(--cs-rim) 16%, transparent) !important;
+    box-shadow:
+        inset 0 1px 0 color-mix(in srgb, var(--cs-rim) 30%, transparent),
+        inset 0 -1px 0 color-mix(in srgb, var(--cs-rim) 9%, transparent),
+        inset 0 0 22px -6px color-mix(in srgb, var(--cs-accent) 18%, transparent),
+        var(--cs-shadow-lg) !important;
+}
+
+/* Borde especular: degradado que solo se ve en el filo (luz arriba-izquierda,
+   rebote abajo-derecha), teñido con el mismo color */
+.Root__now-playing-bar::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    border-radius: inherit;
+    pointer-events: none;
+    background: linear-gradient(135deg,
+        color-mix(in srgb, var(--cs-rim) 60%, transparent) 0%,
+        transparent 28%,
+        transparent 68%,
+        color-mix(in srgb, var(--cs-rim) 30%, transparent) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    z-index: 6;
+}
+
+/* --------------------------------------------------------------------------
+   15. Dock v5: cristal más transparente, márgenes iguales, progreso fino
+   -------------------------------------------------------------------------- */
+.Root__now-playing-bar {
+    padding: 0 calc(8px - 0.912871px) !important; /* + borde = 8px, igual que arriba y abajo */
+    background:
+        linear-gradient(135deg,
+            color-mix(in srgb, var(--cs-glass) 22%, transparent) 0%,
+            color-mix(in srgb, var(--cs-glass) 4%, transparent) 40%,
+            color-mix(in srgb, var(--cs-glass) 13%, transparent) 100%),
+        color-mix(in srgb, var(--spice-main) 20%, transparent) !important;
+}
+/* Spotify añade 8px de relleno a la izquierda: fuera, para que la carátula
+   quede a 8px de TODOS los bordes y su radio (8) sea paralelo al del dock (16) */
+.main-nowPlayingBar-left { padding: 0 !important; }
+
+/* Volumen: la barra estaba pegada abajo de su caja; centrada con los iconos */
+.volume-bar__slider-container .x-progressBar-progressBarBg {
+    top: 50% !important;
+    bottom: auto !important;
+    transform: translateY(-50%) !important;
+}
+
+/* Progreso más fino */
+.playback-progressbar .x-progressBar-progressBarBg { height: 2px !important; }
+.playback-progressbar-container:hover .x-progressBar-progressBarBg { height: 4px !important; }
+
+/* Título alineado con los tiempos; tiempos más bajos */
+.main-nowPlayingWidget-trackInfo { margin-left: 2px !important; } /* 12px entre carátula y título */
+[data-testid="playback-position"],
+[data-testid="playback-duration"] { bottom: 4px !important; }
+[data-testid="playback-position"] { left: 79px !important; }
+[data-testid="playback-duration"] { right: 79px !important; }
+.playback-progressbar-container { left: 121px !important; right: 121px !important; }
+
+/* --------------------------------------------------------------------------
+   16. Letra: sin la caja de color de Spotify, tipografía grande y línea activa
+   con el acento; las demás se apagan y se desenfocan según su distancia
+   -------------------------------------------------------------------------- */
+.lyrics-lyrics-container {
+    --lyrics-color-active: color-mix(in srgb, var(--cs-accent) 32%, var(--spice-text)) !important;
+    --lyrics-color-inactive: var(--spice-text) !important;
+    --lyrics-color-passed: var(--spice-text) !important;
+    --lyrics-color-background: transparent !important;
+    --lyrics-color-messaging: var(--spice-subtext) !important;
+}
+.lyrics-lyrics-background { background: transparent !important; }
+.lyrics-lyrics-contentWrapper { padding: 0 44px 0 48px !important; }
+.lyrics-lyrics-contentContainer { padding-bottom: 130px; } /* la última línea sube por encima del dock */
+
+.lyrics-lyricsContent-lyric {
+    font-size: clamp(26px, 2.9vw, 40px) !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.02em !important;
+    line-height: 1.16 !important;
+    padding: 9px 0 !important;
+    text-align: left !important;
+    color: var(--spice-text) !important;
+    transform-origin: left center;
+    cursor: pointer;
+    transition: opacity 480ms var(--cs-ease), filter 480ms var(--cs-ease), color 480ms var(--cs-ease),
+                text-shadow 480ms var(--cs-ease), transform 480ms var(--cs-ease) !important;
+}
+/* sin sincronizar: todas legibles */
+.lyrics-lyricsContent-upcoming { opacity: 0.85; }
+/* sincronizada: pasadas casi apagadas, futuras más tenues cuanto más lejos */
+.lyrics-lyrics-contentWrapper:has(.lyrics-lyricsContent-active) .lyrics-lyricsContent-previous {
+    opacity: 0.34;
+    filter: blur(0.8px);
+}
+.lyrics-lyrics-contentWrapper:has(.lyrics-lyricsContent-active) .lyrics-lyricsContent-upcoming {
+    opacity: 0.24;
+    filter: blur(1.6px);
+}
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active {
+    opacity: 1 !important;
+    filter: none !important;
+    color: var(--lyrics-color-active) !important;
+    text-shadow: 0 0 34px color-mix(in srgb, var(--cs-accent) 55%, transparent);
+    transform: scale(1.03);
+}
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; filter: blur(0); }
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; filter: blur(0.6px); }
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; filter: blur(1.1px); }
+/* al pasar el ratón, la línea se aclara (un clic salta a ella) */
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric:hover { opacity: 0.95 !important; filter: none !important; }
+
+.lyrics-lyricsContent-provider { color: var(--spice-subtext) !important; font-size: 12px !important; padding: 28px 0 0 !important; opacity: 0.7; }
+
+/* Las líneas se desvanecen al acercarse a los bordes del panel */
+.main-view-container__scroll-node:has(.lyrics-lyrics-container) {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 80%, transparent 96%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 12%, #000 80%, transparent 96%);
+}
+
+/* --------------------------------------------------------------------------
+   17. Modo claro: los textos que Spotify fija en blanco (cabeceras "sobre imagen")
+   -------------------------------------------------------------------------- */
+.main-entityHeader-metaData .encore-text,
+.main-entityHeader-metaDataText .encore-text,
+.main-entityHeader-subtitle .encore-text { color: var(--spice-subtext) !important; }
+
+/* Vista "Sonando" con vídeo/canvas (siempre oscuro): cabecera y título en blanco
+   sobre la imagen, y el degradado baja al color del panel por debajo del título */
+html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) :is(.main-nowPlayingView-headerWrapper, .main-nowPlayingView-contextItemInfo),
+html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) :is(.main-nowPlayingView-headerWrapper, .main-nowPlayingView-contextItemInfo) * {
+    color: #fff !important;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::before {
+    background: linear-gradient(to bottom, transparent 0%, transparent 22%, color-mix(in srgb, var(--spice-main) 90%, transparent) 62%, var(--spice-main) 84%) !important;
+}
+
+/* Tarjetas de categorías (Explorar todo): fondo de color saturado, texto blanco */
+html[data-cs-mode="light"] a[href*="/genre/"] [class*="encore-text"],
+html[data-cs-mode="light"] a[href*="/section/"] [class*="encore-text"],
+html[data-cs-mode="light"] a[href*="concert"] [class*="encore-text"],
+html[data-cs-mode="light"] a[href="/podcastcharts"] [class*="encore-text"] { color: #fff !important; }
+
+/* Cabeceras y tarjetas con foto de fondo (artista, "Información sobre el artista"):
+   el texto va en blanco con sombra, la foto es oscura en cualquier modo */
+html[data-cs-mode="light"] .main-entityHeader-withBackgroundImage :is(.main-entityHeader-headerText, .main-entityHeader-headerText *),
+html[data-cs-mode="light"] .main-nowPlayingView-aboutArtist .main-nowPlayingView-sectionHeader,
+html[data-cs-mode="light"] .main-nowPlayingView-aboutArtist .main-nowPlayingView-sectionHeader * {
+    color: #fff !important;
+    text-shadow: 0 1px 10px rgba(0, 0, 0, 0.55);
+}
+
+/* --------------------------------------------------------------------------
+   18. Controles nativos de la ventana según el sistema (theme.js pone data-cs-os)
+   Linux: menú "···" arriba a la izquierda (hueco ya reservado arriba).
+   Windows: minimizar/maximizar/cerrar arriba a la derecha. macOS: semáforo a la izquierda.
+   -------------------------------------------------------------------------- */
+html[data-cs-os="windows"] .main-globalNav-historyButtonsContainer { margin-left: 0 !important; }
+html[data-cs-os="windows"] .main-globalNav-contentRight { margin-right: 140px !important; }
+html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76px !important; }
