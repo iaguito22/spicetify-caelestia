@@ -53,7 +53,7 @@ If you use the [Caelestia](https://github.com/caelestia-dots/shell) shell, its s
 ## Status and limits
 
 - Built and tested on **Linux (Arch, Hyprland) with Spotify 1.2.96**. Spotify's class names change between versions; lyrics and the right sidebar break first.
-- **Windows and macOS are untested.** The theme reserves room for the native window controls (top-right on Windows, top-left on macOS), but the sizes are a guess. Please open an issue with a screenshot if something overlaps.
+- **Windows was checked from a user screenshot (issue #1); macOS is untested.** The theme reserves room for the native window controls (top-right on Windows, top-left on macOS), but the sizes are a guess. Please open an issue with a screenshot if something overlaps.
 - On Linux the native "···" window menu at the top-left can't be removed from CSS; the navigation pill leaves room for it.
 - Light mode: tested on playlist, artist, search, home and lyrics. Context menus and albums weren't checked.
 
@@ -69,4 +69,4 @@ Tema de Spicetify con paneles flotantes, fondo ambiental y acento sacados de la 
 
 Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o `.\install.ps1` (Windows). Para cambiar de modo: `spicetify config color_scheme light` (o `dark`) y `spicetify apply`.
 
-Probado en Linux con Spotify 1.2.96. **Windows y macOS no están probados**; si algo se solapa con los controles de la ventana, abre un issue con una captura.
+Probado en Linux con Spotify 1.2.96. **Windows se ajustó a partir de capturas (issue #1); macOS no está probado**; si algo se solapa con los controles de la ventana, abre un issue con una captura.

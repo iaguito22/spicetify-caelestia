@@ -943,6 +943,8 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 .main-coverSlotCollapsed-container { align-self: center !important; margin: 0 !important; }
 .main-nowPlayingWidget-nowPlaying { gap: 10px !important; }
 .main-nowPlayingWidget-trackInfo .main-trackInfo-xsmallBadges { display: none !important; } /* la línea con el ▶ suelta */
+/* Solo título y artista: versiones nuevas de Spotify añaden más líneas (álbum • año) que pisaban los tiempos */
+.main-nowPlayingWidget-trackInfo > :not(.main-trackInfo-name):not(.main-trackInfo-artists) { display: none !important; }
 
 /* Progreso: entre dos tiempos, pegado al borde inferior y simétrico.
    Los tiempos van a la altura de la carátula: 78px = 8 (margen) + 60 (carátula) + 10. */
@@ -1214,7 +1216,7 @@ html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::before {
 
 /* Tarjetas de categorías (Explorar todo): fondo de color saturado, texto blanco */
 html[data-cs-mode="light"] a[href*="/genre/"] [class*="encore-text"],
-html[data-cs-mode="light"] a[href*="/section/"] [class*="encore-text"],
+html[data-cs-mode="light"] a[href*="/section/"] [class*="encore-text"]:not([class*="color-text-subdued"]), /* "Mostrar todos" no es una tarjeta */
 html[data-cs-mode="light"] a[href*="concert"] [class*="encore-text"],
 html[data-cs-mode="light"] a[href="/podcastcharts"] [class*="encore-text"] { color: #fff !important; }
 
@@ -1229,10 +1231,9 @@ html[data-cs-mode="light"] .main-nowPlayingView-aboutArtist .main-nowPlayingView
 
 /* --------------------------------------------------------------------------
    18. Controles nativos de la ventana según el sistema (theme.js pone data-cs-os)
-   Linux: menú "···" arriba a la izquierda (hueco ya reservado arriba).
-   Windows: minimizar/maximizar/cerrar arriba a la derecha. macOS: semáforo a la izquierda.
+   Linux y Windows: menú "···" arriba a la izquierda (hueco ya reservado arriba).
+   Windows: además minimizar/maximizar/cerrar arriba a la derecha. macOS: semáforo a la izquierda.
    -------------------------------------------------------------------------- */
-html[data-cs-os="windows"] .main-globalNav-historyButtonsContainer { margin-left: 0 !important; }
 html[data-cs-os="windows"] .main-globalNav-contentRight { margin-right: 140px !important; }
 html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76px !important; }
 
@@ -1469,3 +1470,9 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-collapseButton { margin: 0 !important; align-self: center !important; }
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button { background: rgba(var(--spice-rgb-text), 0.06) !important; }
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }
+
+/* Letra en la vista "Sonando" expandida: el texto se desvanece bajo la cabecera */
+[data-cs-lyr-scroll] {
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 44px, #000 128px);
+    mask-image: linear-gradient(to bottom, transparent 0, transparent 44px, #000 128px);
+}

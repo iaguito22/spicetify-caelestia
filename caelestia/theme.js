@@ -446,16 +446,37 @@
     function dockLayout() {
         const root = document.documentElement;
         const main = document.querySelector(".Root__main-view"), dock = document.querySelector(".Root__now-playing-bar");
-        if (!main || !dock) return;
-        const m = main.getBoundingClientRect(), vw = root.clientWidth;
-        if (m.width - 2 * DOCK_INSET >= DOCK_W) return root.removeAttribute("data-cs-dock-float");
+        if (!main || !dock || root.hasAttribute("data-cs-anim")) return; // en plena animación el rect va transformado
+        const vw = root.clientWidth;
+        // Vista "Sonando" expandida: el panel central se oculta (display:none) y el dock, sin
+        // celda de rejilla, flota centrado en la ventana
+        const hidden = !main.offsetWidth;
+        const m = hidden ? { left: 0, width: vw } : main.getBoundingClientRect();
+        if (!hidden && m.width - 2 * DOCK_INSET >= DOCK_W) return root.removeAttribute("data-cs-dock-float");
         const w = Math.min(vw - 2 * DOCK_INSET, DOCK_W);
         const x = Math.max(DOCK_INSET, Math.min(vw - w - DOCK_INSET, m.left + m.width / 2 - w / 2));
         root.style.setProperty("--cs-dock-w", w + "px");
         root.style.setProperty("--cs-dock-x", x + "px");
         root.setAttribute("data-cs-dock-float", "");
     }
-    let dockRO = null;
+    let dockRO = null, dockEl = null;
+
+    // Letra en la vista "Sonando" expandida: la cabecera (título y botones) queda sobre el texto
+    // que se desplaza; el contenedor con scroll lleva un desvanecido arriba (`data-cs-lyr-scroll`)
+    function markLyricsScroll() {
+        const lc = document.querySelector(".lyrics-lyrics-container");
+        const cur = document.querySelector("[data-cs-lyr-scroll]");
+        if (!lc || lc.closest(".Root__main-view")) return cur?.removeAttribute("data-cs-lyr-scroll");
+        let e = lc.parentElement;
+        while (e && e !== document.body) {
+            const oy = getComputedStyle(e).overflowY;
+            if ((oy === "auto" || oy === "scroll") && e.scrollHeight > e.clientHeight) break;
+            e = e.parentElement;
+        }
+        if (!e || e === document.body) return cur?.removeAttribute("data-cs-lyr-scroll");
+        if (cur && cur !== e) cur.removeAttribute("data-cs-lyr-scroll");
+        e.setAttribute("data-cs-lyr-scroll", "");
+    }
 
     // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) se marca
     // `data-cs-anim` un momento para que el CSS haga la animación de entrada
@@ -480,7 +501,7 @@
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag")) return;
             root.setAttribute("data-cs-anim", dl && dr ? "both" : dl ? "left" : "right");
             clearTimeout(animT);
-            animT = setTimeout(() => root.removeAttribute("data-cs-anim"), 1050);
+            animT = setTimeout(() => { root.removeAttribute("data-cs-anim"); dockLayout(); }, 1050);
         });
         sideRO.observe(nav);
         sideRO.observe(rs);
@@ -558,7 +579,10 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
             const mv = document.querySelector(".Root__main-view");
             watchSides();
-            if (mv && !dockRO) { dockRO = new ResizeObserver(dockLayout); dockRO.observe(mv); dockLayout(); }
+            // Spotify puede sustituir el nodo (p. ej. al abrir/cerrar la letra): se re-observa y se recoloca el dock
+            if (mv && mv !== dockEl) { dockRO ||= new ResizeObserver(dockLayout); dockRO.disconnect(); dockRO.observe(mv); dockEl = mv; }
+            dockLayout();
+            markLyricsScroll();
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);
