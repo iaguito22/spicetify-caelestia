@@ -1015,7 +1015,7 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 .lyrics-lyrics-container[data-cs-out] .lyrics-lyricsContent-upcoming { animation-delay: 80ms; }
 
 /* al pasar el ratón, la línea se aclara (un clic salta a ella) */
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric:hover { opacity: 0.95 !important; filter: none !important; }
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric:hover { opacity: 0.95 !important; filter: none !important; text-decoration: none !important; }
 
 .lyrics-lyricsContent-provider { color: var(--spice-subtext) !important; font-size: 12px !important; padding: 28px 0 0 !important; opacity: 0.7; }
 
