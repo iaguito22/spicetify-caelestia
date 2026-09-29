@@ -453,8 +453,15 @@
         const hidden = !main.offsetWidth;
         const m = hidden ? { left: 0, width: vw } : main.getBoundingClientRect();
         if (!hidden && m.width - 2 * DOCK_INSET >= DOCK_W) return root.removeAttribute("data-cs-dock-float");
-        const w = Math.min(vw - 2 * DOCK_INSET, DOCK_W);
-        const x = Math.max(DOCK_INSET, Math.min(vw - w - DOCK_INSET, m.left + m.width / 2 - w / 2));
+        // Expandida: el dock queda DENTRO de la vista (mismo margen que sobre el panel central),
+        // no sobre su esquina redondeada ni sobre el marco de la ventana
+        const top = document.querySelector(".Root__top-container"), rs = document.querySelector(".Root__right-sidebar");
+        const pad = hidden && top ? parseFloat(getComputedStyle(top).paddingLeft) || 0 : 0;
+        const rowBottom = hidden && rs ? rs.getBoundingClientRect().bottom : 0;
+        if (hidden && rowBottom) root.style.setProperty("--cs-dock-b", root.clientHeight - rowBottom + DOCK_INSET + "px");
+        else root.style.removeProperty("--cs-dock-b");
+        const w = Math.min(vw - 2 * (DOCK_INSET + pad), DOCK_W);
+        const x = Math.max(DOCK_INSET + pad, Math.min(vw - w - DOCK_INSET - pad, m.left + m.width / 2 - w / 2));
         root.style.setProperty("--cs-dock-w", w + "px");
         root.style.setProperty("--cs-dock-x", x + "px");
         root.setAttribute("data-cs-dock-float", "");

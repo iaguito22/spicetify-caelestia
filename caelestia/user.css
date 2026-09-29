@@ -762,7 +762,7 @@ html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 950m
 html[data-cs-dock-float] .Root__now-playing-bar {
     position: fixed !important;
     left: var(--cs-dock-x) !important;
-    bottom: var(--cs-inset) !important;
+    bottom: var(--cs-dock-b, var(--cs-inset)) !important;
     width: var(--cs-dock-w) !important;
     margin: 0 !important;
     z-index: 40 !important;
@@ -1499,3 +1499,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     background: linear-gradient(to bottom, transparent, var(--spice-main));
 }
 .main-entityHeader-withBackgroundImage > .main-entityHeader-contentWrapper { position: relative; z-index: 1; }
+
+/* Vista "Sonando" expandida: la isla usa el mismo radio (28) que los demás paneles, así el
+   dock (16) queda concéntrico con su esquina en vez de asomar sobre ella */
+.Root__cinema-view > .main-actionBar-ActionBarContainer { border-radius: 28px !important; overflow: hidden; }
