@@ -626,22 +626,28 @@ input:focus-visible {
     from { opacity: 0; transform: translateY(-10px); }
 }
 
-/* Abrir y cerrar los paneles laterales: theme.js fija las columnas en el ancho
-   anterior y las lleva al nuevo (data-cs-anim="left|right|both"); mientras dura,
-   el panel llena su columna y su contenido entra desde su lado. */
-html[data-cs-anim] .Root__top-container { transition: grid-template-columns 560ms cubic-bezier(0.32, 0.72, 0, 1); }
-html[data-cs-anim] .Root__nav-bar { width: auto !important; overflow: hidden !important; }
-html[data-cs-anim] .Root__right-sidebar { overflow: hidden !important; }
+/* Abrir y cerrar los paneles laterales. Cambiar el ancho de una columna cuesta ~0,7 s de
+   trabajo a Spotify (React + estilos), así que NO se anima el ancho (cada fotograma
+   tardaría 130-500 ms): se anima con opacidad y desplazamiento, que van por la GPU,
+   justo después del cambio. theme.js pone data-cs-anim="left|right|both". */
 @keyframes cs-side-in-left {
-    from { opacity: 0; transform: translateX(-22px) scale(0.98); filter: blur(8px); }
+    from { opacity: 0; transform: translateX(-32px) scale(0.965); }
 }
 @keyframes cs-side-in-right {
-    from { opacity: 0; transform: translateX(22px) scale(0.98); filter: blur(8px); }
+    from { opacity: 0; transform: translateX(32px) scale(0.965); }
 }
-html[data-cs-anim="left"] .Root__nav-bar > *,
-html[data-cs-anim="both"] .Root__nav-bar > * { animation: cs-side-in-left 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-html[data-cs-anim="right"] .Root__right-sidebar > *,
-html[data-cs-anim="both"] .Root__right-sidebar > * { animation: cs-side-in-right 560ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes cs-main-from-left {
+    from { opacity: 0.4; transform: translateX(-22px) scale(0.99); }
+}
+@keyframes cs-main-from-right {
+    from { opacity: 0.4; transform: translateX(22px) scale(0.99); }
+}
+html[data-cs-anim="left"] .Root__nav-bar,
+html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 520ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 0 50%; }
+html[data-cs-anim="right"] .Root__right-sidebar,
+html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 520ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 100% 50%; }
+html[data-cs-anim="left"] .Root__main-view { animation: cs-main-from-left 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* --------------------------------------------------------------------------
    11. Reproductor: dock flotante, concéntrico con el panel central
@@ -1359,21 +1365,21 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
    20. Biblioteca contraída: columna de iconos centrada (72px)
    Marca de estado: Spotify pone --left-sidebar-width: 72 en el panel al contraerla.
    -------------------------------------------------------------------------- */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] { --cs-col: 72px; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryContainer {
+.Root__nav-bar[data-cs-lib-min] { --cs-col: 72px; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryContainer {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     align-items: center;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryContainer > div { width: 100% !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryContainer > div { width: 100% !important; }
 /* cabecera: botón de biblioteca y "+" centrados, uno bajo otro */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-header {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-header {
     padding: 14px 0 8px !important;
     display: flex !important;
     justify-content: center !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent {
     width: auto !important;
     height: auto !important;
     display: flex !important;
@@ -1381,7 +1387,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     align-items: center !important;
     gap: 6px !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button {
     width: 40px !important;
     height: 40px !important;
     padding: 0 !important;
@@ -1391,44 +1397,44 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     justify-content: center !important;
 }
 /* lista: portadas cuadradas de 48px centradas, con el radio concéntrico del panel */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist { padding: 0 !important; margin: 0 !important; width: 100% !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist > div { width: 100% !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="row"],
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="listitem"] {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist { padding: 0 !important; margin: 0 !important; width: 100% !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist > div { width: 100% !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [role="row"],
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [role="listitem"] {
     display: flex !important;
     justify-content: center !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row"],
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row__header-side"] {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row"],
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row__header-side"] {
     padding: 0 !important;
     margin: 0 !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer,
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer img {
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer,
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer img {
     width: 48px !important;
     height: 48px !important;
     border-radius: 16px !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="row"] { padding: 3px 0 !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [role="row"] { padding: 3px 0 !important; }
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer {
     overflow: hidden;
     transition: transform 180ms var(--cs-ease), box-shadow 180ms ease !important;
 }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] [role="row"]:hover .x-entityImage-imageContainer {
+.Root__nav-bar[data-cs-lib-min] [role="row"]:hover .x-entityImage-imageContainer {
     transform: scale(1.06);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--cs-accent) 65%, transparent);
 }
 /* la lista se desvanece al llegar al borde inferior redondeado */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryItemContainer {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryItemContainer {
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
 /* El radio lo pone SOLO el contenedor: las portadas en mosaico (2×2) llevan varias
    <img> y con radio propio cada una redondeaba sus esquinas por separado */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer img,
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer > div,
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer > div > div { border-radius: 0 !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer { clip-path: inset(0 round 16px); }
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer img,
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer > div,
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer > div > div { border-radius: 0 !important; }
+.Root__nav-bar[data-cs-lib-min] .x-entityImage-imageContainer { clip-path: inset(0 round 16px); }
 
 /* --------------------------------------------------------------------------
    21. Carátula del dock: toda la cadena de Spotify a 60×60 (el botón interior
@@ -1449,17 +1455,17 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 /* El contenedor de la lista quedaba en 50px (10px de relleno a cada lado del panel)
    y recortaba las portadas por la izquierda: el relleno se quita para que la columna
    mida el ancho del panel y las portadas de 48px queden centradas */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-entryPoints { padding: 0 !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-entryPoints { padding: 0 !important; }
 /* Portadas centradas en la columna (el hueco por defecto es para el texto que aquí no hay) */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist :is([class*="e-10451-box"]:has(> div > [class*="legacy-list-row__header-side"]), [class*="legacy-list-row__header-side-flex"], [class*="legacy-list-row__header-side"]) {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist :is([class*="e-10451-box"]:has(> div > [class*="legacy-list-row__header-side"]), [class*="legacy-list-row__header-side-flex"], [class*="legacy-list-row__header-side"]) {
     width: 100% !important;
     min-width: 0 !important;
     display: flex !important;
     justify-content: center !important;
 }
 /* la parte de texto de cada fila (oculta en la columna) seguía ocupando ~14px y descentraba la portada */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="e-10451-box"]:has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"]) { display: none !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [class*="e-10451-box"]:has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"]) { display: none !important; }
 /* el botón de biblioteca traía 30px de margen derecho (para el título) y quedaba a la izquierda */
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-collapseButton { margin: 0 !important; align-self: center !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button { background: rgba(var(--spice-rgb-text), 0.06) !important; }
-.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-collapseButton { margin: 0 !important; align-self: center !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button { background: rgba(var(--spice-rgb-text), 0.06) !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }

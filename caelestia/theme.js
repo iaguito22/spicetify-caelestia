@@ -457,36 +457,30 @@
     }
     let dockRO = null;
 
-    // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) las columnas
-    // de la rejilla se fijan en el ancho anterior y se llevan al nuevo con una transición
+    // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) se marca
+    // `data-cs-anim` un momento para que el CSS haga la animación de entrada
     let sideRO = null, animT = 0;
     const sideW = {};
     function watchSides() {
-        const top = document.querySelector(".Root__top-container");
         const nav = document.querySelector(".Root__nav-bar"), rs = document.querySelector(".Root__right-sidebar");
-        if (sideRO || !top || !nav || !rs) return;
+        if (sideRO || !nav || !rs) return;
         const width = (e) => e.getBoundingClientRect().width;
         sideW.left = width(nav);
         sideW.right = width(rs);
+        // Biblioteca contraída: un atributo propio en vez de `[style*=...]`, que hacía recalcular
+        // los estilos de todo el panel cada vez que Spotify tocaba su `style`
+        const markMin = () => nav.toggleAttribute("data-cs-lib-min", /--left-sidebar-width:\s*72\b/.test(nav.getAttribute("style") || ""));
+        markMin();
+        new MutationObserver(markMin).observe(nav, { attributes: true, attributeFilter: ["style"] });
         sideRO = new ResizeObserver(() => {
             const root = document.documentElement;
-            if (root.hasAttribute("data-cs-anim")) return; // fotogramas de la propia animación
-            const l = width(nav), r = width(rs), oldL = sideW.left, oldR = sideW.right;
+            const l = width(nav), r = width(rs), dl = Math.abs(l - sideW.left) >= 3, dr = Math.abs(r - sideW.right) >= 3;
             sideW.left = l;
             sideW.right = r;
-            const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag")) return;
             root.setAttribute("data-cs-anim", dl && dr ? "both" : dl ? "left" : "right");
-            top.style.gridTemplateColumns = `${oldL}px 1fr ${oldR}px`;
-            void top.offsetWidth;
-            top.style.gridTemplateColumns = `${l}px 1fr ${r}px`;
             clearTimeout(animT);
-            animT = setTimeout(() => {
-                root.removeAttribute("data-cs-anim");
-                top.style.gridTemplateColumns = "";
-                sideW.left = width(nav);
-                sideW.right = width(rs);
-            }, 640);
+            animT = setTimeout(() => root.removeAttribute("data-cs-anim"), 620);
         });
         sideRO.observe(nav);
         sideRO.observe(rs);
