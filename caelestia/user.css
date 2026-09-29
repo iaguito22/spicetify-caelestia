@@ -1201,3 +1201,39 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
     mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
+/* El radio lo pone SOLO el contenedor: las portadas en mosaico (2×2) llevan varias
+   <img> y con radio propio cada una redondeaba sus esquinas por separado */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer img,
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer > div,
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer > div > div { border-radius: 0 !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer { clip-path: inset(0 round 16px); }
+
+/* --------------------------------------------------------------------------
+   21. Carátula del dock: toda la cadena de Spotify a 60×60 (el botón interior
+   medía 56 y dejaba una franja vacía abajo y a la derecha) con un solo radio
+   -------------------------------------------------------------------------- */
+.main-coverSlotCollapsed-container {
+    border-radius: calc(var(--cs-r-inner) - 8px) !important;
+    overflow: hidden !important;
+}
+.main-coverSlotCollapsed-container .main-useDropTarget-album,
+.main-coverSlotCollapsed-container .main-nowPlayingWidget-coverArtContainer,
+.main-coverSlotCollapsed-container .main-nowPlayingWidget-coverArt {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 0 !important;
+}
+.main-coverSlotCollapsed-container img { object-fit: cover !important; border-radius: 0 !important; }
+/* El contenedor de la lista quedaba en 50px (10px de relleno a cada lado del panel)
+   y recortaba las portadas por la izquierda: el relleno se quita para que la columna
+   mida el ancho del panel y las portadas de 48px queden centradas */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-entryPoints { padding: 0 !important; }
+/* Portadas centradas en la columna (el hueco por defecto es para el texto que aquí no hay) */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist :is([class*="e-10451-box"]:has(> div > [class*="legacy-list-row__header-side"]), [class*="legacy-list-row__header-side-flex"], [class*="legacy-list-row__header-side"]) {
+    width: 100% !important;
+    min-width: 0 !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+/* la parte de texto de cada fila (oculta en la columna) seguía ocupando ~14px y descentraba la portada */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="e-10451-box"]:has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"]) { display: none !important; }
