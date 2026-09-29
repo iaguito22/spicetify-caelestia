@@ -442,7 +442,7 @@
     }
 
     // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
-    const DOCK_W = 860, DOCK_INSET = 12;
+    const DOCK_W = 760, DOCK_INSET = 12;
     function dockLayout() {
         const root = document.documentElement;
         const main = document.querySelector(".Root__main-view"), dock = document.querySelector(".Root__now-playing-bar");
@@ -456,6 +456,41 @@
         root.setAttribute("data-cs-dock-float", "");
     }
     let dockRO = null;
+
+    // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) las columnas
+    // de la rejilla se fijan en el ancho anterior y se llevan al nuevo con una transición
+    let sideRO = null, animT = 0;
+    const sideW = {};
+    function watchSides() {
+        const top = document.querySelector(".Root__top-container");
+        const nav = document.querySelector(".Root__nav-bar"), rs = document.querySelector(".Root__right-sidebar");
+        if (sideRO || !top || !nav || !rs) return;
+        const width = (e) => e.getBoundingClientRect().width;
+        sideW.left = width(nav);
+        sideW.right = width(rs);
+        sideRO = new ResizeObserver(() => {
+            const root = document.documentElement;
+            if (root.hasAttribute("data-cs-anim")) return; // fotogramas de la propia animación
+            const l = width(nav), r = width(rs), oldL = sideW.left, oldR = sideW.right;
+            sideW.left = l;
+            sideW.right = r;
+            const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
+            if ((!dl && !dr) || root.hasAttribute("data-cs-drag")) return;
+            root.setAttribute("data-cs-anim", dl && dr ? "both" : dl ? "left" : "right");
+            top.style.gridTemplateColumns = `${oldL}px 1fr ${oldR}px`;
+            void top.offsetWidth;
+            top.style.gridTemplateColumns = `${l}px 1fr ${r}px`;
+            clearTimeout(animT);
+            animT = setTimeout(() => {
+                root.removeAttribute("data-cs-anim");
+                top.style.gridTemplateColumns = "";
+                sideW.left = width(nav);
+                sideW.right = width(rs);
+            }, 640);
+        });
+        sideRO.observe(nav);
+        sideRO.observe(rs);
+    }
 
     function init() {
         if (!window.Spicetify || !Spicetify.Player || !Spicetify.Player.addEventListener) {
@@ -500,6 +535,12 @@
             }
         }).observe(document.body, { childList: true, subtree: true });
         window.addEventListener("resize", dockLayout);
+        document.addEventListener("pointerdown", (e) => {
+            if (e.target instanceof Element && e.target.closest(".LayoutResizer__resize-bar")) document.documentElement.setAttribute("data-cs-drag", "");
+        }, true);
+        const endDrag = () => document.documentElement.removeAttribute("data-cs-drag");
+        window.addEventListener("pointerup", endDrag, true);
+        window.addEventListener("pointercancel", endDrag, true);
         document.addEventListener("pointerdown", () => {
             const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
             if (sp) searchH = sp.getBoundingClientRect().height;
@@ -522,6 +563,7 @@
             const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
             if (sp) searchH = sp.getBoundingClientRect().height;
             const mv = document.querySelector(".Root__main-view");
+            watchSides();
             if (mv && !dockRO) { dockRO = new ResizeObserver(dockLayout); dockRO.observe(mv); dockLayout(); }
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
