@@ -336,10 +336,10 @@
         });
     }
 
-    // Cada palabra va en un `.cs-g` (crece al cantarse) y sus sílabas en `.cs-w` (se rellenan)
+    // Cada palabra va en un `.cs-g` (no se parte) y cada sílaba en un `.cs-w` (se rellena y crece al cantarse)
     function buildLine(el, idx) {
-        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [], groups = [];
-        let group = null, g = null;
+        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
+        let group = null;
         for (const u of units) {
             const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
             if (!m[2] || u.start === undefined) { group = null; frag.append(u.text); continue; }
@@ -351,19 +351,16 @@
                 group = document.createElement("span");
                 group.className = "cs-g";
                 frag.append(group);
-                g = { el: group, start: u.start, end: u.end, s: 0 };
-                groups.push(g);
             }
             group.append(sp);
-            g.end = u.end;
-            g.el.style.setProperty("--sw", Math.min(0.085, 0.032 + (g.end - g.start) / 1000 * 0.03).toFixed(3));
+            sp.style.setProperty("--sw", Math.min(0.085, 0.032 + (u.end - u.start) / 1000 * 0.03).toFixed(3));
             if (m[3]) { group = null; frag.append(m[3]); }
             else if (!u.syl) group = null;
-            timed.push({ sp, start: u.start, end: u.end, p: 0 });
+            timed.push({ sp, start: u.start, end: u.end, p: 0, s: 0 });
         }
         el.textContent = "";
         el.append(frag);
-        el.__cs = { idx, timed, groups, real: !!lyr.lines[idx].w };
+        el.__cs = { idx, timed, real: !!lyr.lines[idx].w };
     }
 
     function lyricsTick() {
@@ -391,13 +388,11 @@
                 u.p = p;
                 u.sp.style.setProperty("--p", p.toFixed(3));
             }
-        }
-        for (const g of cs.groups) {
-            const st = t < g.start ? 0 : t >= g.end ? 2 : 1;
-            if (st !== g.s) {
-                g.s = st;
-                g.el.classList.toggle("cs-cur", st === 1);
-                g.el.classList.toggle("cs-done", st === 2);
+            const st = t < u.start ? 0 : t >= u.end ? 2 : 1;
+            if (st !== u.s) {
+                u.s = st;
+                u.sp.classList.toggle("cs-cur", st === 1);
+                u.sp.classList.toggle("cs-done", st === 2);
             }
         }
     }

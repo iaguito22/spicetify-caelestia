@@ -13,7 +13,7 @@ Floating "island" panels, an ambient background and accent color taken from the 
 - **Dynamic accent:** the accent color (play button, progress, highlights, glass tint) is picked from the cover and eases between songs.
 - **Player dock:** a floating liquid-glass bar. The progress bar is the bottom edge of the dock and grows on hover.
 - **Playlist header:** cover, title and controls integrated in one header; column header turns into glass only when it sticks.
-- **Lyrics:** big type, active line in the accent color, lines blur by distance, edge fade. Word-by-word fill, best source first: real word timings from Netease (via Spicetify's public CORS proxy, so the song title and artist are sent to it) with each word split into approximate syllables; Spotify's syllables if it ever sends them; otherwise the line time is split between its words (an estimate); otherwise Spotify's normal lyrics. The word being sung lifts and swells slightly; the lyrics open and close with a staggered blur-in/out, and the lyrics button now always closes them.
+- **Lyrics:** big type, active line in the accent color, lines blur by distance, edge fade. Word-by-word fill, best source first: real word timings from Netease (via Spicetify's public CORS proxy, so the song title and artist are sent to it) with each word split into approximate syllables; Spotify's syllables if it ever sends them; otherwise the line time is split between its words (an estimate); otherwise Spotify's normal lyrics. The syllable (or word) being sung lifts and swells slightly; the lyrics open and close with a staggered blur-in/out, and the lyrics button now always closes them.
 - **No scrollbars.** Dark and light follow the color scheme.
 
 ## Install
