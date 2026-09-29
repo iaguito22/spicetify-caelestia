@@ -571,6 +571,25 @@
             e.stopImmediatePropagation();
             closeLyrics();
         }, true);
+        // En Windows/macOS el botón de letra abría la letra a pantalla completa (vista "Sonando"
+        // expandida): se lleva a la página /lyrics como en Linux. Si esa página no llega a
+        // mostrar la letra, se deshace y se deja actuar al botón original.
+        let lyrBypass = false;
+        document.addEventListener("click", (e) => {
+            const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
+            const H = Spicetify.Platform.History;
+            if (!b || lyrBypass || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics") return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            H.push("/lyrics");
+            setTimeout(() => {
+                if (document.querySelector(".Root__main-view .lyrics-lyrics-container") || H.location.pathname !== "/lyrics") return;
+                H.goBack();
+                lyrBypass = true;
+                b.click();
+                lyrBypass = false;
+            }, 1200);
+        }, true);
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
         loadLyrics();

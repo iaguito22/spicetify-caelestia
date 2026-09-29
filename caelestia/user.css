@@ -1205,13 +1205,23 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 
 /* Vista "Sonando" con vídeo/canvas (siempre oscuro): cabecera y título en blanco
    sobre la imagen, y el degradado baja al color del panel por debajo del título */
-html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) :is(.main-nowPlayingView-headerWrapper, .main-nowPlayingView-contextItemInfo),
-html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) :is(.main-nowPlayingView-headerWrapper, .main-nowPlayingView-contextItemInfo) * {
+html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) .main-nowPlayingView-headerWrapper,
+html[data-cs-mode="light"] .Root__right-sidebar:has(.main-nowPlayingView-canvasVisualEnhancement) .main-nowPlayingView-headerWrapper * {
     color: #fff !important;
     text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
 }
+/* El título cae sobre el degradado ya claro: texto oscuro; el botón de vídeo, sobre la imagen: blanco */
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo,
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo :is(a, div, span) { color: var(--spice-text) !important; text-shadow: none; }
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo .main-trackInfo-artists * { color: var(--spice-subtext) !important; }
+html[data-cs-mode="light"] .main-nowPlayingView-actionButton { color: #fff !important; }
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo { position: relative; background: var(--spice-main) !important; box-shadow: -24px 0 0 var(--spice-main), 24px 0 0 var(--spice-main); }
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::after {
+    content: ""; position: absolute; left: -24px; right: -24px; bottom: 100%; height: 30px;
+    background: linear-gradient(to bottom, transparent, var(--spice-main)); pointer-events: none;
+}
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::before {
-    background: linear-gradient(to bottom, transparent 0%, transparent 22%, color-mix(in srgb, var(--spice-main) 90%, transparent) 62%, var(--spice-main) 84%) !important;
+    background: linear-gradient(to bottom, transparent 0%, transparent 18%, color-mix(in srgb, var(--spice-main) 88%, transparent) 40%, var(--spice-main) 52%) !important;
 }
 
 /* Tarjetas de categorías (Explorar todo): fondo de color saturado, texto blanco */
@@ -1476,3 +1486,16 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, transparent 44px, #000 128px);
     mask-image: linear-gradient(to bottom, transparent 0, transparent 44px, #000 128px);
 }
+
+/* Cabeceras con foto (artista): la imagen se funde con el panel en vez de cortarse en seco */
+.main-entityHeader-withBackgroundImage { isolation: isolate; }
+.main-entityHeader-withBackgroundImage::after {
+    content: "";
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 44px;
+    z-index: 0;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--spice-main));
+}
+.main-entityHeader-withBackgroundImage > .main-entityHeader-contentWrapper { position: relative; z-index: 1; }
