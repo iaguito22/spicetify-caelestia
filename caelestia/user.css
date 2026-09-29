@@ -1132,3 +1132,72 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 .marketplace-grid .marketplace-card__bottom-meta,
 .marketplace-grid .main-cardSubHeader-root { font-family: inherit !important; }
 .marketplace-header-icon-button svg { width: 16px !important; height: 16px !important; }
+
+/* --------------------------------------------------------------------------
+   20. Biblioteca contraída: columna de iconos centrada (72px)
+   Marca de estado: Spotify pone --left-sidebar-width: 72 en el panel al contraerla.
+   -------------------------------------------------------------------------- */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] { --cs-col: 72px; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryContainer {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    align-items: center;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryContainer > div { width: 100% !important; }
+/* cabecera: botón de biblioteca y "+" centrados, uno bajo otro */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-header {
+    padding: 14px 0 8px !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent {
+    width: auto !important;
+    height: auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 0 !important;
+    border-radius: 999px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+/* lista: portadas cuadradas de 48px centradas, con el radio concéntrico del panel */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist { padding: 0 !important; margin: 0 !important; width: 100% !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist > div { width: 100% !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="row"],
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="listitem"] {
+    display: flex !important;
+    justify-content: center !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row"],
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="legacy-list-row__header-side"] {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer,
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer img {
+    width: 48px !important;
+    height: 48px !important;
+    border-radius: 16px !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [role="row"] { padding: 3px 0 !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .x-entityImage-imageContainer {
+    overflow: hidden;
+    transition: transform 180ms var(--cs-ease), box-shadow 180ms ease !important;
+}
+.Root__nav-bar[style*="--left-sidebar-width: 72"] [role="row"]:hover .x-entityImage-imageContainer {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--cs-accent) 65%, transparent);
+}
+/* la lista se desvanece al llegar al borde inferior redondeado */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryItemContainer {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+}
