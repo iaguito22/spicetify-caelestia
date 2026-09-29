@@ -955,6 +955,20 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; filter: blur(0); }
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; filter: blur(0.6px); }
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; filter: blur(1.1px); }
+/* palabra a palabra (theme.js): relleno progresivo con el acento sobre el texto apagado */
+.lyrics-lyricsContent-active .cs-w {
+    --dim: color-mix(in srgb, var(--spice-text) 50%, transparent);
+    color: transparent;
+    background-image: linear-gradient(90deg,
+        var(--lyrics-color-active) calc(var(--p, 0) * 112% - 12%),
+        var(--dim) calc(var(--p, 0) * 112%));
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active:has(.cs-w) {
+    text-shadow: none;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent)) !important;
+}
 /* al pasar el ratón, la línea se aclara (un clic salta a ella) */
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric:hover { opacity: 0.95 !important; filter: none !important; }
 

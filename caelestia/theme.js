@@ -123,6 +123,113 @@
         setTimeout(relabel, 150);
     }
 
+    // ---- Letra palabra a palabra -------------------------------------------
+    // Spotify solo sincroniza por líneas. Si la respuesta trae sílabas
+    // (`syllables`) se usan; si no, el tiempo de la línea se reparte entre sus
+    // palabras según su longitud; y sin datos de tiempo queda la letra de Spotify.
+    const lyr = { id: "", lines: null };
+    const lyrCache = new Map();
+    let lyrRaf = 0;
+
+    async function loadLyrics() {
+        const item = Spicetify.Player.data && Spicetify.Player.data.item;
+        const id = item && /^spotify:track:/.test(item.uri || "") ? item.uri.split(":")[2] : "";
+        if (id === lyr.id) return;
+        lyr.id = id;
+        lyr.lines = null;
+        if (!id) return;
+        if (lyrCache.has(id)) { lyr.lines = lyrCache.get(id); return; }
+        let lines = null;
+        try {
+            const r = await Spicetify.CosmosAsync.get(
+                `https://spclient.wg.spotify.com/color-lyrics/v2/track/${id}?format=json&vocalRemoval=false&market=from_token`);
+            const L = r && r.lyrics;
+            if (L && /SYNCED/.test(L.syncType) && Array.isArray(L.lines)) {
+                lines = L.lines.map((l) => ({
+                    t: +l.startTimeMs, end: +l.endTimeMs || 0, text: l.words || "",
+                    syl: (l.syllables || []).map((s) => ({ t: +s.startTimeMs, n: +s.numChars })),
+                }));
+            }
+        } catch (e) { if (e && e.status !== 404) return; } // sin red: no se cachea, se reintenta
+        lyrCache.set(id, lines);
+        if (lyr.id === id) lyr.lines = lines;
+    }
+
+    // Trozos con su intervalo [start, end) en ms: sílabas reales o palabras repartidas
+    function lineUnits(i) {
+        const L = lyr.lines, ln = L[i], text = ln.text;
+        const next = i + 1 < L.length ? L[i + 1].t : ln.t + 4000;
+        if (ln.syl.length && Math.abs(ln.syl.reduce((a, s) => a + s.n, 0) - text.trim().length) <= 2) {
+            const off = ln.syl[0].t < ln.t - 1 ? ln.t : 0;
+            const last = ln.syl[ln.syl.length - 1];
+            const stop = ln.end > last.t + off ? ln.end : Math.min(next, last.t + off + 700);
+            let pos = 0;
+            return ln.syl.map((s, k) => {
+                const piece = k === ln.syl.length - 1 ? text.slice(pos) : text.slice(pos, pos + s.n);
+                pos += s.n;
+                return { text: piece, start: s.t + off, end: k + 1 < ln.syl.length ? ln.syl[k + 1].t + off : stop };
+            });
+        }
+        const cjk = !/\s/.test(text) && /[぀-ヿ㐀-鿿가-힯]/.test(text);
+        const toks = cjk ? Array.from(text) : text.split(/(\s+)/);
+        const words = toks.filter((w) => w.trim());
+        const span = Math.min(next - ln.t, words.reduce((a, w) => a + w.length, 0) * 170 + 900);
+        const total = words.reduce((a, w) => a + w.length + 2, 0);
+        let acc = 0;
+        return toks.map((w) => {
+            if (!w.trim()) return { text: w };
+            const start = ln.t + span * (acc / total);
+            acc += w.length + 2;
+            return { text: w, start, end: ln.t + span * (acc / total) };
+        });
+    }
+
+    function buildLine(el, idx) {
+        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
+        for (const u of units) {
+            const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
+            if (!m[2] || u.start === undefined) { frag.append(u.text); continue; }
+            if (m[1]) frag.append(m[1]);
+            const sp = document.createElement("span");
+            sp.className = "cs-w";
+            sp.textContent = m[2];
+            frag.append(sp);
+            if (m[3]) frag.append(m[3]);
+            timed.push({ sp, start: u.start, end: u.end, p: 0 });
+        }
+        el.textContent = "";
+        el.append(frag);
+        el.__cs = { idx, timed };
+    }
+
+    function lyricsTick() {
+        lyrRaf = 0;
+        const box = document.querySelector(".lyrics-lyrics-container");
+        if (!box) return;
+        lyrRaf = requestAnimationFrame(lyricsTick);
+        const L = lyr.lines;
+        const el = L && box.querySelector(".lyrics-lyricsContent-active .lyrics-lyricsContent-text");
+        const text = el && el.textContent.trim();
+        if (!text || !/[\p{L}\p{N}]/u.test(text) || /[֐-ࣿ]/.test(text)) return; // ♪, vacías y RTL: tal cual
+        const t = Spicetify.Player.getProgress();
+        let cs = el.__cs;
+        if (!cs || !el.querySelector(".cs-w") || t < L[cs.idx].t - 600 ||
+            (cs.idx + 1 < L.length && t > L[cs.idx + 1].t + 600)) {
+            let idx = -1;
+            for (let i = 0; i < L.length; i++) if (L[i].text.trim() === text && L[i].t <= t + 400) idx = i;
+            if (idx < 0) return;
+            if (!cs || cs.idx !== idx || !el.querySelector(".cs-w")) buildLine(el, idx);
+            cs = el.__cs;
+        }
+        for (const u of cs.timed) {
+            const p = Math.max(0, Math.min(1, (t - u.start) / Math.max(1, u.end - u.start)));
+            if (Math.abs(p - u.p) > 0.004 || (p !== u.p && (p === 0 || p === 1))) {
+                u.p = p;
+                u.sp.style.setProperty("--p", p.toFixed(3));
+            }
+        }
+    }
+
     function init() {
         if (!window.Spicetify || !Spicetify.Player || !Spicetify.Player.addEventListener) {
             setTimeout(init, 250);
@@ -160,6 +267,12 @@
         }
         new MutationObserver(queueRelabel).observe(document.body, { childList: true, subtree: true });
         Spicetify.Player.addEventListener("songchange", update);
+        Spicetify.Player.addEventListener("songchange", loadLyrics);
+        loadLyrics();
+        setInterval(() => {
+            loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
+            if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
+        }, 500);
         // La UI de Spotify se monta después que Spicetify: espera al contenedor
         // y a la primera canción: al arrancar, `songchange` no salta para la ya cargada
         let tries = 0;
