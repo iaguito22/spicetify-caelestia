@@ -1007,3 +1007,128 @@ html[data-cs-mode="light"] .main-nowPlayingView-aboutArtist .main-nowPlayingView
 html[data-cs-os="windows"] .main-globalNav-historyButtonsContainer { margin-left: 0 !important; }
 html[data-cs-os="windows"] .main-globalNav-contentRight { margin-right: 140px !important; }
 html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76px !important; }
+
+/* --------------------------------------------------------------------------
+   19. Marketplace: pestañas en píldora, cabecera de cristal y tarjetas concéntricas
+   -------------------------------------------------------------------------- */
+.marketplace-tabBar { padding: 14px 24px 4px !important; background: transparent !important; }
+.marketplace-tabBar-header {
+    display: inline-flex !important;
+    gap: 2px !important;
+    padding: 4px !important;
+    margin: 0 !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 999px !important;
+    background: color-mix(in srgb, var(--spice-main) 40%, transparent) !important;
+}
+.marketplace-tabBar-headerItem { margin: 0 !important; }
+.marketplace-tabBar-headerItemLink {
+    display: block !important;
+    padding: 8px 16px !important;
+    border-radius: 999px !important;
+    color: var(--spice-subtext) !important;
+    text-decoration: none !important;
+    transition: background-color 160ms ease, color 160ms ease !important;
+}
+.marketplace-tabBar-headerItemLink:hover { color: var(--spice-text) !important; background: rgba(var(--spice-rgb-text), 0.08) !important; }
+.marketplace-tabBar-headerItemLink.marketplace-tabBar-active {
+    color: var(--spice-text) !important;
+    background: color-mix(in srgb, var(--cs-accent) 24%, transparent) !important;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cs-accent) 40%, transparent);
+}
+
+/* Cabecera (ordenar, buscar, ajustes): cristal, sin caja opaca */
+.marketplace-header {
+    position: sticky !important;
+    top: 64px !important; /* justo bajo las pestañas, que van en la barra superior */
+    z-index: 3;
+    align-items: center !important;
+    padding: 10px 24px !important;
+    background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
+    backdrop-filter: blur(22px) saturate(1.3) !important;
+}
+.marketplace-header__left,
+.marketplace-header__right { align-items: center !important; height: auto !important; gap: 10px !important; }
+.marketplace-header__label { font-size: 14px !important; font-weight: 600 !important; color: var(--spice-subtext) !important; margin: 0 !important; }
+.marketplace-header-icon-button {
+    width: auto !important;
+    min-width: 36px !important;
+    height: 36px !important;
+    padding: 0 12px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    border-radius: 999px !important;
+    border: 1px solid var(--cs-border) !important;
+    background: rgba(var(--spice-rgb-text), 0.06) !important;
+    color: var(--spice-text) !important;
+    transition: background-color 160ms ease !important;
+}
+.marketplace-header-icon-button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }
+.marketplace-sortBox .Dropdown-control,
+.marketplace-header .searchbar-bar {
+    height: 36px !important;
+    border-radius: 999px !important;
+    border: 1px solid var(--cs-border) !important;
+    background: rgba(var(--spice-rgb-text), 0.06) !important;
+    color: var(--spice-text) !important;
+    box-shadow: none !important;
+}
+.marketplace-header .searchbar-bar { padding: 0 16px !important; }
+.marketplace-header .searchbar-bar:focus { border-color: var(--cs-accent) !important; }
+.Dropdown-menu { border-radius: 14px !important; border: 1px solid var(--cs-border) !important; background: var(--spice-card) !important; overflow: hidden; }
+
+/* Rejilla y tarjetas: 20px de hueco, radio 20 = 8 (foto) + 12 (relleno) */
+.marketplace-content { padding: 4px 24px 24px !important; }
+.marketplace-grid { gap: 20px !important; }
+.marketplace-grid .main-card-card {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 12px !important;
+    border-radius: 20px !important;
+    border: 1px solid var(--cs-border) !important;
+    background: color-mix(in srgb, var(--spice-main) 45%, transparent) !important;
+    transition: transform 200ms var(--cs-ease), border-color 200ms ease, background-color 200ms ease !important;
+}
+.marketplace-grid .main-card-card:hover {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--cs-accent) 45%, var(--cs-border)) !important;
+    background: color-mix(in srgb, var(--spice-main) 62%, transparent) !important;
+}
+.marketplace-grid .main-card-draggable { display: flex !important; flex-direction: column !important; flex: 1 !important; }
+.marketplace-grid .main-card-imageContainer { margin-bottom: 12px !important; }
+.marketplace-grid .main-cardImage-imageWrapper,
+.marketplace-grid .main-cardImage-image { border-radius: 12px !important; }
+.marketplace-grid .main-card-cardMetadata { display: flex !important; flex-direction: column !important; flex: 1 !important; padding: 0 4px 2px !important; min-height: 0; }
+.marketplace-grid .main-cardHeader-text { font-size: 16px !important; font-weight: 700 !important; color: var(--spice-text) !important; }
+.marketplace-card__author, .marketplace-cardSubHeader { color: var(--spice-subtext) !important; }
+.marketplace-card-desc { color: var(--spice-subtext) !important; font-size: 13px !important; line-height: 1.4 !important; }
+/* el pie (etiquetas, instalado) se queda abajo: todas las tarjetas de una fila alineadas */
+.marketplace-card__bottom-meta:first-of-type { margin-top: auto !important; }
+.marketplace-card__tags { flex-wrap: wrap !important; gap: 6px !important; }
+.marketplace-card__tag {
+    padding: 2px 10px 3px !important;
+    border-radius: 999px !important;
+    background: color-mix(in srgb, var(--cs-accent) 14%, transparent) !important;
+    color: var(--spice-text) !important;
+    font-size: 11px !important;
+}
+.marketplace-card__tags-more-btn { border-radius: 999px !important; }
+.marketplace-card--installed {
+    border-color: color-mix(in srgb, var(--cs-accent) 55%, var(--cs-border)) !important;
+    box-shadow: inset 0 0 24px -12px color-mix(in srgb, var(--cs-accent) 45%, transparent);
+}
+.marketplace-card--installed .marketplace-card__bottom-meta:last-of-type { color: var(--cs-accent) !important; font-weight: 700; }
+.marketplace-installButton { border-radius: 999px !important; }
+.marketplace-grid .main-cardSubHeader-root,
+.marketplace-grid .marketplace-card__author { font-size: 13px !important; font-weight: 500 !important; }
+.marketplace-grid .main-cardSubHeader-root { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px !important; }
+.marketplace-card__bottom-meta { font-size: 12px !important; }
+.marketplace-grid .main-cardSubHeader-root { justify-content: space-between; }
+.marketplace-grid .marketplace-card__authors { margin: 0 !important; padding: 0 !important; text-align: left !important; }
+.marketplace-grid .main-cardSubHeader-root { display: flex !important; flex-direction: row !important; justify-content: space-between !important; align-items: center !important; text-align: left !important; }
+.marketplace-grid .marketplace-card-desc,
+.marketplace-grid .marketplace-card__bottom-meta,
+.marketplace-grid .main-cardSubHeader-root { font-family: inherit !important; }
+.marketplace-header-icon-button svg { width: 16px !important; height: 16px !important; }
