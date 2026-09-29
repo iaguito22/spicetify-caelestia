@@ -643,11 +643,11 @@ input:focus-visible {
     from { opacity: 0.4; transform: translateX(22px) scale(0.99); }
 }
 html[data-cs-anim="left"] .Root__nav-bar,
-html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 520ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 0 50%; }
+html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 0 50%; }
 html[data-cs-anim="right"] .Root__right-sidebar,
-html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 520ms cubic-bezier(0.22, 1, 0.36, 1) both; transform-origin: 100% 50%; }
-html[data-cs-anim="left"] .Root__main-view { animation: cs-main-from-left 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
-html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 520ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 100% 50%; }
+html[data-cs-anim="left"] .Root__main-view { animation: cs-main-from-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
+html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
 
 /* --------------------------------------------------------------------------
    11. Reproductor: dock flotante, concéntrico con el panel central
