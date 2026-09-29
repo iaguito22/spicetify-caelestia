@@ -167,7 +167,7 @@
             return ln.syl.map((s, k) => {
                 const piece = k === ln.syl.length - 1 ? text.slice(pos) : text.slice(pos, pos + s.n);
                 pos += s.n;
-                return { text: piece, start: s.t + off, end: k + 1 < ln.syl.length ? ln.syl[k + 1].t + off : stop };
+                return { text: piece, syl: true, start: s.t + off, end: k + 1 < ln.syl.length ? ln.syl[k + 1].t + off : stop };
             });
         }
         const cjk = !/\s/.test(text) && /[぀-ヿ㐀-鿿가-힯]/.test(text);
@@ -186,16 +186,20 @@
 
     function buildLine(el, idx) {
         const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
+        let group = null; // sílabas de una misma palabra: en un bloque que no se parte
         for (const u of units) {
             const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
-            if (!m[2] || u.start === undefined) { frag.append(u.text); continue; }
-            if (m[1]) frag.append(m[1]);
+            if (!m[2] || u.start === undefined) { group = null; frag.append(u.text); continue; }
+            if (m[1]) { group = null; frag.append(m[1]); }
             const sp = document.createElement("span");
             sp.className = "cs-w";
             sp.textContent = m[2];
-            frag.append(sp);
-            if (m[3]) frag.append(m[3]);
-            timed.push({ sp, start: u.start, end: u.end, p: 0 });
+            if (u.syl) {
+                if (!group) { group = document.createElement("span"); group.className = "cs-g"; frag.append(group); }
+                group.append(sp);
+            } else frag.append(sp);
+            if (m[3]) { group = null; frag.append(m[3]); }
+            timed.push({ sp, start: u.start, end: u.end, p: 0, s: 0 });
         }
         el.textContent = "";
         el.append(frag);
@@ -227,7 +231,39 @@
                 u.p = p;
                 u.sp.style.setProperty("--p", p.toFixed(3));
             }
+            const st = t < u.start ? 0 : t >= u.end ? 2 : 1;
+            if (st !== u.s) {
+                u.s = st;
+                u.sp.classList.toggle("cs-cur", st === 1);
+                u.sp.classList.toggle("cs-done", st === 2);
+            }
         }
+    }
+
+    // ---- Abrir y cerrar la letra ---------------------------------------------
+    // El botón de Spotify cierra la letra con "atrás" en el historial: si se
+    // llegó a ella sin página anterior (o la anterior es la propia letra) no
+    // hace nada. Aquí se vuelve a la última página que no era la letra, y se
+    // anima la salida antes de irse.
+    let lastRoute = null, closing = false;
+    function trackRoute() {
+        const H = Spicetify.Platform && Spicetify.Platform.History;
+        const l = H && H.location;
+        if (l && l.pathname !== "/lyrics") lastRoute = { pathname: l.pathname, search: l.search || "", state: l.state };
+    }
+    function closeLyrics() {
+        const H = Spicetify.Platform.History, box = document.querySelector(".lyrics-lyrics-container");
+        if (closing) return;
+        const leave = () => {
+            closing = false;
+            const prev = H.entries && H.entries[H.index - 1];
+            if (prev && prev.pathname !== "/lyrics") H.goBack();
+            else H.push(lastRoute || { pathname: "/" });
+        };
+        if (!box) return leave();
+        closing = true;
+        box.setAttribute("data-cs-out", "");
+        setTimeout(leave, 380);
     }
 
     function init() {
@@ -266,6 +302,17 @@
             Spicetify.Platform.History.listen(() => { root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck"); });
         }
         new MutationObserver(queueRelabel).observe(document.body, { childList: true, subtree: true });
+        trackRoute();
+        if (Spicetify.Platform && Spicetify.Platform.History && Spicetify.Platform.History.listen) {
+            Spicetify.Platform.History.listen(trackRoute);
+        }
+        document.addEventListener("click", (e) => {
+            const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
+            if (!b || !Spicetify.Platform.History.location || Spicetify.Platform.History.location.pathname !== "/lyrics") return;
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            closeLyrics();
+        }, true);
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
         loadLyrics();
