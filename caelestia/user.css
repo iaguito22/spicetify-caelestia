@@ -627,27 +627,24 @@ input:focus-visible {
 }
 
 /* Abrir y cerrar los paneles laterales. Cambiar el ancho de una columna cuesta ~0,7 s de
-   trabajo a Spotify (React + estilos), así que NO se anima el ancho (cada fotograma
-   tardaría 130-500 ms): se anima con opacidad y desplazamiento, que van por la GPU,
-   justo después del cambio. theme.js pone data-cs-anim="left|right|both". */
+   trabajo a Spotify (React + estilos), así que NO se anima el ancho: el panel "salta" a su
+   sitio con un muelle (nace pequeño, desde su borde exterior, y se pasa un pelín de tamaño
+   antes de asentarse). Solo opacidad y transform (GPU); el panel central no se toca.
+   theme.js pone data-cs-anim="left|right|both". */
 @keyframes cs-side-in-left {
-    from { opacity: 0; transform: translateX(-32px) scale(0.965); }
+    0%   { opacity: 0; transform: translateX(-26px) scale(0.86); }
+    35%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
 }
 @keyframes cs-side-in-right {
-    from { opacity: 0; transform: translateX(32px) scale(0.965); }
-}
-@keyframes cs-main-from-left {
-    from { opacity: 0.4; transform: translateX(-22px) scale(0.99); }
-}
-@keyframes cs-main-from-right {
-    from { opacity: 0.4; transform: translateX(22px) scale(0.99); }
+    0%   { opacity: 0; transform: translateX(26px) scale(0.86); }
+    35%  { opacity: 1; }
+    100% { opacity: 1; transform: none; }
 }
 html[data-cs-anim="left"] .Root__nav-bar,
-html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 0 50%; }
+html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 720ms cubic-bezier(0.34, 1.45, 0.5, 1) both; transform-origin: 0 50%; }
 html[data-cs-anim="right"] .Root__right-sidebar,
-html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 100% 50%; }
-html[data-cs-anim="left"] .Root__main-view { animation: cs-main-from-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
-html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
+html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 720ms cubic-bezier(0.34, 1.45, 0.5, 1) both; transform-origin: 100% 50%; }
 
 /* --------------------------------------------------------------------------
    11. Reproductor: dock flotante, concéntrico con el panel central
@@ -1503,3 +1500,48 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 /* Vista "Sonando" expandida: la isla usa el mismo radio (28) que los demás paneles, así el
    dock (16) queda concéntrico con su esquina en vez de asomar sobre ella */
 .Root__cinema-view > .main-actionBar-ActionBarContainer { border-radius: 28px !important; overflow: hidden; }
+
+/* --------------------------------------------------------------------------
+   Botones de los paneles (contraer/ampliar biblioteca, ocultar/expandir "Sonando"):
+   halo redondo al pasar el ratón (sin cambiar el tamaño de la caja), icono que crece
+   un poco y pulsación que se hunde. El anillo de foco sigue el redondeo.
+   -------------------------------------------------------------------------- */
+.main-yourLibraryX-collapseButton button {
+    border-radius: 999px !important;
+    padding-inline: 10px !important;
+    margin-inline: -10px !important;
+}
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button,
+.main-yourLibraryX-collapseButton button {
+    background: transparent !important;
+    box-shadow: 0 0 0 0 transparent;
+    transition: background-color 160ms ease, box-shadow 200ms var(--cs-ease), transform 160ms var(--cs-ease) !important;
+}
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:hover,
+.main-yourLibraryX-collapseButton button:hover {
+    background-color: rgba(var(--spice-rgb-text), 0.1) !important;
+    box-shadow: 0 0 0 6px rgba(var(--spice-rgb-text), 0.1);
+}
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:active,
+.main-yourLibraryX-collapseButton button:active { transform: scale(0.9) !important; }
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button svg { transition: transform 200ms var(--cs-ease); }
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:hover svg { transform: scale(1.12); }
+:is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:focus-visible,
+.main-yourLibraryX-collapseButton button:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--cs-accent) 70%, transparent) !important;
+    outline-offset: 3px !important;
+}
+/* Etiquetas emergentes: cristal redondeado como el resto */
+.main-contextMenu-tippy:has([role="tooltip"]) {
+    border-radius: 12px !important;
+    background: color-mix(in srgb, var(--spice-main) 78%, transparent) !important;
+    backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--cs-border);
+    box-shadow: var(--cs-shadow) !important;
+}
+/* Sobre la imagen de "Sonando" un velo claro no se ve: halo oscuro con desenfoque */
+.main-nowPlayingView-headerWrapper button:hover {
+    background-color: rgba(0, 0, 0, 0.38) !important;
+    box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.38);
+    backdrop-filter: blur(10px);
+}
