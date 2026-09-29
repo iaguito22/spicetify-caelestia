@@ -508,7 +508,7 @@
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag")) return;
             root.setAttribute("data-cs-anim", dl && dr ? "both" : dl ? "left" : "right");
             clearTimeout(animT);
-            animT = setTimeout(() => { root.removeAttribute("data-cs-anim"); dockLayout(); }, 800);
+            animT = setTimeout(() => { root.removeAttribute("data-cs-anim"); dockLayout(); }, 1050);
         });
         sideRO.observe(nav);
         sideRO.observe(rs);
