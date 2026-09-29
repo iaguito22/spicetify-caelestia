@@ -626,28 +626,26 @@ input:focus-visible {
     from { opacity: 0; transform: translateY(-10px); }
 }
 
-/* Abrir y cerrar los paneles laterales. Cambiar el ancho de una columna cuesta ~0,7 s de
-   trabajo a Spotify (React + estilos), así que NO se anima el ancho (cada fotograma
-   tardaría 130-500 ms): se anima con opacidad y desplazamiento, que van por la GPU,
-   justo después del cambio. theme.js pone data-cs-anim="left|right|both". */
+/* Abrir y cerrar los paneles laterales: theme.js fija las columnas en el ancho anterior y las
+   lleva al nuevo (data-cs-anim="left|right|both"); el panel llena su columna y su contenido
+   entra desde su lado. Cada fotograma obliga a Spotify a recolocar el panel central, así que
+   se le quita todo lo que se puede: contención, sin sombras ni desenfoques mientras dura. */
+html[data-cs-anim] .Root__nav-bar { width: auto !important; overflow: hidden !important; }
+html[data-cs-anim] .Root__right-sidebar { overflow: hidden !important; }
+html[data-cs-anim] .Root__right-sidebar { display: flex !important; justify-content: flex-end; }
+html[data-cs-anim] .Root__main-view .main-view-container { width: var(--cs-main-w) !important; flex: none !important; }
+html[data-cs-anim] .Root__nav-bar .main-navBar-mainNav { width: var(--cs-nav-w) !important; flex: none !important; }
+html[data-cs-anim] .Root__right-sidebar .Root__right-sidebar-peek { width: var(--cs-rs-w) !important; flex: none !important; }
 @keyframes cs-side-in-left {
-    from { opacity: 0; transform: translateX(-32px) scale(0.965); }
+    from { opacity: 0; transform: translateX(-26px); }
 }
 @keyframes cs-side-in-right {
-    from { opacity: 0; transform: translateX(32px) scale(0.965); }
+    from { opacity: 0; transform: translateX(26px); }
 }
-@keyframes cs-main-from-left {
-    from { opacity: 0.4; transform: translateX(-22px) scale(0.99); }
-}
-@keyframes cs-main-from-right {
-    from { opacity: 0.4; transform: translateX(22px) scale(0.99); }
-}
-html[data-cs-anim="left"] .Root__nav-bar,
-html[data-cs-anim="both"] .Root__nav-bar { animation: cs-side-in-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 0 50%; }
-html[data-cs-anim="right"] .Root__right-sidebar,
-html[data-cs-anim="both"] .Root__right-sidebar { animation: cs-side-in-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; transform-origin: 100% 50%; }
-html[data-cs-anim="left"] .Root__main-view { animation: cs-main-from-left 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
-html[data-cs-anim="right"] .Root__main-view { animation: cs-main-from-right 950ms cubic-bezier(0.25, 1, 0.35, 1) both; }
+html[data-cs-anim="left"][data-cs-go] .Root__nav-bar > *,
+html[data-cs-anim="both"][data-cs-go] .Root__nav-bar > * { animation: cs-side-in-left 800ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+html[data-cs-anim="right"][data-cs-go] .Root__right-sidebar > *,
+html[data-cs-anim="both"][data-cs-go] .Root__right-sidebar > * { animation: cs-side-in-right 800ms cubic-bezier(0.22, 1, 0.36, 1) both; }
 
 /* --------------------------------------------------------------------------
    11. Reproductor: dock flotante, concéntrico con el panel central
@@ -1548,3 +1546,10 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     box-shadow: 0 0 0 6px rgba(0, 0, 0, 0.38);
     backdrop-filter: blur(10px);
 }
+
+/* Hover con el acento de la portada: halo teñido e icono en el color de la canción */
+:is(.main-yourLibraryX-header, .main-yourLibraryX-collapseButton) button:hover {
+    background-color: color-mix(in srgb, var(--cs-accent) 18%, transparent) !important;
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--cs-accent) 18%, transparent);
+}
+:is(.main-yourLibraryX-header, .main-yourLibraryX-collapseButton) button:hover :is(svg, span, p) { color: var(--cs-accent) !important; fill: currentColor; }

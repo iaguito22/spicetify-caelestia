@@ -487,7 +487,8 @@
 
     // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) se marca
     // `data-cs-anim` un momento para que el CSS haga la animación de entrada
-    let sideRO = null, animT = 0;
+    const ANIM_MS = 800;
+    let sideRO = null, animT = 0, animId = 0;
     const sideW = {};
     function watchSides() {
         const nav = document.querySelector(".Root__nav-bar"), rs = document.querySelector(".Root__right-sidebar");
@@ -500,15 +501,56 @@
         const markMin = () => nav.toggleAttribute("data-cs-lib-min", /--left-sidebar-width:\s*72\b/.test(nav.getAttribute("style") || ""));
         markMin();
         new MutationObserver(markMin).observe(nav, { attributes: true, attributeFilter: ["style"] });
+        // Las columnas de la rejilla se fijan en el ancho anterior y se llevan al nuevo con una
+        // transición CSS: el panel se desliza de verdad (a costa de que Spotify recoloque el
+        // panel central en cada fotograma; el CSS lo abarata con `contain`)
+        const top = document.querySelector(".Root__top-container");
         sideRO = new ResizeObserver(() => {
             const root = document.documentElement;
-            const l = width(nav), r = width(rs), dl = Math.abs(l - sideW.left) >= 3, dr = Math.abs(r - sideW.right) >= 3;
+            if (root.hasAttribute("data-cs-anim")) return; // fotogramas de la propia animación
+            const l = width(nav), r = width(rs), oldL = sideW.left, oldR = sideW.right;
             sideW.left = l;
             sideW.right = r;
-            if ((!dl && !dr) || root.hasAttribute("data-cs-drag")) return;
+            const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
+            if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
+            // Anchos finales/máximos de cada zona: su contenido se queda fijo en ellos mientras las
+            // columnas se mueven, así no se recoloca en cada fotograma (la parte que sobra se recorta)
+            const mv = document.querySelector(".Root__main-view .main-view-container");
+            root.style.setProperty("--cs-main-w", (mv ? mv.getBoundingClientRect().width : 0) + "px");
+            root.style.setProperty("--cs-nav-w", Math.max(l, oldL) + "px");
+            root.style.setProperty("--cs-rs-w", Math.max(r, oldR) + "px");
             root.setAttribute("data-cs-anim", dl && dr ? "both" : dl ? "left" : "right");
-            clearTimeout(animT);
-            animT = setTimeout(() => { root.removeAttribute("data-cs-anim"); dockLayout(); }, 1050);
+            // Tween propio, un paso por fotograma pintado: el progreso sale del reloj (como una
+            // transición CSS) pero no se pide otro cambio de ancho hasta que el anterior se ha
+            // pintado, así Spotify no acumula recolocaciones pendientes
+            const ease = (x) => 1 - Math.pow(1 - x, 3.2);
+            const id = ++animId;
+            let t0 = 0;
+            top.style.gridTemplateColumns = `${oldL}px 1fr ${oldR}px`; // se mantiene el reparto anterior
+            // Spotify tarda ~1-2 s en recolocarse tras el cambio (fotogramas de 150-400 ms): la
+            // animación espera a que se calme (3 fotogramas seguidos rápidos) y entonces corre fluida
+            let calm = 0, last = performance.now(), waited = 0;
+            const settle = (now) => {
+                if (id !== animId) return;
+                calm = now - last < 34 ? calm + 1 : 0;
+                waited += now - last;
+                last = now;
+                if (calm >= 3 || waited > 4000) { t0 = performance.now(); root.setAttribute("data-cs-go", ""); return step(); }
+                requestAnimationFrame(settle);
+            };
+            const step = () => {
+                if (id !== animId) return;
+                const p = Math.min(1, (performance.now() - t0) / ANIM_MS), e = ease(p);
+                top.style.gridTemplateColumns = `${oldL + (l - oldL) * e}px 1fr ${oldR + (r - oldR) * e}px`;
+                if (p < 1) return requestAnimationFrame(step);
+                root.removeAttribute("data-cs-anim");
+                root.removeAttribute("data-cs-go");
+                top.style.gridTemplateColumns = "";
+                sideW.left = width(nav);
+                sideW.right = width(rs);
+                dockLayout();
+            };
+            requestAnimationFrame(settle);
         });
         sideRO.observe(nav);
         sideRO.observe(rs);

@@ -16,7 +16,7 @@ Floating "island" panels, an ambient background and accent color taken from the 
 - **Lyrics:** big type, active line in the accent color, lines blur by distance, edge fade. Word-by-word fill, best source first: real word timings from Netease (via Spicetify's public CORS proxy, so the song title and artist are sent to it) with each word split into approximate syllables; Spotify's syllables if it ever sends them; otherwise the line time is split between its words (an estimate); otherwise Spotify's normal lyrics. The syllable (or word) being sung lifts and swells slightly; the lyrics open and close with a staggered blur-in/out, and the lyrics button now always closes them.
 - **Search:** the dropdown is a glass panel that grows out of the pill with a soft spring, rows cascade in, and it folds back into the pill when it closes; no double focus ring and glass-chip shortcuts.
 - **Narrow windows:** the top bar becomes a three-column grid (search shrinks instead of overlapping, the profile pill fits its content) and the floating dock keeps a fixed size (760 px) and floats, centered on the window.
-- **Side panels:** opening, closing or collapsing the library and the right panel slides the columns sideways, slowly (GPU-only, so it doesn't stutter). The toggle buttons get a round halo on hover.
+- **Side panels:** opening, closing or collapsing the library and the right panel slides the columns sideways. Spotify itself takes ~1–2 s to re-lay-out after a panel change, so the slide waits until it settles and then runs smoothly. The toggle buttons get a round halo on hover.
 - **No scrollbars.** Dark and light follow the color scheme.
 
 ## Install
