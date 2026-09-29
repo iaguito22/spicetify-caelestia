@@ -425,6 +425,7 @@
 
     // ---- Búsqueda: el desplegable se pliega hacia la píldora al cerrarse ------
     // React lo desmonta al instante, así que se deja una copia que hace la salida.
+    let searchH = 0; // altura del panel mientras estaba abierto
     function searchGhost(node) {
         const dd = node.id === "search-dropdown" ? node : node.querySelector && node.querySelector("#search-dropdown");
         const panel = dd && dd.querySelector(".main-actionBar-ActionBarContainer");
@@ -433,10 +434,28 @@
         const r = pill.getBoundingClientRect(), g = document.createElement("div");
         g.className = "cs-search-ghost";
         g.style.cssText = `left:${r.left}px;top:${r.bottom + 6}px;width:${r.width}px`;
-        g.append(panel.cloneNode(true));
+        const clone = panel.cloneNode(true);
+        if (searchH) clone.style.height = searchH + "px";
+        g.append(clone);
         document.body.append(g);
         setTimeout(() => g.remove(), 260);
     }
+
+    // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
+    const DOCK_W = 860, DOCK_INSET = 12;
+    function dockLayout() {
+        const root = document.documentElement;
+        const main = document.querySelector(".Root__main-view"), dock = document.querySelector(".Root__now-playing-bar");
+        if (!main || !dock) return;
+        const m = main.getBoundingClientRect(), vw = root.clientWidth;
+        if (m.width - 2 * DOCK_INSET >= DOCK_W) return root.removeAttribute("data-cs-dock-float");
+        const w = Math.min(vw - 2 * DOCK_INSET, DOCK_W);
+        const x = Math.max(DOCK_INSET, Math.min(vw - w - DOCK_INSET, m.left + m.width / 2 - w / 2));
+        root.style.setProperty("--cs-dock-w", w + "px");
+        root.style.setProperty("--cs-dock-x", x + "px");
+        root.setAttribute("data-cs-dock-float", "");
+    }
+    let dockRO = null;
 
     function init() {
         if (!window.Spicetify || !Spicetify.Player || !Spicetify.Player.addEventListener) {
@@ -480,6 +499,11 @@
                 for (const n of m.removedNodes) if (n.nodeType === 1) searchGhost(n);
             }
         }).observe(document.body, { childList: true, subtree: true });
+        window.addEventListener("resize", dockLayout);
+        document.addEventListener("pointerdown", () => {
+            const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
+            if (sp) searchH = sp.getBoundingClientRect().height;
+        }, true);
         trackRoute();
         if (Spicetify.Platform && Spicetify.Platform.History && Spicetify.Platform.History.listen) {
             Spicetify.Platform.History.listen(trackRoute);
@@ -495,6 +519,10 @@
         Spicetify.Player.addEventListener("songchange", loadLyrics);
         loadLyrics();
         setInterval(() => {
+            const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
+            if (sp) searchH = sp.getBoundingClientRect().height;
+            const mv = document.querySelector(".Root__main-view");
+            if (mv && !dockRO) { dockRO = new ResizeObserver(dockLayout); dockRO.observe(mv); dockLayout(); }
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);

@@ -233,7 +233,7 @@ body,
 .main-entityHeader-containerNormal .main-entityHeader-contentWrapper { min-height: 0 !important; height: auto !important; }
 
 .main-entityHeader-containerNormal .main-entityHeader-imageContainer,
-.main-entityHeader-containerNormal .main-entityHeader-imageContainer div { width: 168px !important; height: 168px !important; }
+.main-entityHeader-containerNormal .main-entityHeader-imageContainer div { width: 178px !important; height: 178px !important; }
 
 .main-entityHeader-containerNormal .main-entityHeader-image {
     border-radius: var(--cs-r-inner) !important;
@@ -244,7 +244,7 @@ body,
 .main-entityHeader-containerNormal .main-entityHeader-headerText {
     height: auto !important;
     justify-content: flex-end !important;
-    padding-bottom: 70px !important;
+    padding-bottom: 80px !important;
 }
 
 .main-entityHeader-containerNormal .main-entityHeader-title {
@@ -258,13 +258,15 @@ body,
 
 /* Controles: play · aleatorio · descargar · … a la izquierda, buscar/orden a la derecha */
 section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] {
-    margin-top: -92px !important;
+    margin-top: -102px !important; /* el pie del play coincide con el pie de la portada */
+    margin-bottom: 10px !important;
     height: 56px !important;
     overflow: visible !important;
     position: relative !important;
     z-index: 3 !important;
 }
 
+section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] > div { overflow: visible !important; } /* el play crece al pasar el ratón */
 section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"],
 section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] > div,
 section:has(.main-entityHeader-containerNormal) .playlist-playlist-playlistContent { background: transparent !important; background-image: none !important; }
@@ -281,6 +283,15 @@ section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
     background: transparent !important;
     border: 0 !important;
     border-radius: 0 !important;
+}
+
+/* El play siempre de 56px: su pie coincide con el de la portada (con 48px quedaba 4px por encima) */
+.main-actionBar-ActionBarRow .main-actionBar-ActionBarPlayButtonContainer button,
+.main-actionBar-ActionBarRow .main-playButton-PlayButton button { width: 56px !important; height: 56px !important; min-width: 56px !important; }
+
+/* Al pasar el ratón, el play se aclara con el acento (Spotify lo pintaba de verde) */
+.main-actionBar-ActionBarRow .main-playButton-PlayButton button:hover .e-10451-button-primary__inner {
+    background-color: color-mix(in srgb, var(--cs-accent) 78%, #fff) !important;
 }
 
 /* Sin "···" de la fila, sin "Descubrir" (la miniatura junto al play) */
@@ -445,6 +456,31 @@ input:focus-visible {
     z-index: 2 !important;
 }
 
+/* Tres columnas: las laterales iguales (la búsqueda queda centrada en la ventana) y la
+   central se encoge antes de pisar a las otras dos; el perfil se ajusta a su contenido */
+.Root__globalNav {
+    display: grid !important;
+    grid-template-columns: 1fr minmax(230px, 546px) 1fr !important;
+    column-gap: 12px !important;
+    align-items: center !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+}
+.main-globalNav-historyButtonsContainer { grid-column: 1 !important; justify-self: start !important; }
+.main-globalNav-searchSection {
+    position: static !important;
+    grid-column: 2 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    justify-content: center !important;
+}
+.main-globalNav-searchContainer { width: 100% !important; min-width: 0 !important; max-width: 546px !important; margin: 0 !important; }
+.main-globalNav-contentRight { grid-column: 3 !important; justify-self: end !important; }
+.main-globalNav-contentRight,
+.main-globalNav-contentRight .main-topBar-topbarContentRight { flex: none !important; width: max-content !important; }
+@media (max-width: 900px) { .main-globalNav-searchInputTextWrapper > span:not(.main-globalNav-searchInputText) { display: none !important; } }
+
 .main-globalNav-historyButtonsContainer,
 .main-globalNav-searchContainer,
 .main-globalNav-contentRight {
@@ -542,8 +578,11 @@ input:focus-visible {
     pointer-events: none;
 }
 .cs-search-ghost .main-actionBar-ActionBarContainer {
+    box-sizing: border-box !important;
+    overflow: hidden !important;
     animation: cs-search-out 230ms cubic-bezier(0.5, 0, 0.75, 0.4) forwards;
 }
+.cs-search-ghost .main-actionBar-ActionBarContainer > div:not(.os-scrollbar) { height: 100% !important; overflow: hidden !important; }
 :is(#search-dropdown, .cs-search-ghost) .main-actionBar-ActionBarContainer > div:not(.os-scrollbar) {
     padding: 0 !important;
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent);
@@ -696,9 +735,23 @@ input:focus-visible {
     border-radius: 999px !important;
     transition: transform 150ms var(--cs-ease) !important;
 }
+/* Ventana estrecha: el dock conserva su tamaño y flota sobre los paneles (theme.js
+   calcula posición y ancho: centrado en el panel central sin salirse de la ventana) */
+html[data-cs-dock-float] .Root__now-playing-bar {
+    position: fixed !important;
+    left: var(--cs-dock-x) !important;
+    bottom: var(--cs-inset) !important;
+    width: var(--cs-dock-w) !important;
+    margin: 0 !important;
+    z-index: 40 !important;
+}
 [data-testid="control-button-playpause"]:hover { transform: scale(1.06) !important; }
 
 .x-progressBar-fillColor { box-shadow: 0 0 10px color-mix(in srgb, var(--cs-accent) 70%, transparent) !important; }
+
+/* Los iconos no recortan su propio borde (el círculo de "guardado" perdía la base) */
+.e-10451-button__icon-wrapper svg,
+.main-nowPlayingWidget-actionButtonWrapper svg { overflow: visible !important; }
 
 /* --------------------------------------------------------------------------
    12. Sin fondos dobles: los botones dentro de una píldora/panel no llevan caja
