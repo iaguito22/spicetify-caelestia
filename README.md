@@ -14,6 +14,7 @@ Floating "island" panels, an ambient background and accent color taken from the 
 - **Player dock:** a floating liquid-glass bar. The progress bar is the bottom edge of the dock and grows on hover.
 - **Playlist header:** cover, title and controls integrated in one header; column header turns into glass only when it sticks.
 - **Lyrics:** big type, active line in the accent color, lines blur by distance, edge fade. Word-by-word fill, best source first: real word timings from Netease (via Spicetify's public CORS proxy, so the song title and artist are sent to it) with each word split into approximate syllables; Spotify's syllables if it ever sends them; otherwise the line time is split between its words (an estimate); otherwise Spotify's normal lyrics. The syllable (or word) being sung lifts and swells slightly; the lyrics open and close with a staggered blur-in/out, and the lyrics button now always closes them.
+- **Search:** the dropdown is a glass panel that grows out of the pill with a soft spring, rows cascade in, and it folds back into the pill when it closes; no double focus ring and glass-chip shortcuts.
 - **No scrollbars.** Dark and light follow the color scheme.
 
 ## Install

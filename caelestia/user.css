@@ -496,6 +496,98 @@ input:focus-visible {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--cs-accent) 22%, transparent), var(--cs-shadow) !important;
 }
 
+/* Sin segundo aro: el foco ya lo marca la píldora entera. Los atajos (Ctrl L) son
+   fichas de cristal y sin el degradado gris que Spotify pone detrás */
+.main-globalNav-searchInputSection input { outline: none !important; }
+.main-globalNav-searchInputTextWrapper > span:not(.main-globalNav-searchInputText) {
+    background: transparent !important;
+    gap: 4px !important;
+}
+.main-globalNav-searchInputTextWrapper kbd {
+    padding: 1px 8px !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 8px !important;
+    background: rgba(var(--spice-rgb-text), 0.07) !important;
+    box-shadow: none !important;
+    color: var(--spice-subtext) !important;
+    font-size: 11.5px !important;
+}
+
+/* Desplegable de búsqueda: un panel de cristal que nace de la píldora (como los
+   paneles emergentes de Caelestia): crece desde arriba con un rebote suave, las
+   filas entran en cascada y al cerrarse se pliega hacia la píldora (theme.js
+   deja una copia que hace esa salida). Radio 28 = 18 de las filas + 10 de margen. */
+#search-dropdown {
+    left: -61px !important;
+    width: calc(100% + 76px) !important;
+    top: calc(100% + 2px) !important;
+    z-index: 30 !important;
+}
+:is(#search-dropdown, .cs-search-ghost) .main-actionBar-ActionBarContainer {
+    padding: 10px !important;
+    border: 1px solid var(--cs-border) !important;
+    border-radius: 28px !important;
+    background: color-mix(in srgb, var(--spice-main) 74%, transparent) !important;
+    backdrop-filter: blur(30px) saturate(1.5) !important;
+    box-shadow: inset 0 1px 0 rgba(var(--spice-rgb-text), 0.06), var(--cs-shadow-lg) !important;
+    max-height: min(520px, calc(100vh - 170px)) !important;
+    transform-origin: 50% 0;
+}
+#search-dropdown .main-actionBar-ActionBarContainer {
+    animation: cs-search-in 480ms cubic-bezier(0.34, 1.32, 0.64, 1) both;
+}
+.cs-search-ghost {
+    position: fixed;
+    z-index: 30;
+    pointer-events: none;
+}
+.cs-search-ghost .main-actionBar-ActionBarContainer {
+    animation: cs-search-out 230ms cubic-bezier(0.5, 0, 0.75, 0.4) forwards;
+}
+:is(#search-dropdown, .cs-search-ghost) .main-actionBar-ActionBarContainer > div:not(.os-scrollbar) {
+    padding: 0 !important;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent);
+}
+:is(#search-dropdown, .cs-search-ghost) .main-actionBar-ActionBarContainer .os-scrollbar { display: none !important; }
+:is(#search-dropdown, .cs-search-ghost) .main-actionBar-ActionBarContainer > div > p {
+    padding: 6px 12px 8px !important;
+    color: var(--spice-subtext) !important;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.06em !important;
+    text-transform: uppercase;
+}
+:is(#search-dropdown, .cs-search-ghost) [data-encore-id="listRow"] {
+    border-radius: 18px !important;
+    padding: 6px 8px !important;
+    transition: background-color 160ms var(--cs-ease) !important;
+}
+:is(#search-dropdown, .cs-search-ghost) [data-encore-id="listRow"]:hover { background: rgba(var(--spice-rgb-text), 0.08) !important; }
+:is(#search-dropdown, .cs-search-ghost) [data-encore-id="listRow"] img { border-radius: 12px !important; }
+:is(#search-dropdown, .cs-search-ghost) [data-encore-id="listRow"] button { border-radius: 12px !important; }
+:is(#search-dropdown, .cs-search-ghost) [data-encore-id="listRow"] [id^="listrow-title"] { font-weight: 600 !important; }
+#search-dropdown ul > * { animation: cs-search-row 440ms var(--cs-ease) both; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(1) { animation-delay: 88ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(2) { animation-delay: 116ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(3) { animation-delay: 144ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(4) { animation-delay: 172ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(5) { animation-delay: 200ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(6) { animation-delay: 228ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(7) { animation-delay: 256ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(8) { animation-delay: 284ms; }
+:is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(9) { animation-delay: 312ms; }
+
+@keyframes cs-search-in {
+    from { opacity: 0; transform: translateY(-14px) scale(0.93, 0.8); filter: blur(10px); }
+}
+@keyframes cs-search-out {
+    to { opacity: 0; transform: translateY(-10px) scale(0.96, 0.86); filter: blur(8px); }
+}
+@keyframes cs-search-row {
+    from { opacity: 0; transform: translateY(-10px); }
+}
+
 /* --------------------------------------------------------------------------
    11. Reproductor: dock flotante, concéntrico con el panel central
    Misma celda que el panel: 12px de margen por izquierda, derecha y abajo, y

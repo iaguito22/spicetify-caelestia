@@ -423,6 +423,21 @@
         setTimeout(leave, 380);
     }
 
+    // ---- Búsqueda: el desplegable se pliega hacia la píldora al cerrarse ------
+    // React lo desmonta al instante, así que se deja una copia que hace la salida.
+    function searchGhost(node) {
+        const dd = node.id === "search-dropdown" ? node : node.querySelector && node.querySelector("#search-dropdown");
+        const panel = dd && dd.querySelector(".main-actionBar-ActionBarContainer");
+        const pill = document.querySelector(".main-globalNav-searchContainer");
+        if (!panel || !pill || document.getElementById("search-dropdown")) return;
+        const r = pill.getBoundingClientRect(), g = document.createElement("div");
+        g.className = "cs-search-ghost";
+        g.style.cssText = `left:${r.left}px;top:${r.bottom + 6}px;width:${r.width}px`;
+        g.append(panel.cloneNode(true));
+        document.body.append(g);
+        setTimeout(() => g.remove(), 260);
+    }
+
     function init() {
         if (!window.Spicetify || !Spicetify.Player || !Spicetify.Player.addEventListener) {
             setTimeout(init, 250);
@@ -459,6 +474,12 @@
             Spicetify.Platform.History.listen(() => { root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck"); });
         }
         new MutationObserver(queueRelabel).observe(document.body, { childList: true, subtree: true });
+        new MutationObserver((muts) => {
+            for (const m of muts) {
+                if (!m.removedNodes.length || !(m.target instanceof Element) || !m.target.closest(".main-globalNav-searchContainer")) continue;
+                for (const n of m.removedNodes) if (n.nodeType === 1) searchGhost(n);
+            }
+        }).observe(document.body, { childList: true, subtree: true });
         trackRoute();
         if (Spicetify.Platform && Spicetify.Platform.History && Spicetify.Platform.History.listen) {
             Spicetify.Platform.History.listen(trackRoute);
