@@ -1237,3 +1237,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 }
 /* la parte de texto de cada fila (oculta en la columna) seguía ocupando ~14px y descentraba la portada */
 .Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-libraryRootlist [class*="e-10451-box"]:has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"]) { display: none !important; }
+/* el botón de biblioteca traía 30px de margen derecho (para el título) y quedaba a la izquierda */
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-collapseButton { margin: 0 !important; align-self: center !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button { background: rgba(var(--spice-rgb-text), 0.06) !important; }
+.Root__nav-bar[style*="--left-sidebar-width: 72"] .main-yourLibraryX-headerContent button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }
