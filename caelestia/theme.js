@@ -124,9 +124,12 @@
     }
 
     // ---- Letra palabra a palabra -------------------------------------------
-    // Spotify solo sincroniza por líneas. Si la respuesta trae sílabas
-    // (`syllables`) se usan; si no, el tiempo de la línea se reparte entre sus
-    // palabras según su longitud; y sin datos de tiempo queda la letra de Spotify.
+    // Spotify solo sincroniza por líneas. Se intenta, por este orden:
+    //  1. tiempos reales por palabra de Netease (a través del proxy CORS de
+    //     Spicetify), con cada palabra partida en sílabas aproximadas;
+    //  2. sílabas de Spotify (`syllables`), si algún día las envía;
+    //  3. el tiempo de la línea repartido entre sus palabras según su longitud;
+    //  4. sin tiempos, la letra normal de Spotify.
     const lyr = { id: "", lines: null };
     const lyrCache = new Map();
     let lyrRaf = 0;
@@ -153,12 +156,161 @@
         } catch (e) { if (e && e.status !== 404) return; } // sin red: no se cachea, se reintenta
         lyrCache.set(id, lines);
         if (lyr.id === id) lyr.lines = lines;
+        if (lines) await neteaseWords(lines, item);
+    }
+
+    // ---- Tiempos reales por palabra (Netease, formato yrc) ------------------
+    const PROXY = "https://cors-proxy.spicetify.app/";
+    const norm = (t) => (t.toLowerCase().match(/[\p{L}\p{N}]/gu) || []).join("");
+    const isAlnum = (c) => /[\p{L}\p{N}]/u.test(c);
+
+    async function neteaseJson(url) {
+        const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 7000);
+        try { return await (await fetch(PROXY + url, { signal: ctl.signal })).json(); }
+        finally { clearTimeout(to); }
+    }
+
+    // `[ini,dur](ini,dur,0)palabra (ini,dur,0)otra ...` → [{t, d, words:[{t,d,tx}]}]
+    function parseYrc(src) {
+        const out = [];
+        for (const raw of src.split("\n")) {
+            const m = /^\[(\d+),(\d+)\](.*)$/.exec(raw);
+            if (!m) continue;
+            const parts = m[3].split(/\((\d+),(\d+),-?\d+\)/), words = [];
+            for (let k = 1; k + 2 < parts.length; k += 3) {
+                words.push({ t: +parts[k], d: +parts[k + 1], tx: parts[k + 2] });
+            }
+            if (words.length) out.push({ t: +m[1], d: +m[2], words });
+        }
+        return out;
+    }
+
+    // Reparte el texto de Spotify entre las palabras de Netease (mismas letras)
+    function alignWords(text, words) {
+        const chars = Array.from(text), out = [];
+        let pos = 0;
+        for (const w of words) {
+            const n = Array.from(norm(w.tx)).length;
+            if (!n) continue;
+            let end = pos, seen = 0;
+            while (end < chars.length && seen < n) { if (isAlnum(chars[end])) seen++; end++; }
+            while (end < chars.length && !/\s/.test(chars[end]) && !isAlnum(chars[end])) end++;
+            out.push({ t: w.t, d: Math.max(60, w.d), tx: chars.slice(pos, end).join("") });
+            pos = end;
+        }
+        if (out.length) out[out.length - 1].tx += chars.slice(pos).join("");
+        return out;
+    }
+
+    async function neteaseWords(lines, item) {
+        if (lines.nx) return;
+        try {
+            const name = item.name || "", artist = (item.artists && item.artists[0] && item.artists[0].name) || "";
+            const dur = item.duration && item.duration.milliseconds;
+            const q = await neteaseJson(`https://music.163.com/api/search/get?type=1&limit=8&s=${encodeURIComponent(name + " " + artist)}`);
+            const songs = (q.result && q.result.songs) || [];
+            const nn = norm(name), na = norm(artist);
+            let best = null, bd = 1e9;
+            for (const s of songs) {
+                const sn = norm(s.name), d = Math.abs((s.duration || 0) - (dur || 0));
+                const sameName = sn === nn || sn.startsWith(nn) || nn.startsWith(sn);
+                const sameArtist = s.artists.some((a) => { const x = norm(a.name); return x && (na.includes(x) || x.includes(na)); });
+                if (sameName && sameArtist && d < bd) { best = s; bd = d; }
+            }
+            if (!best || bd > 2500) return void (lines.nx = true);
+            const r = await neteaseJson(`https://music.163.com/api/song/lyric?id=${best.id}&lv=1&kv=1&tv=-1&yv=1`);
+            const nl = parseYrc((r.yrc && r.yrc.lyric) || "");
+            if (!nl.length) return void (lines.nx = true);
+            // cada línea de Spotify con su línea de Netease (mismo texto, la más cercana en el tiempo)
+            const pairs = [];
+            let total = 0;
+            for (const ln of lines) {
+                const key = norm(ln.text);
+                if (!key) continue;
+                total++;
+                let bl = null, bt = 6000;
+                for (const c of nl) {
+                    if (norm(c.words.map((w) => w.tx).join("")) !== key) continue;
+                    const dt = Math.abs(c.t - ln.t);
+                    if (dt < bt) { bl = c; bt = dt; }
+                }
+                if (bl) pairs.push([ln, bl]);
+            }
+            if (!total || pairs.length / total < 0.5) return void (lines.nx = true);
+            const diffs = pairs.map(([a, b]) => b.t - a.t).sort((x, y) => x - y);
+            const med = diffs[diffs.length >> 1], shift = Math.abs(med) > 700 ? med : 0;
+            for (const [ln, c] of pairs) {
+                const w = alignWords(ln.text, c.words);
+                if (w.length) ln.w = w.map((x) => ({ t: x.t - shift, d: x.d, tx: x.tx }));
+            }
+            lines.nx = true;
+        } catch (e) { /* sin red o proxy caído: se queda el reparto estimado */ }
+    }
+
+    // ---- Sílabas aproximadas de una palabra ---------------------------------
+    const ONSETS = new Set(["bl", "br", "ch", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "pl", "pr", "sc", "sh", "sk", "sl", "sm",
+        "sn", "sp", "st", "sw", "th", "tr", "tw", "wh", "ph", "str", "spr", "spl", "scr", "thr", "shr"]);
+    const VOWELS = "aeiouyáàâãäåæéèêëíìîïóòôõöøúùûüœ";
+    function syllableCuts(word) {
+        const s = word.toLowerCase(), groups = [];
+        for (let i = 0; i < s.length; i++) {
+            if (!VOWELS.includes(s[i])) continue;
+            let j = i;
+            while (j + 1 < s.length && VOWELS.includes(s[j + 1])) j++;
+            groups.push([i, j + 1]);
+            i = j;
+        }
+        // e final muda ("make", "love") y "-ed" mudo ("loved")
+        const last = groups[groups.length - 1];
+        if (groups.length > 1 && last) {
+            const tail = s.slice(last[0]).replace(/[^\p{L}]+$/u, "");
+            const before = s[last[0] - 1];
+            if ((tail === "e" && !(before === "l" && groups.length > 1 && !VOWELS.includes(s[last[0] - 2] || "a"))) ||
+                (tail === "ed" && before && !"td".includes(before))) groups.pop();
+        }
+        const cuts = [];
+        for (let k = 0; k + 1 < groups.length; k++) {
+            const a = groups[k], b = groups[k + 1], gap = b[0] - a[1];
+            let cut = a[1];
+            if (gap >= 2) {
+                cut = a[1] + 1;
+                for (const len of [3, 2]) if (len <= gap && ONSETS.has(s.slice(b[0] - len, b[0]))) { cut = b[0] - len; break; }
+            }
+            cuts.push(cut);
+        }
+        return cuts;
+    }
+
+    // Palabra con tiempo real → trozos con tiempo repartido: las sílabas pesan
+    // según su longitud y, si la palabra se alarga, la última se queda con el resto
+    function wordUnits(w) {
+        const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(w.tx), core = m[2];
+        const cuts = core && w.d >= 280 && /^[\p{L}'’\-]+$/u.test(core.replace(/[^\p{L}'’\-]/gu, "")) &&
+            !/[぀-ヿ㐀-鿿가-힯]/.test(core) ? syllableCuts(core) : [];
+        if (!cuts.length) return [{ text: w.tx, start: w.t, end: w.t + w.d }];
+        const bounds = [0, ...cuts, core.length], pieces = [], weights = [];
+        for (let k = 0; k + 1 < bounds.length; k++) {
+            pieces.push(core.slice(bounds[k], bounds[k + 1]));
+            weights.push(pieces[k].length + 1);
+        }
+        if (w.d > 800) weights[weights.length - 1] *= 1 + Math.min(1.5, (w.d - 800) / 1000);
+        const sum = weights.reduce((x, y) => x + y, 0);
+        let acc = 0;
+        return pieces.map((txt, k) => {
+            const start = w.t + w.d * (acc / sum);
+            acc += weights[k];
+            return {
+                text: (k === 0 ? m[1] : "") + txt + (k === pieces.length - 1 ? m[3] : ""),
+                syl: true, start, end: w.t + w.d * (acc / sum),
+            };
+        });
     }
 
     // Trozos con su intervalo [start, end) en ms: sílabas reales o palabras repartidas
     function lineUnits(i) {
         const L = lyr.lines, ln = L[i], text = ln.text;
         const next = i + 1 < L.length ? L[i + 1].t : ln.t + 4000;
+        if (ln.w) return ln.w.flatMap(wordUnits);
         if (ln.syl.length && Math.abs(ln.syl.reduce((a, s) => a + s.n, 0) - text.trim().length) <= 2) {
             const off = ln.syl[0].t < ln.t - 1 ? ln.t : 0;
             const last = ln.syl[ln.syl.length - 1];
@@ -184,9 +336,10 @@
         });
     }
 
+    // Cada palabra va en un `.cs-g` (crece al cantarse) y sus sílabas en `.cs-w` (se rellenan)
     function buildLine(el, idx) {
-        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
-        let group = null; // sílabas de una misma palabra: en un bloque que no se parte
+        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [], groups = [];
+        let group = null, g = null;
         for (const u of units) {
             const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
             if (!m[2] || u.start === undefined) { group = null; frag.append(u.text); continue; }
@@ -194,16 +347,23 @@
             const sp = document.createElement("span");
             sp.className = "cs-w";
             sp.textContent = m[2];
-            if (u.syl) {
-                if (!group) { group = document.createElement("span"); group.className = "cs-g"; frag.append(group); }
-                group.append(sp);
-            } else frag.append(sp);
+            if (!(u.syl && group)) {
+                group = document.createElement("span");
+                group.className = "cs-g";
+                frag.append(group);
+                g = { el: group, start: u.start, end: u.end, s: 0 };
+                groups.push(g);
+            }
+            group.append(sp);
+            g.end = u.end;
+            g.el.style.setProperty("--sw", Math.min(0.085, 0.032 + (g.end - g.start) / 1000 * 0.03).toFixed(3));
             if (m[3]) { group = null; frag.append(m[3]); }
-            timed.push({ sp, start: u.start, end: u.end, p: 0, s: 0 });
+            else if (!u.syl) group = null;
+            timed.push({ sp, start: u.start, end: u.end, p: 0 });
         }
         el.textContent = "";
         el.append(frag);
-        el.__cs = { idx, timed };
+        el.__cs = { idx, timed, groups, real: !!lyr.lines[idx].w };
     }
 
     function lyricsTick() {
@@ -217,12 +377,12 @@
         if (!text || !/[\p{L}\p{N}]/u.test(text) || /[֐-ࣿ]/.test(text)) return; // ♪, vacías y RTL: tal cual
         const t = Spicetify.Player.getProgress();
         let cs = el.__cs;
-        if (!cs || !el.querySelector(".cs-w") || t < L[cs.idx].t - 600 ||
+        if (!cs || !el.querySelector(".cs-w") || cs.real !== !!L[cs.idx].w || t < L[cs.idx].t - 600 ||
             (cs.idx + 1 < L.length && t > L[cs.idx + 1].t + 600)) {
             let idx = -1;
             for (let i = 0; i < L.length; i++) if (L[i].text.trim() === text && L[i].t <= t + 400) idx = i;
             if (idx < 0) return;
-            if (!cs || cs.idx !== idx || !el.querySelector(".cs-w")) buildLine(el, idx);
+            if (!cs || cs.idx !== idx || !el.querySelector(".cs-w") || cs.real !== !!L[idx].w) buildLine(el, idx);
             cs = el.__cs;
         }
         for (const u of cs.timed) {
@@ -231,11 +391,13 @@
                 u.p = p;
                 u.sp.style.setProperty("--p", p.toFixed(3));
             }
-            const st = t < u.start ? 0 : t >= u.end ? 2 : 1;
-            if (st !== u.s) {
-                u.s = st;
-                u.sp.classList.toggle("cs-cur", st === 1);
-                u.sp.classList.toggle("cs-done", st === 2);
+        }
+        for (const g of cs.groups) {
+            const st = t < g.start ? 0 : t >= g.end ? 2 : 1;
+            if (st !== g.s) {
+                g.s = st;
+                g.el.classList.toggle("cs-cur", st === 1);
+                g.el.classList.toggle("cs-done", st === 2);
             }
         }
     }

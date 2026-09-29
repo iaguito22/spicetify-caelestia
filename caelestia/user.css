@@ -970,18 +970,20 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     text-shadow: none;
     filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent)) !important;
 }
-/* la palabra que se canta sube y crece un poco con un rebote suave, y al
-   terminar se asienta despacio; los trozos de una misma palabra no se separan */
-.lyrics-lyricsContent-active .cs-g { display: inline-block; white-space: nowrap; }
-.lyrics-lyricsContent-active .cs-w {
+/* cada palabra (.cs-g) sube y crece con un rebote suave mientras se canta —más
+   cuanto más se alarga— y al terminar se asienta despacio; sus sílabas (.cs-w)
+   solo se rellenan */
+.lyrics-lyricsContent-active .cs-g {
+    --sw: 0.05;
     display: inline-block;
+    white-space: nowrap;
     transform-origin: 50% 88%;
     transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1), filter 900ms var(--cs-ease);
 }
-.lyrics-lyricsContent-active .cs-w.cs-cur {
-    transform: translateY(-2px) scale(1.055);
+.lyrics-lyricsContent-active .cs-g.cs-cur {
+    transform: translateY(calc(var(--sw) * -34px)) scale(calc(1 + var(--sw)));
     filter: drop-shadow(0 0 12px color-mix(in srgb, var(--cs-accent) 70%, transparent));
-    transition: transform 380ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 380ms var(--cs-ease);
+    transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 420ms var(--cs-ease);
 }
 
 /* abrir la letra: las líneas suben desde abajo desenfocadas, en cascada desde
