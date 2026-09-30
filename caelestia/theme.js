@@ -134,6 +134,40 @@
     const lyrCache = new Map();
     let lyrRaf = 0;
 
+    // ---- Desplazamiento suave de la letra --------------------------------------
+    // Spotify centra la frase activa con scrollIntoView({behavior:"smooth"}): dura ~150 ms y
+    // se ve como un salto. Aquí se sustituye, solo para las frases, por una animación propia
+    // que arranca en el acto y frena suave, en el mismo tiempo y curva que el resaltado de
+    // la frase (CSS): la nueva llega al centro mientras se enciende y la vista no se mueve.
+    // (Antes arrancaba despacio y duraba más: la vista saltaba a la línea de abajo y luego
+    // el scroll se la llevaba hacia arriba.)
+    const nativeSIV = Element.prototype.scrollIntoView;
+    let lyrScroll = { raf: 0, el: null };
+    Element.prototype.scrollIntoView = function (opts) {
+        if (!(this.classList && this.classList.contains("lyrics-lyricsContent-lyric")) ||
+            !opts || typeof opts !== "object" || opts.behavior !== "smooth" || opts.block !== "center") {
+            return nativeSIV.apply(this, arguments);
+        }
+        let sc = this.parentElement;
+        while (sc && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+        if (!sc) return nativeSIV.apply(this, arguments);
+        const r = this.getBoundingClientRect(), s = sc.getBoundingClientRect();
+        // la frase activa crece 3% (transform): se centra su caja sin escalar
+        const to = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight,
+            sc.scrollTop + (r.top + r.height / 2) - (s.top + s.height / 2)));
+        const from = sc.scrollTop, d = to - from;
+        cancelAnimationFrame(lyrScroll.raf);
+        if (Math.abs(d) < 1) return;
+        const dur = Math.abs(d) > 400 ? 820 : 620, t0 = performance.now(); // 620 = transición CSS de la frase
+        const step = (now) => {
+            const p = Math.min(1, (now - t0) / dur);
+            const e = 1 - Math.pow(1 - p, 4); // easeOutQuart ≈ cubic-bezier(0.25, 1, 0.5, 1)
+            sc.scrollTop = from + d * e;
+            if (p < 1) lyrScroll.raf = requestAnimationFrame(step);
+        };
+        lyrScroll.raf = requestAnimationFrame(step);
+    };
+
     async function loadLyrics() {
         const item = Spicetify.Player.data && Spicetify.Player.data.item;
         const id = item && /^spotify:track:/.test(item.uri || "") ? item.uri.split(":")[2] : "";
@@ -588,9 +622,32 @@
                 raf = requestAnimationFrame(() => syncStuck(t));
             }
         }, true);
-        if (Spicetify.Platform && Spicetify.Platform.History && Spicetify.Platform.History.listen) {
-            Spicetify.Platform.History.listen(() => { root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck"); });
-        }
+        // Cambio de página (p. ej. de una playlist a otra): entrada animada del panel central.
+        // Se ignora la letra (tiene su propia animación) y los cambios de solo query/hash.
+        // Spotify sustituye el objeto History después de arrancar: se re-engancha si cambia.
+        let lastPath = null, routeT = 0, boundH = null;
+        const onRoute = (loc) => {
+            root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck");
+            const path = loc && loc.pathname;
+            if (path === lastPath) return;
+            const skip = path === "/lyrics" || lastPath === "/lyrics";
+            lastPath = path;
+            if (skip) return;
+            root.removeAttribute("data-cs-route");
+            void root.offsetWidth; // reinicia la animación si se navega otra vez enseguida
+            root.setAttribute("data-cs-route", "");
+            clearTimeout(routeT);
+            routeT = setTimeout(() => root.removeAttribute("data-cs-route"), 900);
+        };
+        const bindHistory = () => {
+            const H = Spicetify.Platform && Spicetify.Platform.History;
+            if (!H || !H.listen || H === boundH) return;
+            boundH = H;
+            lastPath = H.location && H.location.pathname;
+            H.listen(onRoute);
+            H.listen(trackRoute);
+        };
+        bindHistory();
         new MutationObserver(queueRelabel).observe(document.body, { childList: true, subtree: true });
         new MutationObserver((muts) => {
             for (const m of muts) {
@@ -610,9 +667,6 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
         }, true);
         trackRoute();
-        if (Spicetify.Platform && Spicetify.Platform.History && Spicetify.Platform.History.listen) {
-            Spicetify.Platform.History.listen(trackRoute);
-        }
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
             if (!b || !Spicetify.Platform.History.location || Spicetify.Platform.History.location.pathname !== "/lyrics") return;
@@ -647,11 +701,22 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
             const mv = document.querySelector(".Root__main-view");
             watchSides();
+            bindHistory();
+            // "Reproduciendo en Nothing phone de user" → data-dev="Nothing phone" (la pastilla del dock)
+            const cb = document.querySelector(".main-connectBar-connectBar");
+            const cbBtn = cb && cb.querySelector("button");
+            if (cbBtn) {
+                const m = cbBtn.textContent.trim().match(/^\S+\s+\S+\s+(.+?)(?:\s+(?:de|of|von|di)\s+\S+)?$/i);
+                const dev = m ? m[1] : "";
+                if (dev && cbBtn.dataset.dev !== dev) { cbBtn.dataset.dev = dev; cb.dataset.dev = dev; }
+                if (!dev) { cb.removeAttribute("data-dev"); cbBtn.removeAttribute("data-dev"); }
+            }
             // Spotify puede sustituir el nodo (p. ej. al abrir/cerrar la letra): se re-observa y se recoloca el dock
             if (mv && mv !== dockEl) { dockRO ||= new ResizeObserver(dockLayout); dockRO.disconnect(); dockRO.observe(mv); dockEl = mv; }
             dockLayout();
             markLyricsScroll();
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
+            root.toggleAttribute("data-cs-synced", !!(lyr.lines && lyr.lines.length));
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);
         // La UI de Spotify se monta después que Spicetify: espera al contenedor

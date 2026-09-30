@@ -429,11 +429,12 @@ img[class*="playingIcon"] { filter: grayscale(1) brightness(1.6) !important; }
     background: color-mix(in srgb, var(--cs-accent) 32%, transparent);
 }
 
+/* Foco: sin anillo ni halo (quedaba pegado tras un clic y se veía como un aro amarillo) */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible {
-    outline: 2px solid var(--spice-button-active) !important;
-    outline-offset: 2px !important;
+    outline: none !important;
+    box-shadow: none !important;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -527,8 +528,9 @@ input:focus-visible {
 
 .main-globalNav-searchContainer { transition: border-color 200ms ease, box-shadow 200ms ease !important; }
 .main-globalNav-searchContainer:focus-within {
-    border-color: var(--cs-accent) !important;
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--cs-accent) 22%, transparent), var(--cs-shadow) !important;
+    /* sin halo exterior: chocaba con el borde superior del desplegable de recientes */
+    border-color: color-mix(in srgb, var(--cs-accent) 45%, var(--cs-border)) !important;
+    box-shadow: var(--cs-shadow) !important;
 }
 
 /* Sin segundo aro: el foco ya lo marca la píldora entera. Los atajos (Ctrl L) son
@@ -617,10 +619,10 @@ input:focus-visible {
 :is(#search-dropdown) .main-actionBar-ActionBarContainer ul > :nth-child(9) { animation-delay: 312ms; }
 
 @keyframes cs-search-in {
-    from { opacity: 0; transform: translateY(-14px) scale(0.93, 0.8); filter: blur(10px); }
+    from { opacity: 0; transform: translateY(-14px) scale(0.93, 0.8); }
 }
 @keyframes cs-search-out {
-    to { opacity: 0; transform: translateY(-10px) scale(0.96, 0.86); filter: blur(8px); }
+    to { opacity: 0; transform: translateY(-10px) scale(0.96, 0.86); }
 }
 @keyframes cs-search-row {
     from { opacity: 0; transform: translateY(-10px); }
@@ -636,6 +638,10 @@ html[data-cs-anim] .Root__right-sidebar { display: flex !important; justify-cont
 html[data-cs-anim] .Root__main-view .main-view-container { width: var(--cs-main-w) !important; flex: none !important; }
 html[data-cs-anim] .Root__nav-bar .main-navBar-mainNav { width: var(--cs-nav-w) !important; flex: none !important; }
 html[data-cs-anim] .Root__right-sidebar .Root__right-sidebar-peek { width: var(--cs-rs-w) !important; flex: none !important; }
+/* Barras para redimensionar los paneles: Spotify las deja medio fuera del panel y el panel
+   recorta (overflow: hidden) → solo quedaba 1 px agarrable. Se meten dentro del borde. */
+.Root__nav-bar > .LayoutResizer__resize-bar { left: auto !important; right: 0 !important; z-index: 5 !important; }
+.Root__right-sidebar > .LayoutResizer__resize-bar { right: auto !important; left: 0 !important; z-index: 5 !important; }
 @keyframes cs-side-in-left {
     from { opacity: 0; transform: translateX(-26px); }
 }
@@ -1074,6 +1080,124 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 .playback-progressbar-container { left: 121px !important; right: 121px !important; }
 
 /* --------------------------------------------------------------------------
+   22. "Reproduciendo en <dispositivo>"
+   Spotify lo pinta como una franja azul de 16px que tapaba la barra de progreso
+   del dock. Aquí es una etiqueta compacta ("● Nothing phone", el nombre lo recorta
+   theme.js en data-dev) a la izquierda de los controles de la derecha, centrada en
+   vertical. Sin fondo ni caja: color del acento y un punto que late.
+   -------------------------------------------------------------------------- */
+@keyframes cs-connect-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+}
+@keyframes cs-connect-in {
+    from { opacity: 0; transform: translateX(8px); }
+}
+.main-connectBar-connectBar {
+    position: absolute !important;
+    left: calc(50% + 152px) !important; /* justo a la derecha de los controles centrales (272px) */
+    top: 50% !important;
+    bottom: auto !important;
+    right: auto !important;
+    transform: translateY(-50%) !important;
+    width: auto !important;
+    max-width: calc(50% - 152px - 268px) !important; /* hasta los controles de la derecha */
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 7px !important;
+    overflow: hidden !important;
+    background: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+    color: color-mix(in srgb, var(--cs-accent) 55%, var(--spice-text)) !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    line-height: 14px !important;
+    white-space: nowrap !important;
+    pointer-events: none;
+    z-index: 4;
+    animation: cs-connect-in 420ms var(--cs-ease) backwards;
+}
+.main-connectBar-connectBar svg { display: none !important; }
+.main-connectBar-connectBar::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: cs-connect-pulse 1.8s ease-in-out infinite;
+}
+.main-connectBar-connectBar > button {
+    display: block !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    background: none !important;
+    border: 0 !important;
+    color: inherit !important;
+    font: inherit !important;
+}
+.main-connectBar-connectBar > button span { color: inherit !important; font: inherit !important; }
+/* con el nombre ya recortado, se muestra solo ese */
+.main-connectBar-connectBar[data-dev] > button span { display: none !important; }
+.main-connectBar-connectBar[data-dev] > button::after { content: attr(data-dev); }
+/* dock estrecho (ventana pequeña): sin sitio junto a los controles */
+.Root__now-playing-bar { container: cs-dock / inline-size; }
+@container cs-dock (max-width: 1000px) { .main-connectBar-connectBar { display: none !important; } }
+
+/* Título de la vista "Sonando": UNA línea con puntos suspensivos y todo el ancho del panel.
+   Los botones de la cabecera (ocultar, ···, expandir) le quitaban el hueco aunque no se
+   vieran: ahora flotan encima y solo aparecen al pasar el ratón, y entonces el título
+   les deja sitio. */
+.main-nowPlayingView-headerWrapper { position: relative; padding-left: 0 !important; padding-right: 0 !important; } /* mismo ancho que la carátula */
+.main-nowPlayingView-headerWrapper > button:first-child,
+.main-nowPlayingView-headerButtonContainer {
+    position: absolute !important;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    opacity: 0 !important;
+    transition: opacity 220ms var(--cs-ease) !important;
+}
+.main-nowPlayingView-headerWrapper > button:first-child { left: 0; }
+.main-nowPlayingView-headerButtonContainer { right: 0; }
+.main-nowPlayingView-headerWrapper:is(:hover, :focus-within) > button:first-child,
+.main-nowPlayingView-headerWrapper:is(:hover, :focus-within) .main-nowPlayingView-headerButtonContainer { opacity: 1 !important; }
+.main-nowPlayingView-headerTextWrapper {
+    min-width: 0 !important;
+    flex: 1 1 auto !important;
+    margin: 0 !important; /* el hueco de 12px era para el botón de ocultar, que ahora flota */
+    transform: none !important; /* Spotify la corre -28px cuando ese botón está oculto */
+    transition: padding 220ms var(--cs-ease);
+}
+.main-nowPlayingView-headerTextWrapper .main-trackInfo-overlay { margin: 0 !important; }
+.main-nowPlayingView-headerTextWrapper .main-watchFeed-contentWrapper { padding: 0 !important; }
+.main-nowPlayingView-headerWrapper:is(:hover, :focus-within) .main-nowPlayingView-headerTextWrapper { padding: 0 96px 0 24px; }
+.main-nowPlayingView-headerTextWrapper :is(.main-trackInfo-overlay, .main-trackInfo-overlay > span, .main-watchFeed-contentWrapper, h1, a) {
+    display: block !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
+    transform: none !important;
+}
+.main-nowPlayingView-headerTextWrapper .main-trackInfo-overlay { overflow: hidden !important; }
+.main-nowPlayingView-headerTextWrapper h1 {
+    overflow: hidden !important;
+    white-space: nowrap !important;
+    text-overflow: ellipsis !important;
+    line-height: 1.25 !important;
+}
+
+/* --------------------------------------------------------------------------
    16. Letra: sin la caja de color de Spotify, tipografía grande y línea activa
    con el acento; las demás se apagan y se desenfocan según su distancia
    -------------------------------------------------------------------------- */
@@ -1099,20 +1223,21 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     color: var(--spice-text) !important;
     transform-origin: left center;
     cursor: pointer;
-    transition: opacity 480ms var(--cs-ease), filter 480ms var(--cs-ease), color 480ms var(--cs-ease),
-                text-shadow 480ms var(--cs-ease), transform 480ms var(--cs-ease) !important;
+    /* solo opacidad, color y transform: los filtros (blur/sombras) animados obligan a
+       repintar cada línea en cada fotograma y hacían tirones al cambiar de frase */
+    transition: opacity 620ms cubic-bezier(0.25, 1, 0.5, 1), color 620ms cubic-bezier(0.25, 1, 0.5, 1), transform 620ms cubic-bezier(0.25, 1, 0.5, 1) !important; /* = scroll de theme.js */
 }
 /* sin sincronizar: todas legibles */
 .lyrics-lyricsContent-upcoming { opacity: 0.85; }
-/* sincronizada: pasadas casi apagadas, futuras más tenues cuanto más lejos */
-.lyrics-lyrics-contentWrapper:has(.lyrics-lyricsContent-active) .lyrics-lyricsContent-previous {
-    opacity: 0.34;
-    filter: blur(0.8px);
-}
-.lyrics-lyrics-contentWrapper:has(.lyrics-lyricsContent-active) .lyrics-lyricsContent-upcoming {
-    opacity: 0.24;
-    filter: blur(1.6px);
-}
+/* sincronizada (theme.js pone data-cs-synced): pasadas casi apagadas, futuras más
+   tenues cuanto más lejos. Va por data-cs-synced y no por :has(active): antes de que
+   suene la primera frase no hay activa y salía todo en blanco. */
+html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-previous { opacity: 0.34; }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-upcoming { opacity: 0.24; }
+/* aún sin frase activa (inicio de la canción): las primeras ya en degradado */
+html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(1) { opacity: 0.85; }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(2) { opacity: 0.55; }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(3) { opacity: 0.38; }
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active {
     opacity: 1 !important;
     filter: none !important;
@@ -1120,9 +1245,9 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     text-shadow: 0 0 34px color-mix(in srgb, var(--cs-accent) 55%, transparent);
     transform: scale(1.03);
 }
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; filter: blur(0); }
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; filter: blur(0.6px); }
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; filter: blur(1.1px); }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; }
+html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; }
 /* palabra a palabra (theme.js): relleno progresivo con el acento sobre el texto apagado */
 .lyrics-lyricsContent-active .cs-w {
     --dim: color-mix(in srgb, var(--spice-text) 50%, transparent);
@@ -1145,21 +1270,20 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     --sw: 0.05;
     display: inline-block;
     transform-origin: 50% 88%;
-    transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1), filter 900ms var(--cs-ease);
+    transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .lyrics-lyricsContent-active .cs-w.cs-cur {
     transform: translateY(calc(var(--sw) * -34px)) scale(calc(1 + var(--sw)));
-    filter: drop-shadow(0 0 12px color-mix(in srgb, var(--cs-accent) 70%, transparent));
-    transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), filter 420ms var(--cs-ease);
+    transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* abrir la letra: las líneas suben desde abajo desenfocadas, en cascada desde
    la activa; cerrarla: se hunden y se apagan en cascada inversa */
 @keyframes cs-lyr-in {
-    from { opacity: 0; transform: translateY(46px) scale(0.965); filter: blur(12px); }
+    from { opacity: 0; transform: translateY(46px) scale(0.965); }
 }
 @keyframes cs-lyr-out {
-    to { opacity: 0; transform: translateY(34px) scale(0.97); filter: blur(10px); }
+    to { opacity: 0; transform: translateY(34px) scale(0.97); }
 }
 @keyframes cs-lyr-bg {
     from { opacity: 0; }
@@ -1529,8 +1653,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 :is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:hover svg { transform: scale(1.12); }
 :is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button:focus-visible,
 .main-yourLibraryX-collapseButton button:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--cs-accent) 70%, transparent) !important;
-    outline-offset: 3px !important;
+    outline: none !important;
 }
 /* Etiquetas emergentes: cristal redondeado como el resto */
 .main-contextMenu-tippy:has([role="tooltip"]) {
@@ -1553,3 +1676,30 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     box-shadow: 0 0 0 6px color-mix(in srgb, var(--cs-accent) 18%, transparent);
 }
 :is(.main-yourLibraryX-header, .main-yourLibraryX-collapseButton) button:hover :is(svg, span, p) { color: var(--cs-accent) !important; fill: currentColor; }
+
+/* --------------------------------------------------------------------------
+   23. Cambio de página (p. ej. de una playlist a otra)
+   theme.js pone data-cs-route ~0.9 s: el contenido entra deslizándose y en
+   cascada (cabecera, luego las primeras filas). Solo opacity/transform.
+   -------------------------------------------------------------------------- */
+@keyframes cs-page-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.985); }
+}
+@keyframes cs-row-in {
+    from { opacity: 0; transform: translateY(12px); }
+}
+html[data-cs-route] .Root__main-view .main-view-container__scroll-node-child {
+    animation: cs-page-in 560ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+    transform-origin: 50% 0;
+}
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"] {
+    animation: cs-row-in 520ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(1) { animation-delay: 120ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(2) { animation-delay: 150ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(3) { animation-delay: 180ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(4) { animation-delay: 210ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(5) { animation-delay: 240ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(6) { animation-delay: 270ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(7) { animation-delay: 300ms; }
+html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8) { animation-delay: 330ms; }
