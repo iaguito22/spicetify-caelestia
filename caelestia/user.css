@@ -1225,32 +1225,44 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     cursor: pointer;
     /* solo opacidad, color y transform: los filtros (blur/sombras) animados obligan a
        repintar cada línea en cada fotograma y hacían tirones al cambiar de frase */
-    transition: opacity 620ms cubic-bezier(0.25, 1, 0.5, 1), color 620ms cubic-bezier(0.25, 1, 0.5, 1), transform 620ms cubic-bezier(0.25, 1, 0.5, 1) !important; /* = scroll de theme.js */
+    transition: opacity var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1), color var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1), transform var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1) !important; /* = scroll de theme.js */
 }
 /* sin sincronizar: todas legibles */
-.lyrics-lyricsContent-upcoming { opacity: 0.85; }
+html:not([data-cs-clock]) .lyrics-lyricsContent-upcoming { opacity: 0.85; }
 /* sincronizada (theme.js pone data-cs-synced): pasadas casi apagadas, futuras más
    tenues cuanto más lejos. Va por data-cs-synced y no por :has(active): antes de que
    suene la primera frase no hay activa y salía todo en blanco. */
-html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-previous { opacity: 0.34; }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-upcoming { opacity: 0.24; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-previous { opacity: 0.34; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-upcoming { opacity: 0.24; }
 /* aún sin frase activa (inicio de la canción): las primeras ya en degradado */
-html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(1) { opacity: 0.85; }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(2) { opacity: 0.55; }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(3) { opacity: 0.38; }
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active {
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(1) { opacity: 0.85; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(2) { opacity: 0.55; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper:not(:has(.lyrics-lyricsContent-active)) .lyrics-lyricsContent-upcoming:nth-child(3) { opacity: 0.38; }
+html:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active {
     opacity: 1 !important;
     filter: none !important;
     color: var(--lyrics-color-active) !important;
     text-shadow: 0 0 34px color-mix(in srgb, var(--cs-accent) 55%, transparent);
     transform: scale(1.03);
 }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; }
-html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; }
+/* Traspaso sin hueco: la nueva se enciende en la mitad del tiempo del paso, y la que acaba
+   de terminar conserva su acento y su tamaño mientras se apaga más despacio (x1.4).
+   Así en ningún momento se queda la letra sin frase marcada. */
+html:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric.lyrics-lyricsContent-active {
+    transition: opacity calc(var(--cs-lyr-dur, 620ms) * 0.5) cubic-bezier(0.25, 1, 0.5, 1), color calc(var(--cs-lyr-dur, 620ms) * 0.5) cubic-bezier(0.25, 1, 0.5, 1),
+        transform var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+html:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-lyric.lyrics-lyricsContent-previous:has(+ .lyrics-lyricsContent-active) {
+    transition: opacity calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1), color calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1),
+        transform calc(var(--cs-lyr-dur, 620ms) * 1.2) cubic-bezier(0.25, 1, 0.5, 1) !important;
+    color: var(--lyrics-color-active) !important;
+}
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming { opacity: 0.62; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.42; }
+html[data-cs-synced]:not([data-cs-clock]) .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming + .lyrics-lyricsContent-upcoming { opacity: 0.3; }
 /* palabra a palabra (theme.js): relleno progresivo con el acento sobre el texto apagado */
-.lyrics-lyricsContent-active .cs-w {
-    --dim: color-mix(in srgb, var(--spice-text) 50%, transparent);
+html:not([data-cs-clock]) :is(.lyrics-lyricsContent-active, .lyrics-lyricsContent-previous:has(+ .lyrics-lyricsContent-active)) .cs-w {
+    --dim: color-mix(in srgb, var(--lyrics-color-active) 62%, transparent);
     color: transparent;
     background-image: linear-gradient(90deg,
         var(--lyrics-color-active) calc(var(--p, 0) * 112% - 12%),
@@ -1258,21 +1270,21 @@ html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active 
     -webkit-background-clip: text;
     background-clip: text;
 }
-.lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active:has(.cs-w) {
+html:not([data-cs-clock]) .lyrics-lyrics-contentWrapper :is(.lyrics-lyricsContent-active, .lyrics-lyricsContent-previous:has(+ .lyrics-lyricsContent-active)):has(.cs-w) {
     text-shadow: none;
     filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent)) !important;
 }
 /* cada sílaba (.cs-w; una palabra entera si no hay sílabas) sube y crece con un
    rebote suave mientras se canta —más cuanto más se alarga— y al terminar se
    asienta despacio; las palabras (.cs-g) no se parten al cambiar de línea */
-.lyrics-lyricsContent-active .cs-g { display: inline-block; white-space: nowrap; }
-.lyrics-lyricsContent-active .cs-w {
+.lyrics-lyricsContent-lyric .cs-g { display: inline-block; white-space: nowrap; }
+.lyrics-lyricsContent-lyric .cs-w {
     --sw: 0.05;
     display: inline-block;
     transform-origin: 50% 88%;
     transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.lyrics-lyricsContent-active .cs-w.cs-cur {
+html:not([data-cs-clock]) .lyrics-lyricsContent-active .cs-w.cs-cur {
     transform: translateY(calc(var(--sw) * -34px)) scale(calc(1 + var(--sw)));
     transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -1299,6 +1311,78 @@ html[data-cs-synced] .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active 
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-active + .lyrics-lyricsContent-lyric + .lyrics-lyricsContent-lyric + .lyrics-lyricsContent-lyric + .lyrics-lyricsContent-lyric { animation-delay: 340ms; }
 .lyrics-lyrics-contentWrapper .lyrics-lyricsContent-previous { animation-delay: 30ms; }
 
+/* Spotify recrea las líneas que cambian de estado en cada cambio de frase: sin esto repetían
+   la entrada (pequeñas y transparentes) y durante un instante no había frase marcada.
+   theme.js pone data-cs-ready cuando termina la entrada. */
+.lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric { animation: none; }
+/* Relevo entre frases. Como son elementos recién creados, una transición no tiene estado
+   anterior del que partir (el cambio era seco): se anima desde cómo estaban justo antes.
+   La nueva parte del tono de "siguiente" (0.62, tamaño normal) y se enciende en la mitad
+   del paso; la que acaba parte de activa (1, grande) y se apaga algo más despacio. */
+@keyframes cs-lyr-grow { from { transform: scale(1); } }
+@keyframes cs-lyr-light { from { opacity: 0.62; } }
+@keyframes cs-lyr-leave { from { opacity: 1; transform: scale(1.03); } }
+html:not([data-cs-clock]) .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric.lyrics-lyricsContent-active {
+    animation: cs-lyr-grow var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1);
+}
+html:not([data-cs-clock]) .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-active .lyrics-lyricsContent-text {
+    animation: cs-lyr-light calc(var(--cs-lyr-dur, 620ms) * 0.5) cubic-bezier(0.25, 1, 0.5, 1);
+}
+html:not([data-cs-clock]) .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric.lyrics-lyricsContent-previous:has(+ .lyrics-lyricsContent-active) {
+    animation: cs-lyr-leave calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1);
+}
+/* ---- Letra guiada por el reloj del tema (theme.js pone data-cs-clock) -------------------
+   Spotify marca la frase activa 250-400 ms tarde (hasta 1 s tras un ♪) y además recrea las
+   líneas al hacerlo: la frase entraba a medio cantar. theme.js calcula la frase con el
+   progreso de la canción y marca cada línea con su distancia a ella (data-cs-d: 0 actual,
+   -1 la que acaba de terminar, 1-3 las siguientes, p pasadas, u lejanas). Las de relevo
+   se animan con keyframes y --cs-ad (retardo negativo): si Spotify recrea la línea a
+   mitad, la animación sigue donde iba en vez de saltar. */
+html[data-cs-clock] .lyrics-lyricsContent-lyric { opacity: 0.24; filter: none !important; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="p"],
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"] { opacity: 0.34; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="1"] { opacity: 0.62; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="2"] { opacity: 0.42; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="3"] { opacity: 0.3; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="0"] {
+    opacity: 1;
+    color: var(--lyrics-color-active) !important;
+    text-shadow: 0 0 34px color-mix(in srgb, var(--cs-accent) 55%, transparent);
+    transform: scale(1.03);
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"] { color: var(--lyrics-color-active) !important; }
+@keyframes cs-clk-grow { from { transform: scale(1); } }
+@keyframes cs-clk-light { from { opacity: 0.62; } }
+@keyframes cs-clk-leave { from { opacity: 1; transform: scale(1.03); } }
+/* todo en la propia línea (Spotify recrea su texto interior al marcar la activa, y una
+   animación en el hijo volvía a empezar); sin transición: la hacen los keyframes */
+html[data-cs-clock] .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="-1"]) {
+    transition: color var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+html[data-cs-clock] .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric[data-cs-d="0"] {
+    animation: cs-clk-grow var(--cs-lyr-dur, 620ms) cubic-bezier(0.25, 1, 0.5, 1) var(--cs-ad, 0ms) backwards,
+        cs-clk-light calc(var(--cs-lyr-dur, 620ms) * 0.5) cubic-bezier(0.25, 1, 0.5, 1) var(--cs-ad, 0ms) backwards;
+}
+html[data-cs-clock] .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric[data-cs-d="-1"] {
+    animation: cs-clk-leave calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1) var(--cs-ad, 0ms) backwards;
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="-1"]) .cs-w {
+    --dim: color-mix(in srgb, var(--lyrics-color-active) 62%, transparent);
+    color: transparent;
+    background-image: linear-gradient(90deg,
+        var(--lyrics-color-active) calc(var(--p, 0) * 112% - 12%),
+        var(--dim) calc(var(--p, 0) * 112%));
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="-1"]):has(.cs-w) {
+    text-shadow: none;
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent)) !important;
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="0"] .cs-w.cs-cur {
+    transform: translateY(calc(var(--sw) * -34px)) scale(calc(1 + var(--sw)));
+    transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 .lyrics-lyrics-container[data-cs-out] { animation: none; opacity: 0; transition: opacity 380ms var(--cs-ease) 120ms; }
 .lyrics-lyrics-container[data-cs-out] .lyrics-lyricsContent-lyric {
     animation: cs-lyr-out 340ms cubic-bezier(0.55, 0, 0.8, 0.4) forwards;

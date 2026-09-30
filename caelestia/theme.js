@@ -143,29 +143,57 @@
     // el scroll se la llevaba hacia arriba.)
     const nativeSIV = Element.prototype.scrollIntoView;
     let lyrScroll = { raf: 0, el: null };
-    Element.prototype.scrollIntoView = function (opts) {
-        if (!(this.classList && this.classList.contains("lyrics-lyricsContent-lyric")) ||
-            !opts || typeof opts !== "object" || opts.behavior !== "smooth" || opts.block !== "center") {
-            return nativeSIV.apply(this, arguments);
+    let lyrDur = 620;
+    // Duración del paso a la frase i: una fracción de lo que dura esa frase (letra rápida → paso
+    // rápido; lenta → pausado), entre 420 y 1000 ms
+    function setLyrDur(i) {
+        const L = lyr.lines;
+        const g = L && i >= 0 && i + 1 < L.length ? L[i + 1].t - L[i].t : 2600;
+        const d = Math.round(Math.max(420, Math.min(1000, g * 0.3)));
+        if (d !== lyrDur) {
+            lyrDur = d;
+            document.documentElement.style.setProperty("--cs-lyr-dur", d + "ms");
         }
-        let sc = this.parentElement;
+    }
+    // Centra una frase con la animación propia (sobre el ancestro que hace scroll)
+    function smoothCenter(line) {
+        let sc = line.parentElement;
         while (sc && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
-        if (!sc) return nativeSIV.apply(this, arguments);
-        const r = this.getBoundingClientRect(), s = sc.getBoundingClientRect();
+        if (!sc) return false;
+        const r = line.getBoundingClientRect(), s = sc.getBoundingClientRect();
         // la frase activa crece 3% (transform): se centra su caja sin escalar
         const to = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight,
             sc.scrollTop + (r.top + r.height / 2) - (s.top + s.height / 2)));
         const from = sc.scrollTop, d = to - from;
         cancelAnimationFrame(lyrScroll.raf);
-        if (Math.abs(d) < 1) return;
-        const dur = Math.abs(d) > 400 ? 820 : 620, t0 = performance.now(); // 620 = transición CSS de la frase
+        lyrScroll.raf = 0;
+        if (Math.abs(d) < 1) return true;
+        // misma duración que el relevo de la frase (--cs-lyr-dur), algo más si el salto es largo
+        const dur = lyrDur + (Math.abs(d) > 400 ? 200 : 0), t0 = performance.now();
         const step = (now) => {
             const p = Math.min(1, (now - t0) / dur);
             const e = 1 - Math.pow(1 - p, 4); // easeOutQuart ≈ cubic-bezier(0.25, 1, 0.5, 1)
             sc.scrollTop = from + d * e;
-            if (p < 1) lyrScroll.raf = requestAnimationFrame(step);
+            lyrScroll.raf = p < 1 ? requestAnimationFrame(step) : 0;
         };
         lyrScroll.raf = requestAnimationFrame(step);
+        return true;
+    }
+    Element.prototype.scrollIntoView = function (opts) {
+        if (!(this.classList && this.classList.contains("lyrics-lyricsContent-lyric")) ||
+            !opts || typeof opts !== "object" || opts.behavior !== "smooth" || opts.block !== "center") {
+            return nativeSIV.apply(this, arguments);
+        }
+        // Con el reloj del tema la frase ya se ha centrado a su hora; Spotify llama tarde (y
+        // solo si el seguimiento está activo): se reactiva el seguimiento y, si no hay una
+        // animación en curso, se centra la frase actual del reloj
+        if (clk.on) {
+            clk.follow = true;
+            const cur = clk.els && clk.els[clk.cur + clk.off];
+            if (!lyrScroll.raf && cur) smoothCenter(cur);
+            return;
+        }
+        if (!smoothCenter(this)) return nativeSIV.apply(this, arguments);
     };
 
     async function loadLyrics() {
@@ -397,24 +425,110 @@
         el.__cs = { idx, timed, real: !!lyr.lines[idx].w };
     }
 
+    // ---- Frase actual por el reloj de la canción -----------------------------
+    // Spotify marca la activa 250-400 ms tarde (hasta 1 s tras un ♪): aquí se calcula con
+    // el progreso y cada línea lleva data-cs-d (distancia a la actual; ver el CSS)
+    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null };
+    function clockOff() {
+        if (!clk.on) return;
+        clk.on = false;
+        document.documentElement.removeAttribute("data-cs-clock");
+        if (clk.mo) clk.mo.disconnect();
+        clk.mo = null;
+        if (clk.els) for (const e of clk.els) e.removeAttribute("data-cs-d");
+        clk.box = clk.wrap = clk.els = null;
+    }
+    function clockMark() {
+        const now = performance.now(), ad = Math.round(clk.at - now) + "ms";
+        for (let j = 0; j < clk.els.length; j++) {
+            const e = clk.els[j], d = j - clk.off - clk.cur;
+            const v = d === 0 ? "0" : d === -1 ? "-1" : d > 0 && d < 4 ? String(d) : d < 0 ? "p" : "u";
+            if (e.getAttribute("data-cs-d") === v) continue;
+            // las de relevo arrancan su animación donde iba (retardo negativo): así una línea
+            // que Spotify acaba de recrear continúa en vez de saltar
+            if (v === "0" || v === "-1") e.style.setProperty("--cs-ad", ad);
+            e.setAttribute("data-cs-d", v);
+        }
+    }
+    function clockSetup(box, L) {
+        const first = box.querySelector(".lyrics-lyricsContent-lyric"), wrap = first && first.parentElement;
+        if (!wrap) return false;
+        const els = wrap.querySelectorAll(":scope > .lyrics-lyricsContent-lyric");
+        const key = (x) => (x || "").replace(/\s+/g, " ").trim();
+        // desfase entre las líneas del DOM y las de la API (Spotify añade alguna vacía delante)
+        let best = -1, off = 0;
+        for (let k = -2; k <= 6; k++) {
+            let m = 0;
+            for (let i = 0; i < L.length; i++) if (els[i + k] && key(els[i + k].textContent) === key(L[i].text)) m++;
+            if (m > best) { best = m; off = k; }
+        }
+        if (best < L.length * 0.8) return false;
+        clockOff();
+        Object.assign(clk, { on: true, box, wrap, els, off, id: lyr.id, cur: -2, follow: true });
+        document.documentElement.setAttribute("data-cs-clock", "");
+        // Spotify recrea líneas al cambiar su activa: se vuelven a marcar antes de pintarse
+        clk.mo = new MutationObserver(() => {
+            clk.els = wrap.querySelectorAll(":scope > .lyrics-lyricsContent-lyric");
+            clockMark();
+        });
+        clk.mo.observe(wrap, { childList: true });
+        return true;
+    }
+    // Rueda, arrastre o teclas sobre la letra: deja de seguir (como Spotify) hasta que
+    // Spotify vuelva a pedir centrar (botón de sincronizar)
+    for (const ev of ["wheel", "touchmove", "keydown"]) {
+        document.addEventListener(ev, (e) => {
+            if (!clk.on || (ev === "keydown" && !/Arrow|Page|Home|End|Space/.test(e.code))) return;
+            if (e.target instanceof Node && clk.box && (clk.box.contains(e.target) || e.target.contains(clk.box))) {
+                clk.follow = false;
+                cancelAnimationFrame(lyrScroll.raf);
+                lyrScroll.raf = 0;
+            }
+        }, { capture: true, passive: true });
+    }
+
     function lyricsTick() {
         lyrRaf = 0;
         const box = document.querySelector(".lyrics-lyrics-container");
-        if (!box) return;
+        if (!box) return clockOff();
         lyrRaf = requestAnimationFrame(lyricsTick);
+        if (!box.__csReady) { // fin de la entrada en cascada (820 ms + 340 ms del último retardo)
+            box.__csReady = true;
+            setTimeout(() => box.setAttribute("data-cs-ready", ""), 1250);
+        }
         const L = lyr.lines;
-        const el = L && box.querySelector(".lyrics-lyricsContent-active .lyrics-lyricsContent-text");
-        const text = el && el.textContent.trim();
-        if (!text || !/[\p{L}\p{N}]/u.test(text) || /[֐-ࣿ]/.test(text)) return; // ♪, vacías y RTL: tal cual
+        if (!L || !L.length) return clockOff();
+        if (!clk.on || clk.box !== box || clk.id !== lyr.id || !clk.wrap.isConnected) {
+            if (!clockSetup(box, L)) return clockOff();
+        }
         const t = Spicetify.Player.getProgress();
-        let cs = el.__cs;
-        if (!cs || !el.querySelector(".cs-w") || cs.real !== !!L[cs.idx].w || t < L[cs.idx].t - 600 ||
-            (cs.idx + 1 < L.length && t > L[cs.idx + 1].t + 600)) {
-            let idx = -1;
-            for (let i = 0; i < L.length; i++) if (L[i].text.trim() === text && L[i].t <= t + 400) idx = i;
-            if (idx < 0) return;
-            if (!cs || cs.idx !== idx || !el.querySelector(".cs-w") || cs.real !== !!L[idx].w) buildLine(el, idx);
-            cs = el.__cs;
+        let cur = -1;
+        while (cur + 1 < L.length && L[cur + 1].t <= t) cur++;
+        if (cur !== clk.cur) {
+            const step = clk.cur >= -1 && cur === clk.cur + 1; // avance normal (no salto/seek)
+            clk.cur = cur;
+            // tras un salto (seek, abrir la letra) no hay relevo: cada línea directa a su sitio
+            clk.at = performance.now() - (step ? 0 : 5000);
+            setLyrDur(cur);
+            clockMark();
+            const line = clk.els[cur + clk.off];
+            if (clk.follow && line) smoothCenter(line);
+        }
+        if (cur < 0) return;
+        const lineEl = clk.els[cur + clk.off];
+        const el = lineEl && lineEl.querySelector(".lyrics-lyricsContent-text");
+        const text = el && el.textContent.trim();
+        if (!text || !/[\p{L}\p{N}]/u.test(text) || /[\u0590-\u08ff]/.test(text)) return; // ♪, vacías y RTL: tal cual
+        if (!el.__cs || el.__cs.idx !== cur || !el.querySelector(".cs-w") || el.__cs.real !== !!L[cur].w) buildLine(el, cur);
+        const cs = el.__cs;
+        // La siguiente se trocea ya (sus trozos solo tienen estilo cuando es la actual): al
+        // encenderse sale directamente con el relleno por palabras
+        if (cs.prepped !== cur) {
+            cs.prepped = cur;
+            const nx = clk.els[cur + 1 + clk.off], nEl = nx && nx.querySelector(".lyrics-lyricsContent-text");
+            const n = cur + 1, nt = nEl && nEl.textContent.trim();
+            if (nEl && n < L.length && nt && /[\p{L}\p{N}]/u.test(nt) &&
+                !(nEl.__cs && nEl.__cs.idx === n && nEl.querySelector(".cs-w"))) buildLine(nEl, n);
         }
         for (const u of cs.timed) {
             const p = Math.max(0, Math.min(1, (t - u.start) / Math.max(1, u.end - u.start)));
@@ -728,7 +842,17 @@
             if (++tries < 60) setTimeout(waitReady, 250);
         })();
         // Caelestia reescribe color.ini al cambiar de esquema y `spicetify watch` lo reaplica
-        new MutationObserver(syncMode).observe(document.documentElement, {
+        // Solo si cambia algo que no sea una variable propia (--cs-*): el tema escribe en el style
+        // de <html> en cada cambio de frase y de página, y leer getComputedStyle ahí obligaba a
+        // recalcular los estilos de toda la página (~65 ms: el tirón al cambiar de frase)
+        const styleKey = () => (document.documentElement.getAttribute("style") || "").replace(/--cs-[\w-]+:[^;]*;?/g, "").trim();
+        let lastStyle = styleKey();
+        new MutationObserver(() => {
+            const k = styleKey();
+            if (k === lastStyle) return;
+            lastStyle = k;
+            syncMode();
+        }).observe(document.documentElement, {
             attributes: true, attributeFilter: ["style"],
         });
     }
