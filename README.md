@@ -9,7 +9,7 @@ A Spotify theme where the panels float as rounded islands and **the only color c
 
 ## Design
 
-- **Islands.** Library, main view and right panel float over the background with concentric corners (28 → 16 → 8 px). The top bar is three pills: navigation, search, profile. The player is a floating glass dock.
+- **Islands.** Library, main view and right panel float over the background with concentric corners (28 → 16 → 8 px). The top bar is three pills: navigation, search, profile. The player is a floating liquid glass dock.
 - **The cover is the palette.** Everything else is neutral gray, so the album art sets the mood: it fills the background (blurred) and tints the accent.
 - **Less chrome.** No scrollbars, no focus rings, no boxes around lists. Buttons that aren't needed all the time appear on hover.
 
@@ -19,7 +19,7 @@ A Spotify theme where the panels float as rounded islands and **the only color c
 
 When a song starts, the cover is drawn into a tiny 24×24 canvas. Each colored pixel votes for its hue, weighted by how saturated it is; grays, blacks and whites don't vote. The winning hue is clamped in saturation and lightness so it always reads against the background, and it fades in over ~1.4 s. Grayscale covers fall back to the scheme's own accent.
 
-That color drives the play button, progress bar, active lyric, highlights and the tint of the glass.
+That color drives the play button, progress bar, active lyric, highlights and the tint of the liquid glass.
 
 ![Playlist tinted by its cover](screenshots/playlist.png)
 
@@ -81,7 +81,7 @@ Un tema para Spotify con los paneles flotando como islas redondeadas, en el que 
 
 ## Diseño
 
-- **Islas.** La biblioteca, la vista principal y el panel derecho flotan sobre el fondo, con esquinas concéntricas (28 → 16 → 8 px). Arriba hay tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de cristal que flota sobre todo lo demás.
+- **Islas.** La biblioteca, la vista principal y el panel derecho flotan sobre el fondo, con esquinas concéntricas (28 → 16 → 8 px). Arriba hay tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de liquid glass que flota sobre todo lo demás.
 - **La portada manda.** El resto de la interfaz es gris neutro, así que es la carátula la que pone el ambiente: ocupa el fondo, desenfocada, y de ella sale el color de acento.
 - **Nada que sobre.** Sin barras de scroll, sin contornos de foco y sin recuadros alrededor de las listas. Los botones que no se usan todo el rato aparecen al pasar el ratón por encima.
 
@@ -91,7 +91,7 @@ Un tema para Spotify con los paneles flotando como islas redondeadas, en el que 
 
 Al empezar cada canción, la portada se pinta en un lienzo diminuto de 24×24 píxeles. Cada píxel con color vota por su tono, y cuanto más saturado está, más pesa su voto; los grises, los negros y los blancos no cuentan. Al tono ganador se le ajustan la saturación y la luminosidad para que siempre se vea bien sobre el fondo, y entra con una transición de 1,4 s más o menos. Si la portada es en blanco y negro, se usa el acento del propio esquema de colores.
 
-Ese color es el del botón de reproducir, la barra de progreso, la línea de la letra que se está cantando, los resaltados y el tinte del cristal.
+Ese color es el del botón de reproducir, la barra de progreso, la línea de la letra que se está cantando, los resaltados y el tinte del liquid glass.
 
 ![Playlist teñida con el color de su portada](screenshots/playlist.png)
 
