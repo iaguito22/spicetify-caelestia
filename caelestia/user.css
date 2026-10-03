@@ -1223,6 +1223,24 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     --lyrics-color-messaging: var(--spice-subtext) !important;
 }
 .lyrics-lyrics-background { background: transparent !important; }
+/* 1.3.3: la vista de letra se pinta un fotograma antes de recibir sus clases, con el color de
+   Spotify y ya sin entrada. Se reconoce por sus variables en línea y espera oculta (medio segundo
+   como mucho) a que lleguen; al llegar, su propia animación la sustituye y hace la entrada. */
+@keyframes cs-lyr-wait { from, to { opacity: 0; } }
+.Root__main-view main > div[style*="--lyrics-color-background"]:not(.lyrics-lyrics-container) {
+    --lyrics-color-background: transparent !important;
+    animation: cs-lyr-wait 500ms;
+}
+/* Tarjeta "Vista previa de la letra" del panel derecho: superficie gris como el resto de la
+   interfaz en vez del color de la portada; la frase que suena, con el acento */
+[data-testid="lyrics-npv-section"] {
+    --lyrics-color-background: rgba(var(--spice-rgb-text), 0.06) !important;
+    --lyrics-color-active: color-mix(in srgb, var(--cs-accent) 32%, var(--spice-text)) !important;
+    --lyrics-color-inactive: rgba(var(--spice-rgb-text), 0.55) !important;
+    --lyrics-color-passed: rgba(var(--spice-rgb-text), 0.55) !important;
+    background-color: rgba(var(--spice-rgb-text), 0.06) !important;
+    border-radius: var(--cs-r-inner) !important;
+}
 .lyrics-lyrics-contentWrapper { padding: 0 44px 0 48px !important; }
 .lyrics-lyrics-contentContainer { padding-bottom: 130px; } /* la última línea sube por encima del dock */
 

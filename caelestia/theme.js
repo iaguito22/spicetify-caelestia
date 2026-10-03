@@ -1061,12 +1061,16 @@
     // Lo mismo con piezas de dentro (dock, píldora de navegación, cabecera del panel derecho):
     // [selector estable, clase de siempre, (elemento) → elemento al que ponérsela]. Solo añade la
     // clase si falta; en las versiones que aún la traen no cambia nada.
-    const up = (n) => (e) => { while (e && n--) e = e.parentElement; return e; };
+    // (el contador va en una variable propia: con `n--` se gastaba en la primera llamada y el alias
+    // solo funcionaba con el primer elemento; al cambiar de página ya no etiquetaba nada)
+    const up = (n) => (e) => { for (let i = n; e && i > 0; i--) e = e.parentElement; return e; };
+    // primer hijo, si es un div que cumple `ok`
+    const firstDiv = (ok = () => true) => (e) => { const f = e.firstElementChild; return f && f.tagName === "DIV" && ok(f) ? f : null; };
     const INNER_ALIASES = [
         [".main-globalNav-historyButtonsWrapper", "main-globalNav-historyButtonsContainer", up(1)],
         // huecos que Spotify reserva para los "···" y los botones de la ventana: el tema ya deja los suyos
-        [".main-globalNav-historyButtonsWrapper > div:first-child:not(.main-globalNav-historyButtons):not(:has(button))", "main-globalNav-historyButtonsSpacer"],
-        [".main-globalNav-contentRight > div:last-child:not(:has(button)):not(.main-actionButtons)", "main-globalNav-contentRightSpacer"],
+        [".main-globalNav-historyButtonsWrapper", "main-globalNav-historyButtonsSpacer", ":scope > div:first-child:not(.main-globalNav-historyButtons):not(:has(button))"],
+        [".main-globalNav-contentRight", "main-globalNav-contentRightSpacer", ":scope > div:last-child:not(:has(button)):not(.main-actionButtons)"],
         // biblioteca
         [".Root__nav-bar > nav", "main-navBar-mainNav"],
         [".Root__nav-bar .YourLibraryX", "main-yourLibraryX-libraryContainer"],
@@ -1074,28 +1078,41 @@
         [".main-yourLibraryX-header > div:first-child", "main-yourLibraryX-headerContent"],
         [".main-yourLibraryX-headerContent > div:first-child", "main-yourLibraryX-collapseButton"],
         [".main-yourLibraryX-libraryRootlist", "main-yourLibraryX-libraryItemContainer", up(2)],
-        [".main-yourLibraryX-libraryRootlist > div:first-child:has(input)", "main-yourLibraryX-rootListHeader"],
+        [".main-yourLibraryX-libraryRootlist", "main-yourLibraryX-rootListHeader", firstDiv((f) => !!f.querySelector("input"))],
         // cabecera y barra de acciones de playlist/álbum
         ['[data-testid="entity-header"]', "main-entityHeader-container"],
-        ['[data-testid="entity-header"]:has(> .contentSpacing img)', "main-entityHeader-containerNormal"],
+        ['[data-testid="entity-header"]', "main-entityHeader-containerNormal", (h) => (h.querySelector(":scope > .contentSpacing img") ? h : null)],
         // barra fija de arriba al hacer scroll (play + título)
-        ['[data-testid="topbar"] > div:first-child:not(.contentSpacing)', "main-topBar-background"],
+        ['[data-testid="topbar"]', "main-topBar-background", firstDiv((f) => !f.classList.contains("contentSpacing"))],
         [".main-topBar-background > div:first-child", "main-topBar-overlay"],
         ['[data-testid="topbar"] > .contentSpacing', "main-topBar-topbarContentContainer"],
         ['[data-testid="topbar-content"]', "main-topBar-topbarContent"],
-        ['[data-testid="entity-header"] > div:not(.contentSpacing):not(:has(*))', "main-entityHeader-backgroundColor"],
+        ['[data-testid="entity-header"]', "main-entityHeader-backgroundColor", ":scope > div:not(.contentSpacing):not(:has(*))"],
         ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-contentWrapper"],
-        ['[data-testid="entity-header"] > .contentSpacing > div:has(img):not(:has(h1))', "main-entityHeader-imageContainer"],
+        // en los álbumes la portada va dentro de un botón (abre la portada en grande)
+        ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-imageContainer", ":scope > :is(div, button):has(img):not(:has(h1))"],
         ['[data-testid="entity-header"] .main-entityHeader-imageContainer img', "main-entityHeader-image"],
-        [".main-entityHeader-contentWrapper > div:has(h1)", "main-entityHeader-headerText"],
+        [".main-entityHeader-contentWrapper", "main-entityHeader-headerText", ":scope > div:has(h1)"],
         ['[data-testid="entity-header"] [data-testid="entityTitle"]', "main-entityHeader-title"],
         [".main-entityHeader-headerText > div:last-child", "main-entityHeader-metaData"],
         ['[data-testid="action-bar"]', "main-actionBar-ActionBar"],
         ['[data-testid="action-bar"]', "main-actionBar-ActionBarContainer", up(2)],
         ['[data-testid="action-bar-row"]', "main-actionBar-ActionBarRow"],
-        ['[data-testid="action-bar-row"] > div:first-child:has(> button[class*="button-primary"])', "main-playButton-PlayButton"],
-        // fondo de color que Spotify pone detrás de la barra (entre la cabecera y la barra)
-        ['[data-testid="entity-header"] + div[style*="background-color"]', "main-actionBarBackground-background"],
+        ['[data-testid="action-bar-row"]', "main-playButton-PlayButton", ':scope > div:first-child:has(button[class*="button-primary"])'],
+        // fondo de color que Spotify pone detrás de la barra: el div justo después de la cabecera, con
+        // background-color en línea; en la 1.3.3, un degradado sin hijos con las variables de color de
+        // la portada, junto a la cabecera (álbum) o dentro del bloque de la lista (playlist)
+        ['[data-testid="entity-header"]', "main-actionBarBackground-background", (h) => {
+            const next = h.nextElementSibling, st = (e) => e.getAttribute("style") || "";
+            if (next && next.tagName === "DIV" && st(next).includes("background-color")) return next;
+            return [...h.parentElement.children, ...(next ? next.children : [])].filter((e) =>
+                e !== h && e.tagName === "DIV" && !e.firstElementChild && st(e).includes("--background-highlight"));
+        }],
+        // bloque de la lista de una playlist: Spotify le pone fondo gris opaco, que tapaba el velo del panel
+        ['[data-testid="playlist-page"] > [data-testid="entity-header"]', "playlist-playlist-playlistContent", (h) => {
+            const next = h.nextElementSibling;
+            return next && next.querySelector('[data-testid="action-bar"]') ? next : null;
+        }],
         // buscador: form → sección del input → píldora (con el botón de inicio) → sección
         [".Root__globalNav form:has(input)", "main-globalNav-searchInputContainer"],
         [".Root__globalNav form:has(input)", "main-globalNav-searchInputSection", up(1)],
@@ -1104,40 +1121,46 @@
         [".main-globalNav-searchInputContainer input", "main-topBar-searchBar"],
         [".main-globalNav-searchInputContainer input", "x-searchInput-searchInputInput"],
         [".main-globalNav-searchInputContainer input", "main-globalNav-searchInputWrapper", up(1)],
-        [".main-globalNav-searchInputWrapper > div:has(> span)", "main-globalNav-searchInputTextWrapper"],
+        [".main-globalNav-searchInputWrapper", "main-globalNav-searchInputTextWrapper", ":scope > div:has(> span)"],
         [".main-globalNav-searchInputTextWrapper > span:first-child", "main-globalNav-searchInputText"],
         ['.main-globalNav-searchInputContainer [class*="form-input-icon__icon--trailing"] > div', "main-globalNav-browseButtonWrapper"],
         ['[data-testid="player-controls"]', "player-controls"],
         ['[data-testid="CoverSlotCollapsed__container"]', "main-coverSlotCollapsed-container"],
         ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArtContainer"],
-        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"] > div', "main-nowPlayingWidget-coverArt"],
-        ['[data-testid="now-playing-widget"] > div:not([data-testid]):has(a)', "main-nowPlayingWidget-trackInfo"],
-        ['[data-testid="now-playing-widget"] > div:not([data-testid]):not(:has(a)):has(button)', "main-nowPlayingWidget-actionButtonWrapper"],
+        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArt", ":scope > div"],
+        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-trackInfo", ":scope > div:not([data-testid]):has(a)"],
+        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-actionButtonWrapper", ":scope > div:not([data-testid]):not(:has(a)):has(button)"],
         [".main-nowPlayingWidget-trackInfo > div:first-child", "main-trackInfo-name"],
-        [".main-nowPlayingWidget-trackInfo > div:not(:first-child):has(a)", "main-trackInfo-artists"],
-        [":is(.main-trackInfo-name, .main-trackInfo-artists) > div:first-child", "main-trackInfo-overlay"],
+        [".main-nowPlayingWidget-trackInfo", "main-trackInfo-artists", ":scope > div:not(:first-child):has(a)"],
+        [".main-trackInfo-name, .main-trackInfo-artists", "main-trackInfo-overlay", firstDiv()],
         ['[data-testid="playback-progressbar"]', "playback-progressbar"],
         ['[data-testid="playback-progressbar"]', "playback-progressbar-container", up(1)],
         ['[data-testid="playback-position"]', "playback-bar__progress-time-elapsed"],
         ['[data-testid="playback-duration"]', "main-playbackBarRemainingTime-container"],
         ['[data-testid="volume-bar"] [data-testid="progress-bar"]', "playback-progressbar", up(1)],
         ['[data-testid="volume-bar"] [data-testid="progress-bar"]', "volume-bar__slider-container", up(2)],
-        ['[data-testid="progress-bar-background"] > .x-progressBar-sliderArea:not(:has(.x-progressBar-fillColor)) > div', "x-progressBar-progressFillColor"],
+        ['[data-testid="progress-bar-background"]', "x-progressBar-progressFillColor", ":scope > .x-progressBar-sliderArea:not(:has(.x-progressBar-fillColor)) > div"],
         ['[data-testid="progress-bar-handle"]', "progress-bar__slider"],
         [".main-nowPlayingView-headerWrapper", "main-nowPlayingView-headerContainer", up(1)],
-        [".main-nowPlayingView-headerWrapper > div:has(a)", "main-nowPlayingView-headerTextWrapper"],
+        [".main-nowPlayingView-headerWrapper", "main-nowPlayingView-headerTextWrapper", ":scope > div:has(a)"],
         [".main-nowPlayingView-headerTextWrapper > a", "main-nowPlayingView-headerText"],
         [".main-nowPlayingView-headerText > div:first-child", "main-trackInfo-overlay"],
         [".main-nowPlayingView-headerWrapper > span", "main-nowPlayingView-headerButtonContainer"],
         [".main-nowPlayingView-headerButtonContainer > div", "main-nowPlayingView-headerButtonWrapper"],
     ];
+    // El tercer campo, si es texto, se busca dentro de cada ancla: los `:has()` sueltos obligan a
+    // probar cada div de la página (12 ms por pasada); desde un ancla con testid o clase, menos de 1.
     function tagInner() {
         for (const [sel, cls, pick] of INNER_ALIASES) {
             let list;
             try { list = document.querySelectorAll(sel); } catch (e) { continue; }
             for (const m of list) {
-                const el = pick ? pick(m) : m;
-                if (el && el !== document.body && !el.classList.contains(cls)) el.classList.add(cls);
+                let got;
+                try { got = typeof pick === "string" ? m.querySelectorAll(pick) : pick ? pick(m) : m; } catch (e) { continue; }
+                if (!got) continue;
+                for (const el of got.nodeType === 1 ? [got] : got) {
+                    if (el !== document.body && !el.classList.contains(cls)) el.classList.add(cls);
+                }
             }
         }
     }
@@ -1173,7 +1196,34 @@
             }
         }
     }
-    setInterval(() => { tagInner(); tagTrackList(); }, 500);
+    // Se etiqueta en cuanto React monta algo nuevo (el observador corre antes de pintar, así que la
+    // página nueva sale ya con su estilo, sin un fotograma con el de Spotify); el intervalo lento
+    // queda de red por si algo cambia sin añadir nodos.
+    // Hasta la 1.3.1 las clases vienen de serie: ahí no se hace nada (si aún no se sabe la versión, se etiqueta).
+    let aliasVer = null;
+    const needAliases = () => {
+        if (aliasVer !== null) return aliasVer;
+        const v = window.Spicetify && Spicetify.Platform && Spicetify.Platform.version;
+        if (!v) return true;
+        const [a, b, c] = v.split(".").map(Number);
+        return (aliasVer = a > 1 || (a === 1 && (b > 3 || (b === 3 && c >= 2))));
+    };
+    let tagQueued = 0; // 1: solo la lista de canciones, 2: todo
+    const tagAll = () => {
+        const all = tagQueued !== 1;
+        tagQueued = 0;
+        if (!needAliases()) return;
+        if (all) tagInner();
+        tagTrackList();
+    };
+    new MutationObserver((ms) => {
+        // al hacer scroll en una lista larga entran filas en cada fotograma: entonces basta con la lista
+        const want = ms.every((m) => m.target.closest && m.target.closest(".main-trackList-trackList")) ? 1 : 2;
+        if (tagQueued >= want) return;
+        if (!tagQueued) queueMicrotask(tagAll);
+        tagQueued = want;
+    }).observe(document.documentElement, { childList: true, subtree: true });
+    setInterval(() => { tagQueued = 2; tagAll(); }, 2000);
 
     init();
 })();
