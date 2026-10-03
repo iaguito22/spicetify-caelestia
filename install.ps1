@@ -2,10 +2,10 @@
 #
 #   Una línea, sin descargar nada (no le afecta el bloqueo de scripts):
 #     iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
-#     $env:CAELESTIA_SCHEME="light"; iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
 #
-#   Desde el ZIP descargado: doble clic en install.bat (o `install.bat light`).
-$Scheme = if ($args.Count -gt 0) { $args[0] } elseif ($env:CAELESTIA_SCHEME) { $env:CAELESTIA_SCHEME } else { "dark" }
+#   Desde el ZIP descargado: doble clic en install.bat.
+#   Siempre arranca en oscuro; el modo claro se cambia con el botón sol/luna de la barra superior.
+$Scheme = "dark"
 $ErrorActionPreference = "Stop"
 
 if (-not (Get-Command spicetify -ErrorAction SilentlyContinue)) {
@@ -30,4 +30,4 @@ foreach ($f in $files) {
 
 spicetify config current_theme caelestia color_scheme $Scheme inject_theme_js 1 inject_css 1 replace_colors 1
 spicetify apply
-Write-Host "Listo ($Scheme). Para cambiar: spicetify config color_scheme light|dark ; spicetify apply"
+Write-Host "Listo. Cambia entre claro y oscuro con el botón sol/luna de la barra superior."

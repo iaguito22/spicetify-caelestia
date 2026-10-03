@@ -27,14 +27,12 @@ Requires [Spicetify](https://spicetify.app) already installed and applied to Spo
 ```bash
 git clone https://github.com/iaguito22/spicetify-caelestia
 cd spicetify-caelestia
-./install.sh          # or ./install.sh light
+./install.sh
 ```
 
 **Windows** (no git needed, and Windows' script blocking doesn't apply): in PowerShell,
 ```powershell
 iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
-# light mode:
-$env:CAELESTIA_SCHEME="light"; iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
 ```
 Or download the ZIP from GitHub (Code → Download ZIP), unzip it and double-click `install.bat`. If Windows blocks it, right-click → Properties → Unblock, or run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
 
@@ -68,6 +66,6 @@ MIT
 
 Tema de Spicetify con paneles flotantes, fondo ambiental y acento sacados de la portada, y un reproductor flotante de cristal líquido. Claro y oscuro.
 
-Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o, en Windows, la línea de PowerShell de arriba o `install.bat` del ZIP (sin git). Para cambiar de modo: `spicetify config color_scheme light` (o `dark`) y `spicetify apply`.
+Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o, en Windows, la línea de PowerShell de arriba o `install.bat` del ZIP (sin git). Para cambiar de modo, usa el botón sol/luna de la barra superior.
 
 Probado en Linux con Spotify 1.2.96. **Windows se ajustó a partir de capturas (issue #1); macOS no está probado**; si algo se solapa con los controles de la ventana, abre un issue con una captura.
