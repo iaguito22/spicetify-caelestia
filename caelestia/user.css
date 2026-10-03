@@ -1747,6 +1747,9 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
    20 px al botón (max-width: 100%), Spotify desplaza el título 36 px sin devolver el hueco, y
    dentro de una carpeta "Crear" queda solo con el icono */
 .main-yourLibraryX-collapseButton > div:has(h2) button { max-width: calc(100% + 20px) !important; }
+/* Botón de volver: separado del de contraer, y el resalte del título no lo pisa */
+.main-yourLibraryX-collapseButton > button:not(:only-child) { margin-inline: 0 -10px !important; }
+.main-yourLibraryX-collapseButton > div:has(h2) button { margin-left: 0 !important; }
 .Root__nav-bar:not([data-cs-lib-min]) .main-yourLibraryX-collapseButton { flex: 1 1 auto !important; min-width: 0 !important; }
 .Root__nav-bar:not([data-cs-lib-min]) .main-yourLibraryX-collapseButton > div:has(h2) { min-width: 0 !important; margin-right: -36px; }
 .main-yourLibraryX-headerContent:has(.main-yourLibraryX-collapseButton h2) button[aria-label]:has(> svg + span) { padding: 8px !important; }
