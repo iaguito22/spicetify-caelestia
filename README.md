@@ -17,7 +17,7 @@ Floating "island" panels, an ambient background and accent color taken from the 
 - **Search:** the dropdown is a glass panel that grows out of the pill with a soft spring, rows cascade in, and it folds back into the pill when it closes; no double focus ring and glass-chip shortcuts.
 - **Narrow windows:** the top bar becomes a three-column grid (search shrinks instead of overlapping, the profile pill fits its content) and the floating dock keeps a fixed size (760 px) and floats, centered on the window.
 - **Side panels:** opening, closing or collapsing the library and the right panel slides the columns sideways. Spotify itself takes ~1–2 s to re-lay-out after a panel change, so the slide waits until it settles and then runs smoothly. The toggle buttons get a round halo on hover.
-- **No scrollbars.** Dark and light follow the color scheme. Without the Caelestia shell (Windows/macOS) a sun/moon button in the top-right pill switches dark/light instantly and remembers the choice.
+- **No scrollbars.** Dark and light follow the color scheme.
 
 ## Install
 
@@ -43,7 +43,7 @@ spicetify config current_theme caelestia color_scheme dark inject_theme_js 1 inj
 spicetify apply
 ```
 
-Switch mode any time with the sun/moon button in the top bar, or from the console: `spicetify config color_scheme light` (or `dark`), then `spicetify apply`.
+Switch mode any time: `spicetify config color_scheme light` (or `dark`), then `spicetify apply`.
 
 ## Caelestia shell users
 
@@ -66,6 +66,6 @@ MIT
 
 Tema de Spicetify con paneles flotantes, fondo ambiental y acento sacados de la portada, y un reproductor flotante de cristal líquido. Claro y oscuro.
 
-Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o, en Windows, la línea de PowerShell de arriba o `install.bat` del ZIP (sin git). Para cambiar de modo, usa el botón sol/luna de la barra superior.
+Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o, en Windows, la línea de PowerShell de arriba o `install.bat` del ZIP (sin git). Para cambiar de modo: `spicetify config color_scheme light` (o `dark`) y `spicetify apply`.
 
 Probado en Linux con Spotify 1.2.96. **Windows se ajustó a partir de capturas (issue #1); macOS no está probado**; si algo se solapa con los controles de la ventana, abre un issue con una captura.

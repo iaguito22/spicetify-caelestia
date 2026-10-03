@@ -4,7 +4,7 @@
 #     iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
 #
 #   Desde el ZIP descargado: doble clic en install.bat.
-#   Siempre arranca en oscuro; el modo claro se cambia con el botón sol/luna de la barra superior.
+#   Siempre arranca en oscuro; para el claro: spicetify config color_scheme light ; spicetify apply
 $Scheme = "dark"
 $ErrorActionPreference = "Stop"
 
@@ -30,4 +30,4 @@ foreach ($f in $files) {
 
 spicetify config current_theme caelestia color_scheme $Scheme inject_theme_js 1 inject_css 1 replace_colors 1
 spicetify apply
-Write-Host "Listo. Cambia entre claro y oscuro con el botón sol/luna de la barra superior."
+Write-Host "Listo (oscuro). Para el modo claro: spicetify config color_scheme light ; spicetify apply"
