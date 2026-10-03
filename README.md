@@ -34,6 +34,9 @@ That color drives the play button, progress bar, active lyric, highlights and th
 
 ![Lyrics, filling word by word](screenshots/lyrics.png)
 
+> [!TIP]
+> The theme already has its own synced, word-by-word lyrics. If you use a lyrics extension or custom app (like lyrics-plus or Beautiful Lyrics), you can remove it.
+
 ## Install
 
 **Linux / macOS**
@@ -105,6 +108,9 @@ Ese color es el del botón de reproducir, la barra de progreso, la línea de la 
 - **Animación.** La palabra que se está cantando se eleva un poco, las líneas se van apagando cuanto más lejos están, y la vista se desplaza con suavidad hasta la línea actual.
 
 ![Letra iluminándose palabra a palabra](screenshots/lyrics.png)
+
+> [!TIP]
+> El tema ya trae su propia letra sincronizada palabra a palabra. Si usas alguna extensión o app de letras (como lyrics-plus o Beautiful Lyrics), puedes quitarla.
 
 ## Instalación
 
