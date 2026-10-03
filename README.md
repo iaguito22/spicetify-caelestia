@@ -82,7 +82,7 @@ Un tema para Spotify con los paneles flotando como islas redondeadas, en el que 
 ## Diseño
 
 - **Islas.** La biblioteca, la vista principal y el panel derecho flotan sobre el fondo, con esquinas concéntricas (28 → 16 → 8 px). Arriba hay tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de liquid glass que flota sobre todo lo demás.
-- **La portada manda.** El resto de la interfaz es gris neutro, así que es la carátula la que pone el ambiente: ocupa el fondo, desenfocada, y de ella sale el color de acento.
+- **La portada manda.** El resto de la interfaz es gris neutro, así que es la portada la que pone el ambiente: ocupa el fondo, desenfocada, y de ella sale el color de acento.
 - **Nada que sobre.** Sin barras de scroll, sin contornos de foco y sin recuadros alrededor de las listas. Los botones que no se usan todo el rato aparecen al pasar el ratón por encima.
 
 ![Página de artista](screenshots/artist.png)
