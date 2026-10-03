@@ -1046,5 +1046,47 @@
     // si Spotify vuelve a montar algún panel (cambio de modo, pantalla completa), se re-etiqueta
     setInterval(tagRootLayout, 1000);
 
+    // Lo mismo con piezas de dentro (dock, píldora de navegación, cabecera del panel derecho):
+    // [selector estable, clase de siempre, (elemento) → elemento al que ponérsela]. Solo añade la
+    // clase si falta; en las versiones que aún la traen no cambia nada.
+    const up = (n) => (e) => { while (e && n--) e = e.parentElement; return e; };
+    const INNER_ALIASES = [
+        [".main-globalNav-historyButtonsWrapper", "main-globalNav-historyButtonsContainer", up(1)],
+        ['[data-testid="player-controls"]', "player-controls"],
+        ['[data-testid="CoverSlotCollapsed__container"]', "main-coverSlotCollapsed-container"],
+        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArtContainer"],
+        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"] > div', "main-nowPlayingWidget-coverArt"],
+        ['[data-testid="now-playing-widget"] > div:not([data-testid]):has(a)', "main-nowPlayingWidget-trackInfo"],
+        ['[data-testid="now-playing-widget"] > div:not([data-testid]):not(:has(a)):has(button)', "main-nowPlayingWidget-actionButtonWrapper"],
+        [".main-nowPlayingWidget-trackInfo > div:first-child", "main-trackInfo-name"],
+        [".main-nowPlayingWidget-trackInfo > div:not(:first-child):has(a)", "main-trackInfo-artists"],
+        [":is(.main-trackInfo-name, .main-trackInfo-artists) > div:first-child", "main-trackInfo-overlay"],
+        ['[data-testid="playback-progressbar"]', "playback-progressbar"],
+        ['[data-testid="playback-progressbar"]', "playback-progressbar-container", up(1)],
+        ['[data-testid="playback-position"]', "playback-bar__progress-time-elapsed"],
+        ['[data-testid="playback-duration"]', "main-playbackBarRemainingTime-container"],
+        ['[data-testid="volume-bar"] [data-testid="progress-bar"]', "playback-progressbar", up(1)],
+        ['[data-testid="volume-bar"] [data-testid="progress-bar"]', "volume-bar__slider-container", up(2)],
+        ['[data-testid="progress-bar-background"] > .x-progressBar-sliderArea:not(:has(.x-progressBar-fillColor)) > div', "x-progressBar-progressFillColor"],
+        ['[data-testid="progress-bar-handle"]', "progress-bar__slider"],
+        [".main-nowPlayingView-headerWrapper", "main-nowPlayingView-headerContainer", up(1)],
+        [".main-nowPlayingView-headerWrapper > div:has(a)", "main-nowPlayingView-headerTextWrapper"],
+        [".main-nowPlayingView-headerTextWrapper > a", "main-nowPlayingView-headerText"],
+        [".main-nowPlayingView-headerText > div:first-child", "main-trackInfo-overlay"],
+        [".main-nowPlayingView-headerWrapper > span", "main-nowPlayingView-headerButtonContainer"],
+        [".main-nowPlayingView-headerButtonContainer > div", "main-nowPlayingView-headerButtonWrapper"],
+    ];
+    function tagInner() {
+        for (const [sel, cls, pick] of INNER_ALIASES) {
+            let list;
+            try { list = document.querySelectorAll(sel); } catch (e) { continue; }
+            for (const m of list) {
+                const el = pick ? pick(m) : m;
+                if (el && el !== document.body && !el.classList.contains(cls)) el.classList.add(cls);
+            }
+        }
+    }
+    setInterval(tagInner, 500);
+
     init();
 })();
