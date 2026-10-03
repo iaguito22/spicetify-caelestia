@@ -864,6 +864,8 @@
         function syncStuck(t) {
             raf = 0;
             root.toggleAttribute("data-cs-scrolled", t.scrollTop > 6);
+            // La foto de cabecera (artista) está fija detrás: se desvanece al desplazar
+            root.style.setProperty("--cs-scroll", Math.round(t.scrollTop));
             const h = document.querySelector(".main-trackList-trackListHeader");
             if (!h) return root.removeAttribute("data-cs-stuck");
             const top = t.getBoundingClientRect().top + (parseFloat(getComputedStyle(h).top) || 0);
@@ -881,6 +883,7 @@
         let lastPath = null, routeT = 0, boundH = null;
         const onRoute = (loc) => {
             root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck");
+            root.style.setProperty("--cs-scroll", 0);
             const path = loc && loc.pathname;
             if (path === lastPath) return;
             const skip = path === "/lyrics" || lastPath === "/lyrics";
