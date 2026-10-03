@@ -704,6 +704,14 @@
         // celda de rejilla, flota centrado en la ventana
         const hidden = !main.offsetWidth;
         const m = hidden ? { left: 0, width: vw } : main.getBoundingClientRect();
+        // El dock va al fondo de la celda del panel central; en Spotify 1.3.3 esa celda baja más que
+        // el panel (llega al borde de la ventana) y el dock quedaba por debajo. Se sube lo que sobre.
+        if (!hidden && !root.hasAttribute("data-cs-dock-float")) {
+            const lift = parseFloat(root.style.getPropertyValue("--cs-dock-lift")) || 0;
+            const inset = parseFloat(getComputedStyle(root).getPropertyValue("--cs-inset")) || 12;
+            const next = Math.max(0, Math.round(lift + dock.getBoundingClientRect().bottom - (m.bottom - inset)));
+            if (next !== lift) root.style.setProperty("--cs-dock-lift", next + "px");
+        }
         if (!hidden && m.width - 2 * DOCK_INSET >= DOCK_W) return root.removeAttribute("data-cs-dock-float");
         // Expandida: el dock queda DENTRO de la vista (mismo margen que sobre el panel central),
         // no sobre su esquina redondeada ni sobre el marco de la ventana
@@ -750,9 +758,13 @@
         sideW.right = width(rs);
         // Biblioteca contraída: un atributo propio en vez de `[style*=...]`, que hacía recalcular
         // los estilos de todo el panel cada vez que Spotify tocaba su `style`
-        const markMin = () => nav.toggleAttribute("data-cs-lib-min", /--left-sidebar-width:\s*72\b/.test(nav.getAttribute("style") || ""));
+        // (en Spotify 1.3.3 la variable ya no va en el panel sino en un div vacío a su lado)
+        const widthHost = [...nav.parentElement.children].find((e) => e !== nav && /--left-sidebar-width/.test(e.getAttribute("style") || ""));
+        const markMin = () => nav.toggleAttribute("data-cs-lib-min",
+            /--left-sidebar-width:\s*72\b/.test((nav.getAttribute("style") || "") + (widthHost ? widthHost.getAttribute("style") || "" : "")));
         markMin();
         new MutationObserver(markMin).observe(nav, { attributes: true, attributeFilter: ["style"] });
+        if (widthHost) new MutationObserver(markMin).observe(widthHost, { attributes: true, attributeFilter: ["style"] });
         // Las columnas de la rejilla se fijan en el ancho anterior y se llevan al nuevo con una
         // transición CSS: el panel se desliza de verdad (a costa de que Spotify recoloque el
         // panel central en cada fotograma; el CSS lo abarata con `contain`)
@@ -1052,6 +1064,44 @@
     const up = (n) => (e) => { while (e && n--) e = e.parentElement; return e; };
     const INNER_ALIASES = [
         [".main-globalNav-historyButtonsWrapper", "main-globalNav-historyButtonsContainer", up(1)],
+        // huecos que Spotify reserva para los "···" y los botones de la ventana: el tema ya deja los suyos
+        [".main-globalNav-historyButtonsWrapper > div:first-child:not(.main-globalNav-historyButtons):not(:has(button))", "main-globalNav-historyButtonsSpacer"],
+        [".main-globalNav-contentRight > div:last-child:not(:has(button)):not(.main-actionButtons)", "main-globalNav-contentRightSpacer"],
+        // biblioteca
+        [".Root__nav-bar > nav", "main-navBar-mainNav"],
+        [".Root__nav-bar .YourLibraryX", "main-yourLibraryX-libraryContainer"],
+        [".Root__nav-bar .YourLibraryX", "main-yourLibraryX-entryPoints", up(1)],
+        [".main-yourLibraryX-header > div:first-child", "main-yourLibraryX-headerContent"],
+        [".main-yourLibraryX-headerContent > div:first-child", "main-yourLibraryX-collapseButton"],
+        [".main-yourLibraryX-libraryRootlist", "main-yourLibraryX-libraryItemContainer", up(2)],
+        [".main-yourLibraryX-libraryRootlist > div:first-child:has(input)", "main-yourLibraryX-rootListHeader"],
+        // cabecera y barra de acciones de playlist/álbum
+        ['[data-testid="entity-header"]', "main-entityHeader-container"],
+        ['[data-testid="entity-header"]:has([data-testid="playlist-image"])', "main-entityHeader-containerNormal"],
+        ['[data-testid="entity-header"] > div:not(.contentSpacing):not(:has(*))', "main-entityHeader-backgroundColor"],
+        ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-contentWrapper"],
+        ['[data-testid="entity-header"] [data-testid="playlist-image"]', "main-entityHeader-imageContainer", up(1)],
+        ['[data-testid="entity-header"] [data-testid="playlist-image"] img', "main-entityHeader-image"],
+        [".main-entityHeader-contentWrapper > div:has(h1)", "main-entityHeader-headerText"],
+        ['[data-testid="entity-header"] [data-testid="entityTitle"]', "main-entityHeader-title"],
+        [".main-entityHeader-headerText > div:last-child", "main-entityHeader-metaData"],
+        ['[data-testid="action-bar"]', "main-actionBar-ActionBar"],
+        ['[data-testid="action-bar"]', "main-actionBar-ActionBarContainer", up(2)],
+        ['[data-testid="action-bar-row"]', "main-actionBar-ActionBarRow"],
+        ['[data-testid="action-bar-row"] > div:first-child:has(> button[class*="button-primary"])', "main-playButton-PlayButton"],
+        // fondo de color que Spotify pone detrás de la barra (entre la cabecera y la barra)
+        ['[data-testid="entity-header"] + div[style*="background-color"]', "main-actionBarBackground-background"],
+        // buscador: form → sección del input → píldora (con el botón de inicio) → sección
+        [".Root__globalNav form:has(input)", "main-globalNav-searchInputContainer"],
+        [".Root__globalNav form:has(input)", "main-globalNav-searchInputSection", up(1)],
+        [".Root__globalNav form:has(input)", "main-globalNav-searchContainer", up(2)],
+        [".Root__globalNav form:has(input)", "main-globalNav-searchSection", up(3)],
+        [".main-globalNav-searchInputContainer input", "main-topBar-searchBar"],
+        [".main-globalNav-searchInputContainer input", "x-searchInput-searchInputInput"],
+        [".main-globalNav-searchInputContainer input", "main-globalNav-searchInputWrapper", up(1)],
+        [".main-globalNav-searchInputWrapper > div:has(> span)", "main-globalNav-searchInputTextWrapper"],
+        [".main-globalNav-searchInputTextWrapper > span:first-child", "main-globalNav-searchInputText"],
+        ['.main-globalNav-searchInputContainer [class*="form-input-icon__icon--trailing"] > div', "main-globalNav-browseButtonWrapper"],
         ['[data-testid="player-controls"]', "player-controls"],
         ['[data-testid="CoverSlotCollapsed__container"]', "main-coverSlotCollapsed-container"],
         ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArtContainer"],
@@ -1086,7 +1136,39 @@
             }
         }
     }
-    setInterval(tagInner, 500);
+    // Lista de canciones de la 1.3.3: sin roles ni testids. Se reconoce por el placeholder de la
+    // lista; la primera hija es la cabecera (fija) y las filas comparten con su fila la clase de rejilla.
+    function tagTrackList() {
+        for (const tl of document.querySelectorAll('#main-view div[aria-label][style*="tracklist-placeholder"]')) {
+            const add = (e, ...c) => { if (e) for (const k of c) if (!e.classList.contains(k)) e.classList.add(k); };
+            add(tl, "main-trackList-trackList");
+            add(tl.parentElement, "main-trackList-trackListContainer");
+            const head = tl.firstElementChild, hrow = head && head.querySelector(":scope > div > div");
+            if (!hrow || hrow.children.length < 3) continue;
+            add(head, "main-trackList-trackListHeader");
+            add(hrow, "main-trackList-trackListHeaderRow", "main-trackList-trackListRowGrid");
+            hrow.querySelectorAll("button").forEach((b) => add(b, "main-trackList-column", "main-trackList-sortable"));
+            const cols = (row) => {
+                const k = row.children;
+                for (let i = 0; i < k.length; i++) {
+                    add(k[i], i === 0 ? "main-trackList-rowSectionIndex" : i === k.length - 1 ? "main-trackList-rowSectionEnd"
+                        : i === 1 ? "main-trackList-rowSectionStart" : "main-trackList-rowSectionVariable");
+                }
+            };
+            cols(hrow);
+            const gc = [...hrow.classList].find((c) => !c.startsWith("main-") && tl.querySelectorAll("." + CSS.escape(c)).length > 1);
+            if (!gc) continue;
+            for (const row of tl.querySelectorAll("." + CSS.escape(gc))) {
+                if (row === hrow || !row.offsetHeight || row.children.length < 3) continue;
+                add(row, "main-trackList-trackListRow", "main-trackList-trackListRowGrid");
+                cols(row);
+                const start = row.children[1];
+                add(start && start.querySelector(":scope > img"), "main-trackList-rowImage");
+                add(start && start.querySelector(":scope > div > div:first-child"), "main-trackList-rowTitle");
+            }
+        }
+    }
+    setInterval(() => { tagInner(); tagTrackList(); }, 500);
 
     init();
 })();

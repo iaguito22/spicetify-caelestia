@@ -260,7 +260,7 @@ main > div:has(> section[data-testid="home-page"]) > div > div[style*="--backgro
 .main-entityHeader-withBackgroundImage .main-entityHeader-title { letter-spacing: -0.02em !important; }
 
 /* Controles: play · aleatorio · descargar · … a la izquierda, buscar/orden a la derecha */
-section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] {
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer:not(.main-nowPlayingView-mainContainer, .main-yourLibraryX-libraryItemContainer) {
     margin-top: -102px !important; /* el pie del play coincide con el pie de la portada */
     margin-bottom: 10px !important;
     height: 56px !important;
@@ -269,9 +269,9 @@ section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBar
     z-index: 3 !important;
 }
 
-section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] > div { overflow: visible !important; } /* el play crece al pasar el ratón */
-section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"],
-section:has(.main-entityHeader-containerNormal) [class="main-actionBar-ActionBarContainer"] > div,
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer:not(.main-nowPlayingView-mainContainer, .main-yourLibraryX-libraryItemContainer) > div { overflow: visible !important; } /* el play crece al pasar el ratón */
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer:not(.main-nowPlayingView-mainContainer, .main-yourLibraryX-libraryItemContainer),
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer:not(.main-nowPlayingView-mainContainer, .main-yourLibraryX-libraryItemContainer) > div,
 section:has(.main-entityHeader-containerNormal) .playlist-playlist-playlistContent { background: transparent !important; background-image: none !important; }
 
 section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
@@ -471,6 +471,7 @@ input:focus-visible {
 }
 .main-globalNav-historyButtonsContainer { grid-column: 1 !important; justify-self: start !important; }
 .main-globalNav-searchSection {
+    display: flex !important;
     position: static !important;
     grid-column: 2 !important;
     width: 100% !important;
@@ -677,7 +678,7 @@ html[data-cs-anim="both"][data-cs-go] .Root__right-sidebar > * { animation: cs-s
     transform: none !important;
     width: auto !important;
     height: 68px !important;
-    margin: 0 var(--cs-inset) var(--cs-inset) !important;
+    margin: 0 var(--cs-inset) calc(var(--cs-inset) + var(--cs-dock-lift, 0px)) !important;
     padding: 0 8px !important;
     overflow: hidden !important;
     border: 1px solid var(--cs-border) !important;
