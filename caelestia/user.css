@@ -1870,10 +1870,13 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8
    Arreglos Spotify 1.2.96 (3/10): cabecera de Sonando sobre la portada/vídeo y
    fila de chips (Añadir / Mezcla / Nombre) de las playlists propias
    -------------------------------------------------------------------------- */
-/* Cabecera de la vista Sonando */
+/* Cabecera de la vista Sonando: con vídeo (canvas) flota sobre él; con foto queda como siempre */
 .NowPlayingView { background: transparent !important; }
-.main-nowPlayingView-headerContainer { position: absolute !important; top: 0; left: 0; right: 0; z-index: 3; background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important; }
-/* Playlists propias */
-section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer { margin-bottom: 46px !important; }
-section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer > div > div:has(> button) { padding-left: 227px !important; }
-.main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+.NowPlayingView:has(.main-nowPlayingView-canvasVisualEnhancement video) .main-nowPlayingView-headerContainer {
+    position: absolute !important; top: 0; left: 0; right: 0; z-index: 3;
+    background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important;
+}
+.NowPlayingView:has(.main-nowPlayingView-canvasVisualEnhancement video) .main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+/* Playlists propias: la fila de chips va justo debajo del play, alineada con él, sin pisar nada */
+section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer { margin-top: 0 !important; margin-bottom: 6px !important; height: 44px !important; }
+section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer > div > div:has(> button) { padding: 6px 0 6px 216px !important; }
