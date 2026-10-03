@@ -1865,3 +1865,15 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(6) 
 html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(7) { animation-delay: 300ms; }
 html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8) { animation-delay: 330ms; }
 .main-nowPlayingView-headerWrapper > button:first-child:active { transform: translateY(-50%) scale(0.9) !important; }
+
+/* --------------------------------------------------------------------------
+   Arreglos Spotify 1.2.96 (3/10): cabecera de Sonando sobre la portada/vídeo y
+   fila de chips (Añadir / Mezcla / Nombre) de las playlists propias
+   -------------------------------------------------------------------------- */
+/* Cabecera de la vista Sonando */
+.NowPlayingView { background: transparent !important; }
+.main-nowPlayingView-headerContainer { position: absolute !important; top: 0; left: 0; right: 0; z-index: 3; background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important; }
+/* Playlists propias */
+section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer { margin-bottom: 46px !important; }
+section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer > div > div:has(> button) { padding-left: 227px !important; }
+.main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
