@@ -978,5 +978,73 @@
         });
     }
 
+    // ---- Spotify 1.3.3+: la estructura principal sin nombres --------------------
+    // Desde la 1.3.3 los paneles ya no llevan .Root__nav-bar / .Root__main-view /
+    // .Root__right-sidebar / .Root__now-playing-bar (clases ofuscadas), y todo el CSS del tema
+    // cuelga de ellas. Se reconocen por lo que no cambia (ids y el nombre de su área en la
+    // rejilla de Spotify) y se les devuelve la clase. React reescribe `className` al volver a
+    // pintar (p. ej. el panel derecho al abrir "Sonando"): un observador la repone.
+    const ROOT_AREAS = { "left-sidebar": "Root__nav-bar", "main-view": "Root__main-view", "right-sidebar": "Root__right-sidebar", "now-playing-bar": "Root__now-playing-bar" };
+    const rootTagged = new Set();
+    let rootMO = null;
+    function tagRoot(el, cls) {
+        if (!el || el.classList.contains(cls)) return;
+        el.classList.add(cls);
+        if (rootTagged.has(el)) return;
+        rootTagged.add(el);
+        rootMO ||= new MutationObserver((ms) => {
+            for (const m of ms) if (m.target.__csRoot && !m.target.classList.contains(m.target.__csRoot)) m.target.classList.add(m.target.__csRoot);
+        });
+        el.__csRoot = cls;
+        rootMO.observe(el, { attributes: true, attributeFilter: ["class"] });
+    }
+    function tagRootLayout() {
+        const top = document.querySelector(".Root__top-container");
+        if (!top) return false;
+        if (document.querySelector(".Root__nav-bar") && document.querySelector(".Root__main-view") &&
+            document.querySelector(".Root__right-sidebar") && document.querySelector(".Root__now-playing-bar")) return true;
+        tagRoot(document.getElementById("Desktop_LeftSidebar_Id"), "Root__nav-bar");
+        tagRoot(document.getElementById("main-view"), "Root__main-view");
+        // el área de rejilla la pone el CSS de Spotify en el propio panel (puede ir anidado en
+        // envoltorios sin área); se mira hasta 3 niveles por debajo del contenedor
+        const walk = (el, depth) => {
+            for (const c of el.children) {
+                if (c.id === "global-nav-bar" || c.classList.contains("Root__globalNav")) continue;
+                const area = getComputedStyle(c).gridRowStart;
+                const cls = ROOT_AREAS[area];
+                if (cls && !document.querySelector("." + cls)) tagRoot(c, cls);
+                else if (!cls && depth < 3) walk(c, depth + 1);
+            }
+        };
+        walk(top, 0);
+        // panel derecho sin área con nombre: el bloque a la derecha del central, a su altura
+        const mv = document.querySelector(".Root__main-view");
+        if (mv && !document.querySelector(".Root__right-sidebar")) {
+            const m = mv.getBoundingClientRect();
+            const cands = [...top.querySelectorAll(":scope > *, :scope > * > *, :scope > * > * > *")].filter((c) => {
+                const r = c.getBoundingClientRect();
+                return !c.contains(mv) && r.left >= m.right - 2 && Math.abs(r.top - m.top) < 24 && r.height > m.height * 0.8;
+            });
+            if (cands.length) tagRoot(cands[0], "Root__right-sidebar");
+        }
+        // dock sin área con nombre: el bloque bajo (<200 px) más alto que contiene el play global
+        if (!document.querySelector(".Root__now-playing-bar")) {
+            const pp = [...document.querySelectorAll('[data-testid="control-button-playpause"]')].find((b) => !b.closest("#main-view, .Root__right-sidebar"));
+            let e = pp, best = null;
+            while (e && e.parentElement && e.parentElement !== top && e !== document.body) {
+                e = e.parentElement;
+                if (e.getBoundingClientRect().height < 200) best = e;
+            }
+            if (best) tagRoot(best, "Root__now-playing-bar");
+        }
+        return !!document.querySelector(".Root__now-playing-bar");
+    }
+    (function waitRoot(n) {
+        if (tagRootLayout() || n > 120) return;
+        setTimeout(() => waitRoot(n + 1), 250);
+    })(0);
+    // si Spotify vuelve a montar algún panel (cambio de modo, pantalla completa), se re-etiqueta
+    setInterval(tagRootLayout, 1000);
+
     init();
 })();
