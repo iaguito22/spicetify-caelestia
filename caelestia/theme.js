@@ -748,7 +748,7 @@
     // ---- Paneles laterales: al cambiar de ancho (abrir, cerrar, contraer) se marca
     // `data-cs-anim` un momento para que el CSS haga la animación de entrada
     const ANIM_MS = 800;
-    let sideRO = null, animT = 0, animId = 0;
+    let sideRO = null, animT = 0, animId = 0, animEnd = 0, animCount = 0;
     const sideW = {};
     function watchSides() {
         const nav = document.querySelector(".Root__nav-bar"), rs = document.querySelector(".Root__right-sidebar");
@@ -777,6 +777,17 @@
             sideW.right = r;
             const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
+            // Cortafuegos: si la rejilla no es la de Spotify 1.2 (p. ej. 1.3.x en Windows) o el ancho
+            // final no coincide con el pedido, el observador relanzaba la animación sin parar
+            // (relayout continuo → cierre de la app). Tras una animación, 1,5 s sin otra; y como
+            // mucho 3 seguidas.
+            const now = performance.now();
+            animCount = now - animEnd < 1500 ? animCount + 1 : 0;
+            if (now - animEnd < 1500 && animCount >= 1) return;
+            const cs = getComputedStyle(top);
+            // Solo la rejilla de 3 columnas (biblioteca | centro | derecho): con 2 (panel derecho
+            // cerrado en 1.3.x) forzar tres pistas descuadra el layout
+            if (cs.display !== "grid" || cs.gridTemplateColumns.split(" ").length !== 3 || l < 1 || r < 1) return;
             // Anchos finales/máximos de cada zona: su contenido se queda fijo en ellos mientras las
             // columnas se mueven, así no se recoloca en cada fotograma (la parte que sobra se recorta)
             const mv = document.querySelector(".Root__main-view .main-view-container");
@@ -807,12 +818,16 @@
                 const p = Math.min(1, (performance.now() - t0) / ANIM_MS), e = ease(p);
                 top.style.gridTemplateColumns = `${oldL + (l - oldL) * e}px 1fr ${oldR + (r - oldR) * e}px`;
                 if (p < 1) return requestAnimationFrame(step);
-                root.removeAttribute("data-cs-anim");
-                root.removeAttribute("data-cs-go");
                 top.style.gridTemplateColumns = "";
+                animEnd = performance.now();
                 sideW.left = width(nav);
                 sideW.right = width(rs);
-                dockLayout();
+                // El atributo se quita un fotograma después: el salto al ancho nativo no relanza la animación
+                requestAnimationFrame(() => {
+                    root.removeAttribute("data-cs-anim");
+                    root.removeAttribute("data-cs-go");
+                    dockLayout();
+                });
             };
             requestAnimationFrame(settle);
         });
