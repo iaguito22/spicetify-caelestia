@@ -750,6 +750,11 @@
     const ANIM_MS = 800;
     let sideRO = null, animT = 0, animId = 0, animEnd = 0, animCount = 0;
     const sideW = {};
+    const noSideAnim = () => {
+        const v = window.Spicetify && Spicetify.Platform && Spicetify.Platform.version;
+        const [a, b, c] = String(v || "").split(".").map(Number);
+        return a > 1 || (a === 1 && (b > 3 || (b === 3 && c >= 2)));
+    };
     function watchSides() {
         const nav = document.querySelector(".Root__nav-bar"), rs = document.querySelector(".Root__right-sidebar");
         if (sideRO || !nav || !rs) return;
@@ -775,6 +780,9 @@
             const l = width(nav), r = width(rs), oldL = sideW.left, oldR = sideW.right;
             sideW.left = l;
             sideW.right = r;
+            // Spotify >= 1.3.2: sin animación. Interpolar la rejilla desde JS compite con su propio
+            // layout (variables --left/right-sidebar-width) y en Windows cierra la app (issue #7)
+            if (noSideAnim()) return;
             const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
             // Cortafuegos: si la rejilla no es la de Spotify 1.2 (p. ej. 1.3.x en Windows) o el ancho
