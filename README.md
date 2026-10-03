@@ -17,7 +17,7 @@ Floating "island" panels, an ambient background and accent color taken from the 
 - **Search:** the dropdown is a glass panel that grows out of the pill with a soft spring, rows cascade in, and it folds back into the pill when it closes; no double focus ring and glass-chip shortcuts.
 - **Narrow windows:** the top bar becomes a three-column grid (search shrinks instead of overlapping, the profile pill fits its content) and the floating dock keeps a fixed size (760 px) and floats, centered on the window.
 - **Side panels:** opening, closing or collapsing the library and the right panel slides the columns sideways. Spotify itself takes ~1–2 s to re-lay-out after a panel change, so the slide waits until it settles and then runs smoothly. The toggle buttons get a round halo on hover.
-- **No scrollbars.** Dark and light follow the color scheme.
+- **No scrollbars.** Dark and light follow the color scheme. Without the Caelestia shell (Windows/macOS) a sun/moon button in the top-right pill switches dark/light instantly and remembers the choice.
 
 ## Install
 
@@ -45,7 +45,7 @@ spicetify config current_theme caelestia color_scheme dark inject_theme_js 1 inj
 spicetify apply
 ```
 
-Switch mode any time: `spicetify config color_scheme light` (or `dark`), then `spicetify apply`.
+Switch mode any time with the sun/moon button in the top bar, or from the console: `spicetify config color_scheme light` (or `dark`), then `spicetify apply`.
 
 ## Caelestia shell users
 

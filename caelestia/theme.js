@@ -450,25 +450,44 @@
             e.setAttribute("data-cs-d", v);
         }
     }
+    // Desfase entre las líneas del DOM y las de la API (Spotify añade alguna vacía delante y,
+    // en versiones con lista virtualizada, solo monta las visibles: el desfase puede ser
+    // cualquiera). Se parte de las primeras líneas del DOM y se puntúa cada candidato.
+    function findOff(els, L) {
+        const key = (x) => (x || "").replace(/\s+/g, " ").trim();
+        const cand = new Set([-2, -1, 0, 1, 2, 3, 4, 5, 6]);
+        for (let j = 0, n = 0; j < els.length && n < 6; j++) {
+            const kj = key(els[j].textContent);
+            if (!kj) continue;
+            n++;
+            for (let i = 0; i < L.length; i++) if (key(L[i].text) === kj) cand.add(j - i);
+        }
+        let best = -1, off = 0;
+        for (const k of cand) {
+            let m = 0;
+            for (let j = 0; j < els.length; j++) {
+                const l = L[j - k];
+                if (l && key(els[j].textContent) === key(l.text)) m++;
+            }
+            if (m > best) { best = m; off = k; }
+        }
+        return best >= Math.min(3, L.length) && best >= Math.min(els.length, L.length) * 0.8 ? off : null;
+    }
     function clockSetup(box, L) {
         const first = box.querySelector(".lyrics-lyricsContent-lyric"), wrap = first && first.parentElement;
         if (!wrap) return false;
         const els = wrap.querySelectorAll(":scope > .lyrics-lyricsContent-lyric");
-        const key = (x) => (x || "").replace(/\s+/g, " ").trim();
-        // desfase entre las líneas del DOM y las de la API (Spotify añade alguna vacía delante)
-        let best = -1, off = 0;
-        for (let k = -2; k <= 6; k++) {
-            let m = 0;
-            for (let i = 0; i < L.length; i++) if (els[i + k] && key(els[i + k].textContent) === key(L[i].text)) m++;
-            if (m > best) { best = m; off = k; }
-        }
-        if (best < L.length * 0.8) return false;
+        const off = findOff(els, L);
+        if (off === null) return false;
         clockOff();
         Object.assign(clk, { on: true, box, wrap, els, off, id: lyr.id, cur: -2, follow: true });
         document.documentElement.setAttribute("data-cs-clock", "");
         // Spotify recrea líneas al cambiar su activa: se vuelven a marcar antes de pintarse
+        // (y, si monta/desmonta líneas por virtualización, se recalcula el desfase)
         clk.mo = new MutationObserver(() => {
             clk.els = wrap.querySelectorAll(":scope > .lyrics-lyricsContent-lyric");
+            const o = lyr.lines && findOff(clk.els, lyr.lines);
+            if (o !== null && o !== undefined && o !== clk.off) clk.off = o;
             clockMark();
         });
         clk.mo.observe(wrap, { childList: true });
@@ -704,12 +723,63 @@
         sideRO.observe(rs);
     }
 
+    // ---- Modo claro/oscuro desde la propia interfaz ---------------------------------
+    // Para quien no usa el shell Caelestia (Windows/macOS): un botón en la barra superior
+    // cambia entre las dos paletas de color.ini sin tocar la consola. Se recuerda la elección.
+    // Con el esquema "caelestia" (Linux) manda el shell y el botón no aparece.
+    const PALETTES = {
+        dark: { "text": "e5e5e5", "subtext": "ababab", "main": "1a1a1a", "highlight": "c6c6c6", "misc": "c6c6c6", "notification": "757575", "notification-error": "d78890", "shadow": "000000", "card": "202020", "player": "3b3b3b", "sidebar": "0e0e0e", "main-elevated": "202020", "highlight-elevated": "262626", "selected-row": "e5e5e5", "button": "c6c6c6", "button-active": "c6c6c6", "button-disabled": "757575", "tab-active": "202020" },
+        light: { "text": "323232", "subtext": "5f5f5f", "main": "f9f9f9", "highlight": "5e5e5e", "misc": "5e5e5e", "notification": "7a7a7a", "notification-error": "ba1a1a", "shadow": "000000", "card": "eeeeee", "player": "e2e2e2", "sidebar": "eeeeee", "main-elevated": "e8e8e8", "highlight-elevated": "e2e2e2", "selected-row": "323232", "button": "5e5e5e", "button-active": "5e5e5e", "button-disabled": "7a7a7a", "tab-active": "e8e8e8" },
+    };
+    function applyScheme(name) {
+        const p = PALETTES[name];
+        if (!p) return;
+        for (const el of [document.documentElement, document.body]) {
+            if (!el) continue;
+            for (const k in p) {
+                const h = p[k], n = parseInt(h, 16);
+                el.style.setProperty("--spice-" + k, "#" + h);
+                el.style.setProperty("--spice-rgb-" + k, [(n >> 16) & 255, (n >> 8) & 255, n & 255].join(","));
+            }
+        }
+        document.documentElement.dataset.csScheme = name;
+        syncMode();
+        const ba = p["button-active"];
+        if (ba) baseAccent = "#" + ba;
+    }
+    function setupSchemeToggle() {
+        const cfg = (Spicetify.Config && Spicetify.Config.color_scheme) || "";
+        if (cfg === "caelestia") return;
+        let saved = null;
+        try { saved = localStorage.getItem("cs-scheme"); } catch (e) {}
+        let cur = PALETTES[saved] ? saved : PALETTES[cfg] ? cfg : "dark";
+        applyScheme(cur);
+        if (!Spicetify.Topbar || !Spicetify.Topbar.Button) return;
+        const svg = (d) => '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">' + d + '</svg>';
+        const SUN = svg('<path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0-1.5a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3zM7.25 0h1.5v2.2h-1.5zm0 13.8h1.5V16h-1.5zM0 7.25h2.2v1.5H0zm13.8 0H16v1.5h-2.2zM2.34 3.4l1.06-1.06 1.56 1.56L3.9 4.96zm9.7 8.7 1.06-1.06 1.56 1.56-1.06 1.06zM3.4 13.66 2.34 12.6l1.56-1.56 1.06 1.06zm8.7-9.7L11.04 2.9l1.56-1.56 1.06 1.06z"/>');
+        const MOON = svg('<path d="M6.2 1.2a6.8 6.8 0 1 0 8.6 8.6A5.6 5.6 0 0 1 6.2 1.2zM8 13.3a5.3 5.3 0 0 1-2.9-9.7 7.1 7.1 0 0 0 7.3 7.3A5.3 5.3 0 0 1 8 13.3z"/>');
+        const btn = new Spicetify.Topbar.Button(
+            cur === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro",
+            cur === "dark" ? SUN : MOON,
+            () => {
+                cur = cur === "dark" ? "light" : "dark";
+                try { localStorage.setItem("cs-scheme", cur); } catch (e) {}
+                applyScheme(cur);
+                btn.label = cur === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+                btn.icon = cur === "dark" ? SUN : MOON;
+            },
+            false,
+            true
+        );
+    }
+
     function init() {
         if (!window.Spicetify || !Spicetify.Player || !Spicetify.Player.addEventListener) {
             setTimeout(init, 250);
             return;
         }
         syncMode();
+        setupSchemeToggle();
         // Sistema operativo: cada uno dibuja los controles de ventana en un sitio
         const osName = String((Spicetify.Platform && Spicetify.Platform.OSName) || navigator.platform).toLowerCase();
         document.documentElement.dataset.csOs = /win/.test(osName) ? "windows" : /mac|osx|darwin/.test(osName) ? "mac" : "linux";
@@ -800,12 +870,13 @@
             e.stopImmediatePropagation();
             H.push("/lyrics");
             setTimeout(() => {
-                if (document.querySelector(".Root__main-view .lyrics-lyrics-container") || H.location.pathname !== "/lyrics") return;
+                // la letra puede montarse fuera de .Root__main-view según la versión de Spotify
+                if (document.querySelector(".lyrics-lyrics-container") || H.location.pathname !== "/lyrics") return;
                 H.goBack();
                 lyrBypass = true;
                 b.click();
                 lyrBypass = false;
-            }, 1200);
+            }, 2500);
         }, true);
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
