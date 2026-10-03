@@ -1781,6 +1781,22 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     border: 1px solid var(--cs-border);
     box-shadow: var(--cs-shadow) !important;
 }
+/* Avisos (notistack: "Se han quitado las recomendaciones…"): Spotify los pone a 14 px del borde,
+   encima del dock. Se suben por encima de él y se visten como el resto: cristal redondeado */
+.notistack-SnackbarContainer { bottom: 98px !important; }
+.notistack-Snackbar [class*="box--elevated"] {
+    border-radius: 22px !important;
+    padding: 6px 22px !important;
+    background: color-mix(in srgb, var(--spice-main) 78%, transparent) !important;
+    backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid var(--cs-border);
+    box-shadow: var(--cs-shadow) !important;
+    color: var(--spice-text) !important;
+    --text-base: var(--spice-text);
+    --text-subdued: var(--spice-subtext);
+}
+.notistack-Snackbar [class*="box--elevated"] * { color: inherit !important; }
+.notistack-Snackbar [class*="box--elevated"] button { color: var(--cs-accent) !important; }
 /* Sobre la imagen de "Sonando" un velo claro no se ve: halo oscuro con desenfoque */
 .main-nowPlayingView-headerWrapper button:hover {
     background-color: rgba(0, 0, 0, 0.38) !important;
