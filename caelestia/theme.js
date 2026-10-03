@@ -810,11 +810,21 @@
         // En Windows/macOS el botón de letra abría la letra a pantalla completa (vista "Sonando"
         // expandida): se lleva a la página /lyrics como en Linux. Si esa página no llega a
         // mostrar la letra, se deshace y se deja actuar al botón original.
-        // En Spotify 1.3+ (medido en Windows 1.3.1) la página /lyrics ya no monta la letra: el
-        // botón nativo abre la letra bien, así que ahí no se desvía (y si falla una vez, tampoco).
+        // En Spotify 1.3 (Windows 1.3.1) /lyrics sí monta la letra en el panel central, pero con
+        // clases ofuscadas (sin .lyrics-lyrics-container): se reconoce por las líneas de letra
+        // grandes. Si no aparece nada, se deshace una vez y no se vuelve a intentar.
         let lyrBypass = false, lyrPageBroken = false;
-        const sv = String((Spicetify.Platform && Spicetify.Platform.version) || "").split(".").map(Number);
-        if (sv[0] > 1 || (sv[0] === 1 && sv[1] >= 3)) lyrPageBroken = true;
+        const lyricsShown = () => {
+            if (document.querySelector(".lyrics-lyrics-container")) return true;
+            const mv = document.querySelector(".Root__main-view");
+            if (!mv) return false;
+            let n = 0;
+            for (const e of mv.querySelectorAll("div, span, p")) {
+                if (e.firstElementChild || !e.textContent.trim() || parseFloat(getComputedStyle(e).fontSize) < 28) continue;
+                if (++n >= 3) return true;
+            }
+            return false;
+        };
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
             const H = Spicetify.Platform.History;
@@ -824,7 +834,7 @@
             H.push("/lyrics");
             setTimeout(() => {
                 // la letra puede montarse fuera de .Root__main-view según la versión de Spotify
-                if (document.querySelector(".lyrics-lyrics-container") || H.location.pathname !== "/lyrics") return;
+                if (lyricsShown() || H.location.pathname !== "/lyrics") return;
                 lyrPageBroken = true;
                 H.goBack();
                 lyrBypass = true;

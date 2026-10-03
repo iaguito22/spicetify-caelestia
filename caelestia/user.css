@@ -1451,6 +1451,8 @@ html[data-cs-mode="light"] .main-nowPlayingView-aboutArtist .main-nowPlayingView
    Windows: además minimizar/maximizar/cerrar arriba a la derecha. macOS: semáforo a la izquierda.
    -------------------------------------------------------------------------- */
 html[data-cs-os="windows"] .main-globalNav-contentRight { margin-right: 140px !important; }
+/* Spotify 1.3 ya reserva el hueco de los controles DENTRO de la píldora (135 px vacíos tras el avatar) */
+.main-globalNav-contentRightSpacer { display: none !important; }
 html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76px !important; }
 
 /* --------------------------------------------------------------------------
