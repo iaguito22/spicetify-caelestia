@@ -1165,6 +1165,13 @@
         ['[data-testid="progress-bar-background"]', "x-progressBar-progressFillColor", ":scope > .x-progressBar-sliderArea:not(:has(.x-progressBar-fillColor)) > div"],
         ['[data-testid="progress-bar-handle"]', "progress-bar__slider"],
         [".main-nowPlayingView-headerWrapper", "main-nowPlayingView-headerContainer", up(1)],
+        // "Reproduciendo en <dispositivo>": en 1.3.3 sin clase; se reconoce por el texto del botón
+        ['[data-testid="now-playing-bar"]', "main-connectBar-connectBar", (bar) => {
+            for (const b of bar.querySelectorAll("button")) {
+                if (/^\s*(Reproduciendo|Escuchando|Playing|Listening)\s/i.test(b.textContent)) return b.parentElement;
+            }
+            return null;
+        }],
         [".main-nowPlayingView-headerWrapper", "main-nowPlayingView-headerTextWrapper", ":scope > div:has(a)"],
         [".main-nowPlayingView-headerTextWrapper > a", "main-nowPlayingView-headerText"],
         [".main-nowPlayingView-headerText > div:first-child", "main-trackInfo-overlay"],

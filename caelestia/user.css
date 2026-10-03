@@ -276,7 +276,7 @@ section:has(.main-entityHeader-containerNormal) .playlist-playlist-playlistConte
 
 section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
     height: 56px !important;
-    padding: 0 24px 0 233px !important; /* 233 = alinea con el título */
+    padding: 0 24px 0 227px !important; /* 227 = alinea con el título (portada movida 20px a la izquierda) */
     background: transparent !important;
 }
 
@@ -1872,11 +1872,14 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8
    -------------------------------------------------------------------------- */
 /* Cabecera de la vista Sonando: con vídeo (canvas) flota sobre él; con foto queda como siempre */
 .NowPlayingView { background: transparent !important; }
-.NowPlayingView:has(.main-nowPlayingView-canvasVisualEnhancement video) .main-nowPlayingView-headerContainer {
+.NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerContainer {
     position: absolute !important; top: 0; left: 0; right: 0; z-index: 3;
     background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important;
 }
-.NowPlayingView:has(.main-nowPlayingView-canvasVisualEnhancement video) .main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+.NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
 /* Playlists propias: la fila de chips va justo debajo del play, alineada con él, sin pisar nada */
 section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer { margin-top: 0 !important; margin-bottom: 6px !important; height: 44px !important; }
-section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer > div > div:has(> button) { padding: 6px 0 6px 216px !important; }
+/* la fila (en 1.2 y 1.3.3) es el div con los botones y la caja de "Mezcla" como hijos */
+section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button):has(> div) { padding: 6px 0 6px 210px !important; }
+/* Portada a la misma distancia del borde izquierdo que del superior (estaba a 48 y 28) */
+.main-entityHeader-containerNormal .main-entityHeader-imageContainer { margin-left: -20px !important; }
