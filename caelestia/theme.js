@@ -810,17 +810,22 @@
         // En Windows/macOS el botón de letra abría la letra a pantalla completa (vista "Sonando"
         // expandida): se lleva a la página /lyrics como en Linux. Si esa página no llega a
         // mostrar la letra, se deshace y se deja actuar al botón original.
-        let lyrBypass = false;
+        // En Spotify 1.3+ (medido en Windows 1.3.1) la página /lyrics ya no monta la letra: el
+        // botón nativo abre la letra bien, así que ahí no se desvía (y si falla una vez, tampoco).
+        let lyrBypass = false, lyrPageBroken = false;
+        const sv = String((Spicetify.Platform && Spicetify.Platform.version) || "").split(".").map(Number);
+        if (sv[0] > 1 || (sv[0] === 1 && sv[1] >= 3)) lyrPageBroken = true;
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
             const H = Spicetify.Platform.History;
-            if (!b || lyrBypass || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics") return;
+            if (!b || lyrBypass || lyrPageBroken || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics") return;
             e.preventDefault();
             e.stopImmediatePropagation();
             H.push("/lyrics");
             setTimeout(() => {
                 // la letra puede montarse fuera de .Root__main-view según la versión de Spotify
                 if (document.querySelector(".lyrics-lyrics-container") || H.location.pathname !== "/lyrics") return;
+                lyrPageBroken = true;
                 H.goBack();
                 lyrBypass = true;
                 b.click();
