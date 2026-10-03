@@ -511,7 +511,7 @@
     // div.NAOY > div.l2GQ > div (padre de las líneas) > div.rzOQ.<estado> > div._3s1D (texto)].
     // Los nombres cambian con cada versión, así que se reconocen por la forma (texto grande en
     // líneas hermanas) y se les ponen las clases de 1.2, de las que cuelga todo el tema.
-    const L13 = { wrap: null, mo: null, state: null };
+    const L13 = { box: null, wrap: null, mo: null, state: null };
     function tagLine(line) {
         if (!line.classList.contains("lyrics-lyricsContent-lyric")) line.classList.add("lyrics-lyricsContent-lyric");
         const t = line.firstElementChild;
@@ -535,11 +535,13 @@
         if (runs.length === 3 && new Set(runs).size === 3) L13.state = { [runs[0]]: "previous", [runs[1]]: "active", [runs[2]]: "upcoming" };
     }
     function tagLyrics13() {
-        if (document.querySelector(".lyrics-lyrics-container") && L13.wrap && L13.wrap.isConnected) return;
+        if (L13.wrap && L13.wrap.isConnected && L13.box && L13.box.isConnected && L13.wrap.children.length) return;
         const H = Spicetify.Platform && Spicetify.Platform.History;
         if (!H || !H.location || H.location.pathname !== "/lyrics") return;
         const mv = document.querySelector(".Root__main-view");
-        if (!mv || mv.querySelector(".lyrics-lyrics-container")) return;
+        // una .lyrics-lyrics-container que no pusimos nosotros = Spotify 1.2 (clases reales)
+        const native = mv && mv.querySelector(".lyrics-lyrics-container");
+        if (!mv || (native && native !== L13.box)) return;
         let leaf = null;
         for (const e of mv.querySelectorAll("div")) {
             if (e.firstElementChild || !e.textContent.trim() || parseFloat(getComputedStyle(e).fontSize) < 28) continue;
@@ -549,6 +551,9 @@
         if (!wrap || wrap.children.length < 3) return;
         const content = wrap.parentElement, box = content && content.parentElement && content.parentElement.parentElement;
         if (!box || box === mv) return;
+        // al cambiar de canción Spotify rehace las líneas (y a veces el contenedor): se vuelve a etiquetar
+        if (L13.box && L13.box !== box) L13.box.classList.remove("lyrics-lyrics-container");
+        L13.box = box;
         box.classList.add("lyrics-lyrics-container");
         content.classList.add("lyrics-lyrics-contentWrapper");
         for (const sib of box.children) if (!sib.contains(wrap)) sib.classList.add("lyrics-lyrics-background");

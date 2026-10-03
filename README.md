@@ -1,27 +1,35 @@
 # Caelestia for Spicetify
 
-Floating "island" panels, an ambient background and accent color taken from the current cover, and a liquid-glass player dock. Dark and light.
+A Spotify theme where the panels float as rounded islands and **the only color comes from the song that's playing**.
+
+> [!IMPORTANT]
+> This is a theme for **[Spicetify](https://spicetify.app)**, not a standalone app. Install Spicetify first and run `spicetify apply` once; then install the theme below.
 
 ![Artist page](screenshots/artist.png)
-![Playlist](screenshots/playlist.png)
 ![Lyrics](screenshots/lyrics.png)
 
-## What it does
+## Design
 
-- **Islands:** library, main view and right sidebar float as rounded panels with concentric corners (28 → 16 → 8 px). Three floating pills on top: navigation, search, profile.
-- **Ambient background:** the cover of the current song, blurred, crossfades behind everything.
-- **Dynamic accent:** the accent color (play button, progress, highlights, glass tint) is picked from the cover and eases between songs.
-- **Player dock:** a floating liquid-glass bar. The progress bar is the bottom edge of the dock and grows on hover.
-- **Playlist header:** cover, title and controls integrated in one header; column header turns into glass only when it sticks.
-- **Lyrics:** big type, active line in the accent color, lines blur by distance, edge fade. Word-by-word fill, best source first: real word timings from Netease (via Spicetify's public CORS proxy, so the song title and artist are sent to it) with each word split into approximate syllables; Spotify's syllables if it ever sends them; otherwise the line time is split between its words (an estimate); otherwise Spotify's normal lyrics. The syllable (or word) being sung lifts and swells slightly; the lyrics open and close with a staggered blur-in/out, and the lyrics button now always closes them.
-- **Search:** the dropdown is a glass panel that grows out of the pill with a soft spring, rows cascade in, and it folds back into the pill when it closes; no double focus ring and glass-chip shortcuts.
-- **Narrow windows:** the top bar becomes a three-column grid (search shrinks instead of overlapping, the profile pill fits its content) and the floating dock keeps a fixed size (760 px) and floats, centered on the window.
-- **Side panels:** opening, closing or collapsing the library and the right panel slides the columns sideways. Spotify itself takes ~1–2 s to re-lay-out after a panel change, so the slide waits until it settles and then runs smoothly. The toggle buttons get a round halo on hover.
-- **No scrollbars.** Dark and light follow the color scheme.
+- **Islands.** Library, main view and right panel float over the background with concentric corners (28 → 16 → 8 px). The top bar is three pills: navigation, search, profile. The player is a floating glass dock.
+- **The cover is the palette.** Everything else is neutral gray, so the album art sets the mood: it fills the background (blurred) and tints the accent.
+- **Less chrome.** No scrollbars, no focus rings, no boxes around lists. Buttons that aren't needed all the time appear on hover.
+
+## How the dynamic accent works
+
+When a song starts, the cover is drawn into a tiny 24×24 canvas. Each colored pixel votes for its hue, weighted by how saturated it is; grays, blacks and whites don't vote. The winning hue is clamped in saturation and lightness so it always reads against the background, and it fades in over ~1.4 s. Grayscale covers fall back to the scheme's own accent.
+
+That color drives the play button, progress bar, active lyric, highlights and the tint of the glass.
+
+## How the lyrics work
+
+- **On time.** Spotify highlights each line 0.1–0.9 s late. The theme ignores that and follows the song's clock, so each line lights up when it's sung.
+- **Word by word.** Best timing source first:
+  1. Real word timings from Netease, split into approximate syllables. *This sends the song title and artist to Spicetify's public CORS proxy.*
+  2. Spotify's own syllable timings, when it provides them.
+  3. Otherwise the line's time is spread across its words (an estimate).
+- **Motion.** The word being sung lifts slightly; lines fade by distance, and the view scrolls smoothly to the current line.
 
 ## Install
-
-Requires [Spicetify](https://spicetify.app) already installed and applied to Spotify.
 
 **Linux / macOS**
 ```bash
@@ -30,42 +38,30 @@ cd spicetify-caelestia
 ./install.sh
 ```
 
-**Windows** (no git needed, and Windows' script blocking doesn't apply): in PowerShell,
+**Windows** (PowerShell, no git needed)
 ```powershell
 iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
 ```
-Or download the ZIP from GitHub (Code → Download ZIP), unzip it and double-click `install.bat`. If Windows blocks it, right-click → Properties → Unblock, or run `powershell -ExecutionPolicy Bypass -File .\install.ps1`.
+Or download the ZIP (Code → Download ZIP) and double-click `install.bat`.
 
-Manual: copy `caelestia/` to `<spicetify config dir>/Themes/caelestia/` (`spicetify -c` prints the config path), then
+It installs in dark mode. For light: `spicetify config color_scheme light`, then `spicetify apply`.
 
-```
-spicetify config current_theme caelestia color_scheme dark inject_theme_js 1 inject_css 1 replace_colors 1
-spicetify apply
-```
+**[Caelestia shell](https://github.com/caelestia-dots/shell) users:** set `color_scheme = caelestia`. The shell rewrites the colors on every scheme change and the theme follows, light/dark included.
 
-Switch mode any time: `spicetify config color_scheme light` (or `dark`), then `spicetify apply`.
+## Status
 
-## Caelestia shell users
+| | |
+|---|---|
+| Linux, Spotify 1.2.96 | Built and tested here |
+| Windows, Spotify 1.3.1 | Tested ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
+| macOS | Untested |
 
-If you use the [Caelestia](https://github.com/caelestia-dots/shell) shell, its scheme generator overwrites `color.ini` (scheme name `caelestia`) whenever you change scheme, and the theme follows it, light/dark included. Set `color_scheme = caelestia`.
+Spotify renames its CSS classes between versions; lyrics and side panels break first. If something looks off, open an issue with a screenshot.
 
-## Status and limits
-
-- Built and tested on **Linux (Arch, Hyprland) with Spotify 1.2.96**. Spotify's class names change between versions; lyrics and the right sidebar break first.
-- **Windows was checked from a user screenshot (issue #1); macOS is untested.** The theme reserves room for the native window controls (top-right on Windows, top-left on macOS), but the sizes are a guess. Please open an issue with a screenshot if something overlaps.
-- On Linux the native "···" window menu at the top-left can't be removed from CSS; the navigation pill leaves room for it.
-- Light mode: tested on playlist, artist, search, home and lyrics. Context menus and albums weren't checked.
-
-## License
-
-MIT
+MIT license.
 
 ---
 
 ## En español
 
-Tema de Spicetify con paneles flotantes, fondo ambiental y acento sacados de la portada, y un reproductor flotante de cristal líquido. Claro y oscuro.
-
-Instalación: con Spicetify instalado, `./install.sh` (Linux/macOS) o, en Windows, la línea de PowerShell de arriba o `install.bat` del ZIP (sin git). Para cambiar de modo: `spicetify config color_scheme light` (o `dark`) y `spicetify apply`.
-
-Probado en Linux con Spotify 1.2.96. **Windows se ajustó a partir de capturas (issue #1); macOS no está probado**; si algo se solapa con los controles de la ventana, abre un issue con una captura.
+Tema de [Spicetify](https://spicetify.app) (hace falta tenerlo instalado): paneles flotantes como islas y **el único color sale de la portada que suena**. Fondo con la portada difuminada, acento sacado de sus colores, letra sincronizada con el reloj de la canción y animada palabra a palabra. Instalación: los comandos de arriba. Probado en Linux (1.2.96) y Windows (1.3.1).

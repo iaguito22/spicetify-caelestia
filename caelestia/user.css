@@ -207,7 +207,10 @@ body,
 .main-actionBarBackground-background,
 .playlist-playlist-actionBarBackground-background,
 .search-searchCategory-contentArea::before,
-.search-searchCategory-contentArea::after {
+.search-searchCategory-contentArea::after,
+/* Spotify 1.3: el degradado de Inicio (color de la primera tarjeta) y su cabecera fija, con clases ofuscadas */
+main > div:has(> section[data-testid="home-page"]) > div[style*="background-color"],
+main > div:has(> section[data-testid="home-page"]) > div > div[style*="--background-base"] {
     display: none !important;
     background: transparent !important;
     background-image: none !important;
