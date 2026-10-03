@@ -26,7 +26,7 @@ That color drives the play button, progress bar, active lyric, highlights and th
 - **Word by word.** Best timing source first:
   1. Real word timings from Netease, split into approximate syllables. *This sends the song title and artist to Spicetify's public CORS proxy.*
   2. Spotify's own syllable timings, when it provides them.
-  3. Otherwise the line's time is spread across its words (an estimate).
+  3. Otherwise an estimate: words move at a singing pace and the last one is held until the next line, since singers usually stretch it.
 - **Motion.** The word being sung lifts slightly; lines fade by distance, and the view scrolls smoothly to the current line.
 
 ## Install
@@ -64,4 +64,59 @@ MIT license.
 
 ## En español
 
-Tema de [Spicetify](https://spicetify.app) (hace falta tenerlo instalado): paneles flotantes como islas y **el único color sale de la portada que suena**. Fondo con la portada difuminada, acento sacado de sus colores, letra sincronizada con el reloj de la canción y animada palabra a palabra. Instalación: los comandos de arriba. Probado en Linux (1.2.96) y Windows (1.3.1).
+Un tema de Spotify en el que los paneles flotan como islas redondeadas y **el único color sale de la canción que suena**.
+
+> [!IMPORTANT]
+> Es un tema para **[Spicetify](https://spicetify.app)**, no una aplicación independiente. Instala primero Spicetify y ejecuta `spicetify apply` una vez; después instala el tema como se explica abajo.
+
+### Diseño
+
+- **Islas.** La biblioteca, la vista central y el panel derecho flotan sobre el fondo con esquinas concéntricas (28 → 16 → 8 px). La barra superior son tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de cristal flotante.
+- **La portada es la paleta.** Todo lo demás es gris neutro, así que la carátula marca el ambiente: llena el fondo (difuminada) y tiñe el acento.
+- **Menos adornos.** Sin barras de desplazamiento, sin anillos de foco y sin cajas alrededor de las listas. Los botones que no hacen falta siempre aparecen al pasar el ratón.
+
+### Cómo funciona el acento dinámico
+
+Cuando empieza una canción, la portada se dibuja en un lienzo diminuto de 24×24. Cada píxel con color vota por su tono, con más peso cuanto más saturado está; los grises, negros y blancos no votan. El tono ganador se limita en saturación y luminosidad para que siempre se lea sobre el fondo, y aparece con un fundido de ~1,4 s. Las portadas en escala de grises usan el acento del propio esquema.
+
+Ese color mueve el botón de reproducir, la barra de progreso, la línea activa de la letra, los resaltados y el tinte del cristal.
+
+### Cómo funciona la letra
+
+- **A tiempo.** Spotify resalta cada línea entre 0,1 y 0,9 s tarde. El tema lo ignora y sigue el reloj de la canción, así que cada línea se enciende cuando se canta.
+- **Palabra a palabra.** Primero la mejor fuente de tiempos:
+  1. Tiempos reales por palabra de Netease, partidos en sílabas aproximadas. *Esto envía el título y el artista de la canción al proxy CORS público de Spicetify.*
+  2. Los tiempos por sílaba de Spotify, cuando los da.
+  3. Si no, una estimación: las palabras van a ritmo de canto y la última se alarga hasta la línea siguiente, porque los cantantes suelen estirarla.
+- **Movimiento.** La palabra que se canta se eleva un poco; las líneas se apagan según su distancia y la vista se desplaza suavemente hasta la línea actual.
+
+### Instalación
+
+**Linux / macOS**
+```bash
+git clone https://github.com/iaguito22/spicetify-caelestia
+cd spicetify-caelestia
+./install.sh
+```
+
+**Windows** (PowerShell, no hace falta git)
+```powershell
+iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
+```
+O descarga el ZIP (Code → Download ZIP) y haz doble clic en `install.bat`.
+
+Se instala en modo oscuro. Para el claro: `spicetify config color_scheme light` y después `spicetify apply`.
+
+**Usuarios de [Caelestia shell](https://github.com/caelestia-dots/shell):** poned `color_scheme = caelestia`. El shell reescribe los colores en cada cambio de esquema y el tema lo sigue, claro/oscuro incluido.
+
+### Estado
+
+| | |
+|---|---|
+| Linux, Spotify 1.2.96 | Hecho y probado aquí |
+| Windows, Spotify 1.3.1 | Probado ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
+| macOS | Sin probar |
+
+Spotify renombra sus clases CSS entre versiones; lo primero que se rompe es la letra y los paneles laterales. Si algo se ve mal, abre un issue con una captura.
+
+Licencia MIT.

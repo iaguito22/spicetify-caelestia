@@ -641,6 +641,13 @@ html[data-cs-anim] .Root__right-sidebar { display: flex !important; justify-cont
 html[data-cs-anim] .Root__main-view .main-view-container { width: var(--cs-main-w) !important; flex: none !important; }
 html[data-cs-anim] .Root__nav-bar .main-navBar-mainNav { width: var(--cs-nav-w) !important; flex: none !important; }
 html[data-cs-anim] .Root__right-sidebar .Root__right-sidebar-peek { width: var(--cs-rs-w) !important; flex: none !important; }
+/* Al contraer la biblioteca su contenido ya es el compacto: se queda a 72 px pegado a la
+   izquierda (no centrado en el ancho viejo) */
+html[data-cs-anim] .Root__nav-bar[data-cs-lib-min] .main-navBar-mainNav { width: 72px !important; }
+/* Hasta que arranca la animación (Spotify tarda en recolocarse, más con el PC cargado) el
+   contenido no se ve: si no, sale un fotograma con el diseño nuevo en el ancho viejo */
+html:is([data-cs-anim="left"], [data-cs-anim="both"]):not([data-cs-go]) .Root__nav-bar > *,
+html:is([data-cs-anim="right"], [data-cs-anim="both"]):not([data-cs-go]) .Root__right-sidebar > * { opacity: 0; }
 /* Barras para redimensionar los paneles: Spotify las deja medio fuera del panel y el panel
    recorta (overflow: hidden) → solo quedaba 1 px agarrable. Se meten dentro del borde. */
 .Root__nav-bar > .LayoutResizer__resize-bar { left: auto !important; right: 0 !important; z-index: 5 !important; }
@@ -1736,6 +1743,14 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
     padding-inline: 10px !important;
     margin-inline: -10px !important;
 }
+/* Nombre de una carpeta abierta: lo más ancho posible. El margen negativo de arriba recortaba
+   20 px al botón (max-width: 100%), Spotify desplaza el título 36 px sin devolver el hueco, y
+   dentro de una carpeta "Crear" queda solo con el icono */
+.main-yourLibraryX-collapseButton > div:has(h2) button { max-width: calc(100% + 20px) !important; }
+.Root__nav-bar:not([data-cs-lib-min]) .main-yourLibraryX-collapseButton { flex: 1 1 auto !important; min-width: 0 !important; }
+.Root__nav-bar:not([data-cs-lib-min]) .main-yourLibraryX-collapseButton > div:has(h2) { min-width: 0 !important; margin-right: -36px; }
+.main-yourLibraryX-headerContent:has(.main-yourLibraryX-collapseButton h2) button[aria-label]:has(> svg + span) { padding: 8px !important; }
+.main-yourLibraryX-headerContent:has(.main-yourLibraryX-collapseButton h2) button[aria-label]:has(> svg + span) > span { display: none !important; }
 :is(.main-yourLibraryX-header, .main-nowPlayingView-headerWrapper) button,
 .main-yourLibraryX-collapseButton button {
     background: transparent !important;

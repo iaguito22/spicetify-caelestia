@@ -386,15 +386,27 @@
         }
         const cjk = !/\s/.test(text) && /[぀-ヿ㐀-鿿가-힯]/.test(text);
         const toks = cjk ? Array.from(text) : text.split(/(\s+)/);
-        const words = toks.filter((w) => w.trim());
-        const span = Math.min(next - ln.t, words.reduce((a, w) => a + w.length, 0) * 170 + 900);
-        const total = words.reduce((a, w) => a + w.length + 2, 0);
-        let acc = 0;
+        // Las palabras van a ritmo de canto (~60 ms por letra) y la última se alarga: es la que
+        // el cantante suele estirar hasta la respiración antes de la frase siguiente
+        const words = toks.filter((w) => w.trim()), U = 60;
+        const units = words.map((w) => Array.from(w).length + 2);
+        const lastU = units.pop() || 0, bodyU = units.reduce((a, u) => a + u, 0);
+        const room = Math.max(300, next - ln.t - Math.min(450, (next - ln.t) * 0.12)); // hasta la respiración
+        let k = U, hold = lastU * U; // ms por unidad en el cuerpo y duración de la última
+        if ((bodyU + lastU) * U >= room) k = room / (bodyU + lastU), hold = lastU * k; // no cabe: todo a escala
+        else {
+            const free = room - (bodyU + lastU) * U;
+            const slow = Math.min(free * 0.3, bodyU * U * 0.5); // frase lenta: el cuerpo se relaja un poco
+            k = U + (bodyU ? slow / bodyU : 0);
+            hold = Math.min(lastU * U + free - slow, lastU * U + 2600); // el resto, a la última (con tope)
+        }
+        let acc = ln.t, wi = 0;
         return toks.map((w) => {
             if (!w.trim()) return { text: w };
-            const start = ln.t + span * (acc / total);
-            acc += w.length + 2;
-            return { text: w, start, end: ln.t + span * (acc / total) };
+            const start = acc;
+            acc += wi < units.length ? units[wi] * k : hold;
+            wi++;
+            return { text: w, start, end: acc };
         });
     }
 
