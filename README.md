@@ -65,7 +65,7 @@ It installs in dark mode. For light: `spicetify config color_scheme light`, then
 | Windows, Spotify 1.3.3 | Supported, being tested ([#5](https://github.com/iaguito22/spicetify-caelestia/issues/5), [#6](https://github.com/iaguito22/spicetify-caelestia/issues/6)) |
 | macOS | Untested |
 
-Spotify renames its CSS classes between versions; lyrics and side panels break first. Spotify 1.3.3 obfuscates most layout classes, so the theme puts the old names back at runtime. If something looks off, open an issue with a screenshot.
+Spotify renames its CSS classes between versions; lyrics and side panels break first. If something looks off, open an issue with a screenshot.
 
 MIT license.
 
@@ -141,6 +141,6 @@ Se instala en modo oscuro. Si lo prefieres claro: `spicetify config color_scheme
 | Windows, Spotify 1.3.3 | Compatible, en pruebas ([#5](https://github.com/iaguito22/spicetify-caelestia/issues/5), [#6](https://github.com/iaguito22/spicetify-caelestia/issues/6)) |
 | macOS | Sin probar |
 
-Spotify cambia los nombres de sus clases CSS de una versión a otra, y lo primero que suele romperse es la letra y los paneles laterales. La 1.3.3 ofusca casi todas las clases de la interfaz, así que el tema les devuelve sus nombres de siempre mientras se ejecuta. Si ves algo raro, abre un issue con una captura.
+Spotify cambia los nombres de sus clases CSS de una versión a otra, y lo primero que suele romperse es la letra y los paneles laterales. Si ves algo raro, abre un issue con una captura.
 
 Licencia MIT.
