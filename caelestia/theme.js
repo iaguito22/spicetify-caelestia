@@ -506,6 +506,74 @@
         }, { capture: true, passive: true });
     }
 
+    // ---- Spotify 1.3: letra con clases ofuscadas -------------------------------------
+    // Medido en Windows 1.3.1: .Root__main-view > … > div.bqlda (contenedor) > [div.nqmj (fondo),
+    // div.NAOY > div.l2GQ > div (padre de las líneas) > div.rzOQ.<estado> > div._3s1D (texto)].
+    // Los nombres cambian con cada versión, así que se reconocen por la forma (texto grande en
+    // líneas hermanas) y se les ponen las clases de 1.2, de las que cuelga todo el tema.
+    const L13 = { wrap: null, mo: null, state: null };
+    function tagLine(line) {
+        if (!line.classList.contains("lyrics-lyricsContent-lyric")) line.classList.add("lyrics-lyricsContent-lyric");
+        const t = line.firstElementChild;
+        if (t && !t.classList.contains("lyrics-lyricsContent-text")) t.classList.add("lyrics-lyricsContent-text");
+        const st = L13.state;
+        if (!st) return;
+        const tok = [...line.classList].find((c) => c in st);
+        for (const k of ["previous", "active", "upcoming"]) {
+            const want = tok && st[tok] === k, has = line.classList.contains("lyrics-lyricsContent-" + k);
+            if (want !== has) line.classList.toggle("lyrics-lyricsContent-" + k, want);
+        }
+    }
+    function learnStates(wrap) {
+        // clase de estado = la 2ª de cada línea; en orden: pasadas, la activa y las siguientes
+        const runs = [];
+        for (const l of wrap.children) {
+            const tok = [...l.classList].filter((c) => !c.startsWith("lyrics-"))[1];
+            if (!tok || !l.offsetHeight) continue;
+            if (!runs.length || runs[runs.length - 1] !== tok) runs.push(tok);
+        }
+        if (runs.length === 3 && new Set(runs).size === 3) L13.state = { [runs[0]]: "previous", [runs[1]]: "active", [runs[2]]: "upcoming" };
+    }
+    function tagLyrics13() {
+        if (document.querySelector(".lyrics-lyrics-container") && L13.wrap && L13.wrap.isConnected) return;
+        const H = Spicetify.Platform && Spicetify.Platform.History;
+        if (!H || !H.location || H.location.pathname !== "/lyrics") return;
+        const mv = document.querySelector(".Root__main-view");
+        if (!mv || mv.querySelector(".lyrics-lyrics-container")) return;
+        let leaf = null;
+        for (const e of mv.querySelectorAll("div")) {
+            if (e.firstElementChild || !e.textContent.trim() || parseFloat(getComputedStyle(e).fontSize) < 28) continue;
+            leaf = e; break;
+        }
+        const line = leaf && leaf.parentElement, wrap = line && line.parentElement;
+        if (!wrap || wrap.children.length < 3) return;
+        const content = wrap.parentElement, box = content && content.parentElement && content.parentElement.parentElement;
+        if (!box || box === mv) return;
+        box.classList.add("lyrics-lyrics-container");
+        content.classList.add("lyrics-lyrics-contentWrapper");
+        for (const sib of box.children) if (!sib.contains(wrap)) sib.classList.add("lyrics-lyrics-background");
+        L13.wrap = wrap;
+        L13.state = null;
+        learnStates(wrap);
+        for (const l of wrap.children) tagLine(l);
+        if (L13.mo) L13.mo.disconnect();
+        // React reescribe className al cambiar de estado (y borra las nuestras): se repone antes de pintar
+        L13.mo = new MutationObserver((recs) => {
+            if (!L13.state) learnStates(wrap);
+            for (const r of recs) {
+                if (r.type === "childList") {
+                    for (const n of r.addedNodes) {
+                        if (n.parentElement === wrap) tagLine(n);
+                        else if (n.parentElement && n.parentElement.parentElement === wrap) tagLine(n.parentElement);
+                    }
+                }
+                else if (r.target.parentElement === wrap) tagLine(r.target);
+                else if (r.target.parentElement && r.target.parentElement.parentElement === wrap) tagLine(r.target.parentElement);
+            }
+        });
+        L13.mo.observe(wrap, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    }
+
     function lyricsTick() {
         lyrRaf = 0;
         const box = document.querySelector(".lyrics-lyrics-container");
@@ -866,6 +934,7 @@
             markLyricsScroll();
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
             root.toggleAttribute("data-cs-synced", !!(lyr.lines && lyr.lines.length));
+            tagLyrics13();
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);
         // La UI de Spotify se monta después que Spicetify: espera al contenedor

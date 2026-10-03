@@ -290,7 +290,7 @@ section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
 .main-actionBar-ActionBarRow .main-playButton-PlayButton button { width: 56px !important; height: 56px !important; min-width: 56px !important; }
 
 /* Al pasar el ratón, el play se aclara con el acento (Spotify lo pintaba de verde) */
-.main-actionBar-ActionBarRow .main-playButton-PlayButton button:hover .e-10451-button-primary__inner {
+.main-actionBar-ActionBarRow .main-playButton-PlayButton button:hover [class*="button-primary__inner"] {
     background-color: color-mix(in srgb, var(--cs-accent) 78%, #fff) !important;
 }
 
@@ -347,13 +347,13 @@ img[class*="playingIcon"] { filter: grayscale(1) brightness(1.6) !important; }
 }
 
 /* El mismo hover con borde en las filas de la biblioteca */
-.main-rootlist-wrapper [role="row"] .e-10451-box--interactive {
+.main-rootlist-wrapper [role="row"] [class*="box--interactive"] {
     border: 1px solid transparent !important;
     border-radius: 12px !important;
     box-sizing: border-box !important;
     transition: background-color 140ms ease, border-color 140ms ease !important;
 }
-.main-rootlist-wrapper [role="row"] .e-10451-box--interactive:hover {
+.main-rootlist-wrapper [role="row"] [class*="box--interactive"]:hover {
     background-color: var(--spice-main-elevated) !important;
     border-color: var(--cs-border-soft) !important;
 }
@@ -499,7 +499,7 @@ input:focus-visible {
 .main-globalNav-historyButtonsContainer button,
 .main-globalNav-searchContainer > button,
 .main-globalNav-contentRight button,
-.main-globalNav-searchContainer .e-10451-form-input-icon__icon button {
+.main-globalNav-searchContainer [class*="form-input-icon__icon"] button {
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -776,7 +776,7 @@ html[data-cs-dock-float] .Root__now-playing-bar {
 .x-progressBar-fillColor { box-shadow: 0 0 10px color-mix(in srgb, var(--cs-accent) 70%, transparent) !important; }
 
 /* Los iconos no recortan su propio borde (el círculo de "guardado" perdía la base) */
-.e-10451-button__icon-wrapper svg,
+[class*="button__icon-wrapper"] svg,
 .main-nowPlayingWidget-actionButtonWrapper svg { overflow: visible !important; }
 
 /* --------------------------------------------------------------------------
@@ -821,9 +821,9 @@ html[data-cs-dock-float] .Root__now-playing-bar {
 .spicetify-sc-chevronBtn { display: none !important; }
 
 /* Iconos centrados en su círculo */
-.main-globalNav-historyButtonsContainer button .e-10451-button__icon-wrapper,
-.main-globalNav-searchContainer button .e-10451-button__icon-wrapper,
-.main-globalNav-contentRight button .e-10451-button__icon-wrapper {
+.main-globalNav-historyButtonsContainer button [class*="button__icon-wrapper"],
+.main-globalNav-searchContainer button [class*="button__icon-wrapper"],
+.main-globalNav-contentRight button [class*="button__icon-wrapper"] {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -845,7 +845,7 @@ html[data-cs-dock-float] .Root__now-playing-bar {
 
 /* La X de borrar solo aparece si hay algo escrito */
 .main-globalNav-searchInputSection form:has(input:placeholder-shown)
-    .e-10451-form-input-icon__icon--trailing > button { display: none !important; }
+    [class*="form-input-icon__icon--trailing"] > button { display: none !important; }
 
 /* Los tres paneles con el mismo velo del acento (antes solo lo llevaba el central) */
 .Root__nav-bar,
@@ -1161,13 +1161,16 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
 .main-nowPlayingView-headerWrapper > button:first-child,
 .main-nowPlayingView-headerButtonContainer {
     position: absolute !important;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 50% !important;
+    bottom: auto !important;
+    margin: 0 !important;
+    translate: none !important;
+    transform: translateY(-50%) !important; /* Spotify 1.3 lo desplaza al pasar el ratón */
     z-index: 2;
     opacity: 0 !important;
     transition: opacity 220ms var(--cs-ease) !important;
 }
-.main-nowPlayingView-headerWrapper > button:first-child { left: 0; }
+.main-nowPlayingView-headerWrapper > button:first-child { left: 0 !important; }
 .main-nowPlayingView-headerButtonContainer { right: 0; }
 .main-nowPlayingView-headerWrapper:is(:hover, :focus-within) > button:first-child,
 .main-nowPlayingView-headerWrapper:is(:hover, :focus-within) .main-nowPlayingView-headerButtonContainer { opacity: 1 !important; }
@@ -1676,15 +1679,23 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
    mida el ancho del panel y las portadas de 48px queden centradas */
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-entryPoints { padding: 0 !important; }
 /* Portadas centradas en la columna (el hueco por defecto es para el texto que aquí no hay) */
-.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist :is([class*="e-10451-box"]:has(> div > [class*="legacy-list-row__header-side"]), [class*="legacy-list-row__header-side-flex"], [class*="legacy-list-row__header-side"]) {
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist :is(:is([class*="e-10451-box"], [class*="legacy-box"]):has(> div > [class*="legacy-list-row__header-side"]), [class*="legacy-list-row__header-side-flex"], [class*="legacy-list-row__header-side"]) {
     width: 100% !important;
     min-width: 0 !important;
     display: flex !important;
     justify-content: center !important;
 }
 /* la parte de texto de cada fila (oculta en la columna) seguía ocupando ~14px y descentraba la portada */
-.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist [class*="e-10451-box"]:has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"]) { display: none !important; }
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-libraryRootlist :is([class*="e-10451-box"], [class*="legacy-box"]):has(> [class*="legacy-list-row__header-side"]) > :not([class*="legacy-list-row__header-side"], [class*="legacy-list-row__on-click"]) { display: none !important; }
 /* el botón de biblioteca traía 30px de margen derecho (para el título) y quedaba a la izquierda */
+/* Spotify 1.3: el contenedor del botón mide 20px y el botón (con margen -10px) se salía a la izquierda */
+.Root__nav-bar[data-cs-lib-min] :is(.main-yourLibraryX-collapseButton, .main-yourLibraryX-collapseButton > div) {
+    width: 40px !important;
+    min-width: 40px !important;
+    display: flex !important;
+    justify-content: center !important;
+}
+.Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-collapseButton button { margin-inline: 0 !important; padding-inline: 0 !important; }
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-collapseButton { margin: 0 !important; align-self: center !important; }
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button { background: rgba(var(--spice-rgb-text), 0.06) !important; }
 .Root__nav-bar[data-cs-lib-min] .main-yourLibraryX-headerContent button:hover { background: rgba(var(--spice-rgb-text), 0.14) !important; }
@@ -1789,3 +1800,4 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(5) 
 html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(6) { animation-delay: 270ms; }
 html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(7) { animation-delay: 300ms; }
 html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8) { animation-delay: 330ms; }
+.main-nowPlayingView-headerWrapper > button:first-child:active { transform: translateY(-50%) scale(0.9) !important; }
