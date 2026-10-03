@@ -74,37 +74,37 @@ MIT license.
 
 # 🇪🇸 En español
 
-Un tema de Spotify en el que los paneles flotan como islas redondeadas y **el único color sale de la canción que suena**.
+Un tema para Spotify con los paneles flotando como islas redondeadas, en el que **el único color lo pone la canción que está sonando**.
 
 > [!IMPORTANT]
-> Es un tema para **[Spicetify](https://spicetify.app)**, no una aplicación independiente. Instala primero Spicetify y ejecuta `spicetify apply` una vez; después instala el tema como se explica abajo.
+> Esto es un tema para **[Spicetify](https://spicetify.app)**, no una aplicación aparte. Primero instala Spicetify y ejecuta `spicetify apply` una vez; luego instala el tema siguiendo los pasos de abajo.
 
 ## Diseño
 
-- **Islas.** La biblioteca, la vista central y el panel derecho flotan sobre el fondo con esquinas concéntricas (28 → 16 → 8 px). La barra superior son tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de cristal flotante.
-- **La portada es la paleta.** Todo lo demás es gris neutro, así que la carátula marca el ambiente: llena el fondo (difuminada) y tiñe el acento.
-- **Menos adornos.** Sin barras de desplazamiento, sin anillos de foco y sin cajas alrededor de las listas. Los botones que no hacen falta siempre aparecen al pasar el ratón.
+- **Islas.** La biblioteca, la vista principal y el panel derecho flotan sobre el fondo, con esquinas concéntricas (28 → 16 → 8 px). Arriba hay tres píldoras: navegación, búsqueda y perfil. El reproductor es un dock de cristal que flota sobre todo lo demás.
+- **La portada manda.** El resto de la interfaz es gris neutro, así que es la carátula la que pone el ambiente: ocupa el fondo, desenfocada, y de ella sale el color de acento.
+- **Nada que sobre.** Sin barras de scroll, sin contornos de foco y sin recuadros alrededor de las listas. Los botones que no se usan todo el rato aparecen al pasar el ratón por encima.
 
 ![Página de artista](screenshots/artist.png)
 
-## Cómo funciona el acento dinámico
+## Cómo se elige el color de acento
 
-Cuando empieza una canción, la portada se dibuja en un lienzo diminuto de 24×24. Cada píxel con color vota por su tono, con más peso cuanto más saturado está; los grises, negros y blancos no votan. El tono ganador se limita en saturación y luminosidad para que siempre se lea sobre el fondo, y aparece con un fundido de ~1,4 s. Las portadas en escala de grises usan el acento del propio esquema.
+Al empezar cada canción, la portada se pinta en un lienzo diminuto de 24×24 píxeles. Cada píxel con color vota por su tono, y cuanto más saturado está, más pesa su voto; los grises, los negros y los blancos no cuentan. Al tono ganador se le ajustan la saturación y la luminosidad para que siempre se vea bien sobre el fondo, y entra con una transición de 1,4 s más o menos. Si la portada es en blanco y negro, se usa el acento del propio esquema de colores.
 
-Ese color mueve el botón de reproducir, la barra de progreso, la línea activa de la letra, los resaltados y el tinte del cristal.
+Ese color es el del botón de reproducir, la barra de progreso, la línea de la letra que se está cantando, los resaltados y el tinte del cristal.
 
-![Playlist teñida por su portada](screenshots/playlist.png)
+![Playlist teñida con el color de su portada](screenshots/playlist.png)
 
 ## Cómo funciona la letra
 
-- **A tiempo.** Spotify resalta cada línea entre 0,1 y 0,9 s tarde. El tema lo ignora y sigue el reloj de la canción, así que cada línea se enciende cuando se canta.
-- **Palabra a palabra.** Primero la mejor fuente de tiempos:
-  1. Tiempos reales por palabra de Netease, partidos en sílabas aproximadas. *Esto envía el título y el artista de la canción al proxy CORS público de Spicetify.*
-  2. Los tiempos por sílaba de Spotify, cuando los da.
-  3. Si no, una estimación: las palabras van a ritmo de canto y la última se alarga hasta la línea siguiente, porque los cantantes suelen estirarla.
-- **Movimiento.** La palabra que se canta se eleva un poco; las líneas se apagan según su distancia y la vista se desplaza suavemente hasta la línea actual.
+- **Sincronizada de verdad.** Spotify marca cada línea con entre 0,1 y 0,9 s de retraso. El tema no le hace caso y se guía por el tiempo de la canción, así que cada línea se ilumina justo cuando se canta.
+- **Palabra a palabra.** Usa la mejor fuente de tiempos que encuentre, por este orden:
+  1. Los tiempos reales de cada palabra que da Netease, divididos en sílabas aproximadas. *Para eso se envían el título y el artista de la canción al proxy CORS público de Spicetify.*
+  2. Los tiempos por sílaba de Spotify, cuando los tiene.
+  3. Si no hay ninguno, los calcula: las palabras avanzan al ritmo normal del canto y la última se alarga hasta la línea siguiente, porque es la que los cantantes suelen estirar.
+- **Animación.** La palabra que se está cantando se eleva un poco, las líneas se van apagando cuanto más lejos están, y la vista se desplaza con suavidad hasta la línea actual.
 
-![Letra rellenándose palabra a palabra](screenshots/lyrics.png)
+![Letra iluminándose palabra a palabra](screenshots/lyrics.png)
 
 ## Instalación
 
@@ -115,24 +115,24 @@ cd spicetify-caelestia
 ./install.sh
 ```
 
-**Windows** (PowerShell, no hace falta git)
+**Windows** (en PowerShell; no necesitas git)
 ```powershell
 iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/install.ps1 | iex
 ```
-O descarga el ZIP (Code → Download ZIP) y haz doble clic en `install.bat`.
+También puedes descargar el ZIP (Code → Download ZIP) y abrir `install.bat` con doble clic.
 
-Se instala en modo oscuro. Para el claro: `spicetify config color_scheme light` y después `spicetify apply`.
+Se instala en modo oscuro. Si lo prefieres claro: `spicetify config color_scheme light` y luego `spicetify apply`.
 
-**Usuarios de [Caelestia shell](https://github.com/caelestia-dots/shell):** poned `color_scheme = caelestia`. El shell reescribe los colores en cada cambio de esquema y el tema lo sigue, claro/oscuro incluido.
+**Si usas [Caelestia shell](https://github.com/caelestia-dots/shell):** pon `color_scheme = caelestia`. El shell reescribe los colores cada vez que cambias de esquema y el tema se adapta solo, también al pasar de claro a oscuro.
 
 ## Estado
 
 | | |
 |---|---|
-| Linux, Spotify 1.2.96 | Hecho y probado aquí |
+| Linux, Spotify 1.2.96 | Desarrollado y probado aquí |
 | Windows, Spotify 1.3.1 | Probado ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | macOS | Sin probar |
 
-Spotify renombra sus clases CSS entre versiones; lo primero que se rompe es la letra y los paneles laterales. Si algo se ve mal, abre un issue con una captura.
+Spotify cambia los nombres de sus clases CSS de una versión a otra, y lo primero que suele romperse es la letra y los paneles laterales. Si ves algo raro, abre un issue con una captura.
 
 Licencia MIT.
