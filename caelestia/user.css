@@ -1747,10 +1747,11 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
    (sin bloque opaco debajo) y, como Spotify la deja fija detrás, se apaga al desplazar
    (theme.js pone --cs-scroll) para no quedar bajo las canciones */
 .main-entityHeader-withBackgroundImage { isolation: isolate; }
+.before-scroll-node > div { overflow: visible !important; } /* 1.3.3 la recorta en seco a la altura de la cabecera */
 .before-scroll-node > div > div {
-    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
-    mask-image: linear-gradient(to bottom, #000 55%, transparent);
-    opacity: max(0, calc(1 - var(--cs-scroll, 0) / 260));
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent) !important;
+    mask-image: linear-gradient(to bottom, #000 55%, transparent) !important;
+    opacity: max(0, calc(1 - var(--cs-scroll, 0) / 260)) !important;
 }
 [data-testid="overscroll-background"] { display: none !important; }
 .main-entityHeader-container + div { background: transparent !important; }
@@ -1871,9 +1872,13 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8
    fila de chips (Añadir / Mezcla / Nombre) de las playlists propias
    -------------------------------------------------------------------------- */
 /* Cabecera de la vista Sonando: con vídeo (canvas) flota sobre él; con foto queda como siempre */
-.NowPlayingView { background: transparent !important; }
+.NowPlayingView, .NowPlayingView::before { background: transparent !important; } /* el ::before de Spotify es un fondo opaco a panel completo */
 /* La capa interior del panel derecho (Root__right-sidebar-peek en 1.2, sin clase en 1.3.3) es opaca */
 .Root__right-sidebar > div:first-child { background: transparent !important; }
+/* Con foto (sin vídeo) el panel derecho deja ver más el fondo */
+.Root__right-sidebar:has(.NowPlayingView):not(:has(.canvasVideoContainerNPV video)) {
+    background-color: color-mix(in srgb, var(--spice-main) 62%, transparent) !important;
+}
 .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerContainer {
     position: absolute !important; top: 0; left: 0; right: 0; z-index: 3;
     background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important;
