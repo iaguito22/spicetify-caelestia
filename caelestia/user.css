@@ -319,7 +319,6 @@ section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBar {
 
 html[data-cs-scrolled] .main-trackList-trackListHeader {
     background: color-mix(in srgb, var(--spice-main) 88%, transparent) !important;
-    backdrop-filter: blur(14px) !important;
 }
 
 /* Título fijo que aparece al hacer scroll: con fondo solo cuando Spotify lo muestra */
