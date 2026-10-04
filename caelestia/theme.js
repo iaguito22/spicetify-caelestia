@@ -860,16 +860,29 @@
         const root = document.documentElement;
         // `data-cs-stuck`: la cabecera de columnas ya está pegada bajo la barra
         // superior (antes de eso va en su sitio, sin cristal)
-        let raf = 0;
+        let raf = 0, stickyTop = new WeakMap(), lastFade = -1, fadeEl = null;
+        // Lecturas primero y escrituras solo si algo cambia: escribir una variable en <html> en cada
+        // fotograma de scroll invalida el estilo de TODO el documento (y leer después fuerza el recálculo)
         function syncStuck(t) {
             raf = 0;
-            root.toggleAttribute("data-cs-scrolled", t.scrollTop > 6);
-            // La foto de cabecera (artista) está fija detrás: se desvanece al desplazar
-            root.style.setProperty("--cs-scroll", Math.round(t.scrollTop));
             const h = document.querySelector(".main-trackList-trackListHeader");
-            if (!h) return root.removeAttribute("data-cs-stuck");
-            const top = t.getBoundingClientRect().top + (parseFloat(getComputedStyle(h).top) || 0);
-            root.toggleAttribute("data-cs-stuck", h.getBoundingClientRect().top <= top + 0.5);
+            let stuck = false;
+            if (h) {
+                let off = stickyTop.get(h);
+                if (off === undefined) stickyTop.set(h, off = parseFloat(getComputedStyle(h).top) || 0);
+                stuck = h.getBoundingClientRect().top <= t.getBoundingClientRect().top + off + 0.5;
+            }
+            const st = t.scrollTop;
+            if (root.hasAttribute("data-cs-scrolled") !== st > 6) root.toggleAttribute("data-cs-scrolled", st > 6);
+            if (root.hasAttribute("data-cs-stuck") !== stuck) root.toggleAttribute("data-cs-stuck", stuck);
+            // La foto de cabecera (artista) está fija detrás: se desvanece al desplazar. La variable
+            // va solo en su contenedor y se deja de escribir una vez apagada (>260 px).
+            const fade = Math.min(260, Math.round(st));
+            const fe = document.querySelector(".before-scroll-node");
+            if (fe && (fe !== fadeEl || fade !== lastFade)) {
+                fadeEl = fe; lastFade = fade;
+                fe.style.setProperty("--cs-scroll", fade);
+            }
         }
         document.addEventListener("scroll", (e) => {
             const t = e.target;
@@ -883,7 +896,8 @@
         let lastPath = null, routeT = 0, boundH = null;
         const onRoute = (loc) => {
             root.removeAttribute("data-cs-scrolled"); root.removeAttribute("data-cs-stuck");
-            root.style.setProperty("--cs-scroll", 0);
+            if (fadeEl) fadeEl.style.setProperty("--cs-scroll", 0);
+            lastFade = -1;
             const path = loc && loc.pathname;
             if (path === lastPath) return;
             const skip = path === "/lyrics" || lastPath === "/lyrics";
@@ -1220,7 +1234,7 @@
             const gc = [...hrow.classList].find((c) => !c.startsWith("main-") && tl.querySelectorAll("." + CSS.escape(c)).length > 1);
             if (!gc) continue;
             for (const row of tl.querySelectorAll("." + CSS.escape(gc))) {
-                if (row === hrow || !row.offsetHeight || row.children.length < 3) continue;
+                if (row === hrow || row.classList.contains("main-trackList-trackListRow") || !row.offsetHeight || row.children.length < 3) continue;
                 add(row, "main-trackList-trackListRow", "main-trackList-trackListRowGrid");
                 cols(row);
                 const start = row.children[1];
@@ -1251,6 +1265,9 @@
     };
     new MutationObserver((ms) => {
         // al hacer scroll en una lista larga entran filas en cada fotograma: entonces basta con la lista
+        // dentro de la letra (cambio de frase, trozos de palabras) no hay nada que etiquetar: la
+        // etiqueta tagLyrics13; repasar todos los alias en cada frase era trabajo en pleno scroll
+        if (ms.every((m) => m.target.closest && m.target.closest(".lyrics-lyrics-container"))) return;
         const want = ms.every((m) => m.target.closest && m.target.closest(".main-trackList-trackList")) ? 1 : 2;
         if (tagQueued >= want) return;
         if (!tagQueued) queueMicrotask(tagAll);

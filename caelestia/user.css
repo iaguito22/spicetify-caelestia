@@ -912,7 +912,7 @@ button.main-trackList-column[aria-sort="descending"] * { color: var(--cs-accent)
    está siempre visible, así que no se puede fiar de que Spotify la oculte. */
 html[data-cs-scrolled] .main-topBar-background {
     background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
-    backdrop-filter: blur(22px) saturate(1.3) !important;
+    backdrop-filter: blur(16px) !important;
 }
 /* La cabecera solo es cristal cuando ya está pegada (theme.js pone data-cs-stuck);
    el contenido se desvanece bajo ella en vez de cortarse en seco */
@@ -920,7 +920,7 @@ html[data-cs-stuck] .main-trackList-trackListHeader {
     border-radius: 0 !important;
     border: 0 !important;
     background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
-    backdrop-filter: blur(22px) saturate(1.3) !important;
+    backdrop-filter: blur(16px) !important;
 }
 html[data-cs-stuck] .main-trackList-trackListHeader::after {
     content: "";
@@ -931,9 +931,6 @@ html[data-cs-stuck] .main-trackList-trackListHeader::after {
     height: 30px;
     pointer-events: none;
     background: linear-gradient(to bottom, color-mix(in srgb, var(--spice-main) 42%, transparent), transparent);
-    backdrop-filter: blur(22px) saturate(1.3);
-    -webkit-mask-image: linear-gradient(to bottom, #000, transparent);
-    mask-image: linear-gradient(to bottom, #000, transparent);
 }
 /* El play fijo deja el mismo aire que el resto respecto a la esquina redondeada */
 .main-topBar-topbarContentContainer { padding-left: 22px !important; }
