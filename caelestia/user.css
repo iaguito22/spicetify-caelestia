@@ -1886,3 +1886,7 @@ section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBa
 section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button):has(> div) { padding: 6px 0 6px 210px !important; }
 /* Portada a la misma distancia del borde izquierdo que del superior (estaba a 48 y 28) */
 .main-entityHeader-containerNormal .main-entityHeader-imageContainer { margin-left: -20px !important; }
+
+/* Otro tema metido por JS a la vez (Default Dynamic): su botón claro/oscuro no hace nada aquí
+   (theme.js quita sus colores) */
+#main-topBar-moon-button { display: none !important; }

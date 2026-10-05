@@ -1275,5 +1275,40 @@
     }).observe(document.documentElement, { childList: true, subtree: true });
     setInterval(() => { tagQueued = 2; tagAll(); }, 2000);
 
+    // ---- Otros temas a la vez --------------------------------------------------------
+    // Spicetify aplica un solo tema, pero hay temas que se meten por JS por su cuenta (Default
+    // Dynamic desde Marketplace o como extensión): escriben sus colores en el style de <html>
+    // (--spice-*, --is_light) o en <style class="marketplaceCSS">, que pisan los de color.ini:
+    // fondo blanco y texto verde fijos (en 1.3.3 Default Dynamic ni siquiera los actualiza).
+    // Si este archivo se ejecuta, el tema activo es este: esas capas se quitan según aparecen.
+    // Ni Spicetify ni este tema escriben --spice-* en línea (llegan por colors.css).
+    const FOREIGN_VAR = /^--(spice-|is_light$|image_url$|colormatrix$)/;
+    let foreignSeen = false;
+    function evictForeign() {
+        const st = document.documentElement.style;
+        let hit = false;
+        for (let i = st.length - 1; i >= 0; i--) {
+            if (FOREIGN_VAR.test(st[i])) { st.removeProperty(st[i]); hit = true; }
+        }
+        // marketplaceScheme / marketplaceUserCSS (el botón luna de Default Dynamic lo oculta user.css)
+        document.querySelectorAll("style.marketplaceCSS, link.marketplaceCSS").forEach((el) => { el.remove(); hit = true; });
+        // Marketplace quita la hoja del tema al inyectar la suya
+        if (hit && !document.querySelector('link[href="user.css"], link.userCSS')) {
+            const l = document.createElement("link");
+            l.rel = "stylesheet"; l.href = "user.css"; l.className = "userCSS";
+            document.head.appendChild(l);
+        }
+        if (hit && !foreignSeen) {
+            foreignSeen = true;
+            console.warn("[caelestia] another theme was injecting colors (Marketplace theme / Default Dynamic); removed. Uninstall it from Marketplace to stop it.");
+        }
+    }
+    evictForeign();
+    // Antes que el observador de syncMode (init): este limpia primero y aquel ya no ve el cambio
+    new MutationObserver(evictForeign).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
+    new MutationObserver((ms) => {
+        if (ms.some((m) => [...m.addedNodes].some((n) => n.nodeType === 1 && n.classList.contains("marketplaceCSS")))) evictForeign();
+    }).observe(document.body || document.documentElement, { childList: true });
+
     init();
 })();

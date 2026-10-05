@@ -54,6 +54,8 @@ Or download the ZIP (Code → Download ZIP) and double-click `install.bat`.
 
 It installs in dark mode. For light: `spicetify config color_scheme light`, then `spicetify apply`.
 
+**White background, fixed green text or a moon button?** Another theme from Marketplace (e.g. *Default Dynamic*) is still installed and paints its own colors over these. The theme removes them, but uninstall it anyway: Marketplace → Installed → Remove.
+
 **[Caelestia shell](https://github.com/caelestia-dots/shell) users:** set `color_scheme = caelestia`. The shell rewrites the colors on every scheme change and the theme follows, light/dark included.
 
 ## Status
@@ -129,6 +131,8 @@ iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/i
 También puedes descargar el ZIP (Code → Download ZIP) y abrir `install.bat` con doble clic.
 
 Se instala en modo oscuro. Si lo prefieres claro: `spicetify config color_scheme light` y luego `spicetify apply`.
+
+**¿Fondo blanco, texto verde fijo o un botón de luna?** Sigue instalado otro tema de Marketplace (p. ej. *Default Dynamic*) que pinta sus colores encima. El tema los quita, pero desinstálalo igualmente: Marketplace → Instalados → Eliminar.
 
 **Si usas [Caelestia shell](https://github.com/caelestia-dots/shell):** pon `color_scheme = caelestia`. El shell reescribe los colores cada vez que cambias de esquema y el tema se adapta solo, también al pasar de claro a oscuro.
 
