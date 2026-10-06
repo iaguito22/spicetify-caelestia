@@ -125,8 +125,8 @@
 
     // ---- Letra palabra a palabra -------------------------------------------
     // Spotify solo sincroniza por líneas. Se intenta, por este orden:
-    //  1. tiempos reales por palabra de Netease (a través del proxy CORS de
-    //     Spicetify), con cada palabra partida en sílabas aproximadas;
+    //  1. tiempos reales por palabra de lyricsplus (Apple Music) o, si no, de
+    //     Netease (proxy CORS de Spicetify), con cada palabra partida en letras;
     //  2. sílabas de Spotify (`syllables`), si algún día las envía;
     //  3. el tiempo de la línea repartido entre sus palabras según su longitud;
     //  4. sin tiempos, la letra normal de Spotify.
@@ -218,7 +218,7 @@
         } catch (e) { if (e && e.status !== 404) return; } // sin red: no se cachea, se reintenta
         lyrCache.set(id, lines);
         if (lyr.id === id) lyr.lines = lines;
-        if (lines) await neteaseWords(lines, item);
+        if (lines && !(await lyricsPlusWords(lines, item))) await neteaseWords(lines, item);
     }
 
     // ---- Tiempos reales por palabra (Netease, formato yrc) ------------------
@@ -264,6 +264,67 @@
         return out;
     }
 
+    // Pone a cada línea de Spotify los tiempos por palabra de la línea externa con el mismo
+    // texto (la más cercana en el tiempo). Devuelve false si casan menos de la mitad.
+    function applyWords(lines, nl) {
+        const pairs = [];
+        let total = 0;
+        for (const ln of lines) {
+            const key = norm(ln.text);
+            if (!key) continue;
+            total++;
+            let bl = null, bt = 6000;
+            for (const c of nl) {
+                if (norm(c.words.map((w) => w.tx).join("")) !== key) continue;
+                const dt = Math.abs(c.t - ln.t);
+                if (dt < bt) { bl = c; bt = dt; }
+            }
+            if (bl) pairs.push([ln, bl]);
+        }
+        if (!total || pairs.length / total < 0.5) return false;
+        const diffs = pairs.map(([a, b]) => b.t - a.t).sort((x, y) => x - y);
+        const med = diffs[diffs.length >> 1], shift = Math.abs(med) > 700 ? med : 0;
+        for (const [ln, c] of pairs) {
+            const w = alignWords(ln.text, c.words);
+            if (w.length) ln.w = w.map((x) => ({ t: x.t - shift, d: x.d, tx: x.tx }));
+        }
+        return true;
+    }
+
+    // ---- Tiempos por palabra de lyricsplus (letra de Apple Music, sin proxy) ---
+    // Netease bloquea con captcha las búsquedas que salen de Spotify (oct. 2026): queda de reserva
+    async function lyricsPlusWords(lines, item) {
+        try {
+            const name = item.name || "", artist = (item.artists || []).map((a) => a.name).join(", ");
+            const album = (item.album && item.album.name) || "", dur = item.duration && item.duration.milliseconds;
+            const q = `title=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}` +
+                (dur ? `&duration=${Math.round(dur / 1000)}` : "");
+            const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+            let d;
+            try {
+                // el JSON llega comprimido en gzip sin Content-Encoding: se descomprime a mano
+                const buf = await (await fetch(`https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?${q}`, { signal: ctl.signal })).arrayBuffer();
+                const gz = new Uint8Array(buf, 0, 2);
+                const raw = gz[0] === 0x1f && gz[1] === 0x8b
+                    ? new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))) : new Response(buf);
+                d = await raw.json();
+            }
+            finally { clearTimeout(to); }
+            if (!d || !Array.isArray(d.lyrics) || !/word|syllable/i.test(d.type || "")) return false;
+            // cada línea dos veces: con los coros entre paréntesis y sin ellos (Spotify a veces no los trae)
+            const nl = [];
+            for (const l of d.lyrics) {
+                const syl = (l.syllabus || []).filter((x) => x.text);
+                if (!syl.length) continue;
+                const mk = (arr) => ({ t: +l.time, d: +l.duration, words: arr.map((x) => ({ t: +x.time, d: +x.duration, tx: x.text })) });
+                nl.push(mk(syl));
+                const main = syl.filter((x) => !x.isBackground);
+                if (main.length && main.length < syl.length) nl.push(mk(main));
+            }
+            return applyWords(lines, nl);
+        } catch (e) { return false; }
+    }
+
     async function neteaseWords(lines, item) {
         if (lines.nx) return;
         try {
@@ -283,87 +344,29 @@
             const r = await neteaseJson(`https://music.163.com/api/song/lyric?id=${best.id}&lv=1&kv=1&tv=-1&yv=1`);
             const nl = parseYrc((r.yrc && r.yrc.lyric) || "");
             if (!nl.length) return void (lines.nx = true);
-            // cada línea de Spotify con su línea de Netease (mismo texto, la más cercana en el tiempo)
-            const pairs = [];
-            let total = 0;
-            for (const ln of lines) {
-                const key = norm(ln.text);
-                if (!key) continue;
-                total++;
-                let bl = null, bt = 6000;
-                for (const c of nl) {
-                    if (norm(c.words.map((w) => w.tx).join("")) !== key) continue;
-                    const dt = Math.abs(c.t - ln.t);
-                    if (dt < bt) { bl = c; bt = dt; }
-                }
-                if (bl) pairs.push([ln, bl]);
-            }
-            if (!total || pairs.length / total < 0.5) return void (lines.nx = true);
-            const diffs = pairs.map(([a, b]) => b.t - a.t).sort((x, y) => x - y);
-            const med = diffs[diffs.length >> 1], shift = Math.abs(med) > 700 ? med : 0;
-            for (const [ln, c] of pairs) {
-                const w = alignWords(ln.text, c.words);
-                if (w.length) ln.w = w.map((x) => ({ t: x.t - shift, d: x.d, tx: x.tx }));
-            }
+            applyWords(lines, nl);
             lines.nx = true;
         } catch (e) { /* sin red o proxy caído: se queda el reparto estimado */ }
     }
 
-    // ---- Sílabas aproximadas de una palabra ---------------------------------
-    const ONSETS = new Set(["bl", "br", "ch", "cl", "cr", "dr", "fl", "fr", "gl", "gr", "pl", "pr", "sc", "sh", "sk", "sl", "sm",
-        "sn", "sp", "st", "sw", "th", "tr", "tw", "wh", "ph", "str", "spr", "spl", "scr", "thr", "shr"]);
-    const VOWELS = "aeiouyáàâãäåæéèêëíìîïóòôõöøúùûüœ";
-    function syllableCuts(word) {
-        const s = word.toLowerCase(), groups = [];
-        for (let i = 0; i < s.length; i++) {
-            if (!VOWELS.includes(s[i])) continue;
-            let j = i;
-            while (j + 1 < s.length && VOWELS.includes(s[j + 1])) j++;
-            groups.push([i, j + 1]);
-            i = j;
-        }
-        // e final muda ("make", "love") y "-ed" mudo ("loved")
-        const last = groups[groups.length - 1];
-        if (groups.length > 1 && last) {
-            const tail = s.slice(last[0]).replace(/[^\p{L}]+$/u, "");
-            const before = s[last[0] - 1];
-            if ((tail === "e" && !(before === "l" && groups.length > 1 && !VOWELS.includes(s[last[0] - 2] || "a"))) ||
-                (tail === "ed" && before && !"td".includes(before))) groups.pop();
-        }
-        const cuts = [];
-        for (let k = 0; k + 1 < groups.length; k++) {
-            const a = groups[k], b = groups[k + 1], gap = b[0] - a[1];
-            let cut = a[1];
-            if (gap >= 2) {
-                cut = a[1] + 1;
-                for (const len of [3, 2]) if (len <= gap && ONSETS.has(s.slice(b[0] - len, b[0]))) { cut = b[0] - len; break; }
-            }
-            cuts.push(cut);
-        }
-        return cuts;
-    }
-
-    // Palabra con tiempo real → trozos con tiempo repartido: las sílabas pesan
-    // según su longitud y, si la palabra se alarga, la última se queda con el resto
+    // ---- Palabra con tiempo real → letra a letra ----------------------------
+    // El relleno avanza letra a letra (los signos pesan poco) y, si la palabra se alarga, la
+    // última letra se queda con el resto. Cada letra sube al alcanzarla y la palabra entera
+    // baja junta al terminar (`hold`): una ola que recorre la palabra.
     function wordUnits(w) {
-        const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(w.tx), core = m[2];
-        const cuts = core && w.d >= 280 && /^[\p{L}'’\-]+$/u.test(core.replace(/[^\p{L}'’\-]/gu, "")) &&
-            !/[぀-ヿ㐀-鿿가-힯]/.test(core) ? syllableCuts(core) : [];
-        if (!cuts.length) return [{ text: w.tx, start: w.t, end: w.t + w.d }];
-        const bounds = [0, ...cuts, core.length], pieces = [], weights = [];
-        for (let k = 0; k + 1 < bounds.length; k++) {
-            pieces.push(core.slice(bounds[k], bounds[k + 1]));
-            weights.push(pieces[k].length + 1);
-        }
-        if (w.d > 800) weights[weights.length - 1] *= 1 + Math.min(1.5, (w.d - 800) / 1000);
+        const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(w.tx), core = m[2], end = w.t + w.d;
+        const chars = Array.from(core);
+        if (chars.length < 2 || /[぀-ヿ㐀-鿿가-힯]/.test(core)) return [{ text: w.tx, start: w.t, end, wd: w.d }];
+        const weights = chars.map((c) => (/[\p{L}\p{N}]/u.test(c) ? 1 : 0.3));
+        if (w.d > 800) weights[weights.length - 1] *= 1 + Math.min(2.5, (w.d - 800) / 600);
         const sum = weights.reduce((x, y) => x + y, 0);
         let acc = 0;
-        return pieces.map((txt, k) => {
+        return chars.map((c, k) => {
             const start = w.t + w.d * (acc / sum);
             acc += weights[k];
             return {
-                text: (k === 0 ? m[1] : "") + txt + (k === pieces.length - 1 ? m[3] : ""),
-                syl: true, start, end: w.t + w.d * (acc / sum),
+                text: (k === 0 ? m[1] : "") + c + (k === chars.length - 1 ? m[3] : ""),
+                syl: true, start, end: w.t + w.d * (acc / sum), hold: end, wd: w.d,
             };
         });
     }
@@ -372,7 +375,18 @@
     function lineUnits(i) {
         const L = lyr.lines, ln = L[i], text = ln.text;
         const next = i + 1 < L.length ? L[i + 1].t : ln.t + 4000;
-        if (ln.w) return ln.w.flatMap(wordUnits);
+        if (ln.w) {
+            // una palabra puede venir en varias sílabas (sin espacio entre ellas): baja junta y crece por su duración total
+            const u = ln.w.flatMap(wordUnits);
+            for (let i = 0; i < u.length;) {
+                let j = i + 1;
+                while (j < u.length && !/^\s/.test(u[j].text) && !/\s$/.test(u[j - 1].text)) j++;
+                const hold = Math.max(...u.slice(i, j).map((x) => x.end)), wd = hold - u[i].start;
+                for (let k = i; k < j; k++) { u[k].hold = hold; u[k].wd = wd; }
+                i = j;
+            }
+            return u;
+        }
         if (ln.syl.length && Math.abs(ln.syl.reduce((a, s) => a + s.n, 0) - text.trim().length) <= 2) {
             const off = ln.syl[0].t < ln.t - 1 ? ln.t : 0;
             const last = ln.syl[ln.syl.length - 1];
@@ -410,7 +424,7 @@
         });
     }
 
-    // Cada palabra va en un `.cs-g` (no se parte) y cada sílaba en un `.cs-w` (se rellena y crece al cantarse)
+    // Cada palabra va en un `.cs-g` (no se parte) y cada letra/sílaba en un `.cs-w` (se rellena y crece al cantarse)
     function buildLine(el, idx) {
         const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
         let group = null;
@@ -427,10 +441,10 @@
                 frag.append(group);
             }
             group.append(sp);
-            sp.style.setProperty("--sw", Math.min(0.085, 0.032 + (u.end - u.start) / 1000 * 0.03).toFixed(3));
+            sp.style.setProperty("--sw", Math.min(0.085, 0.032 + (u.wd || u.end - u.start) / 1000 * 0.03).toFixed(3));
             if (m[3]) { group = null; frag.append(m[3]); }
             else if (!u.syl) group = null;
-            timed.push({ sp, start: u.start, end: u.end, p: 0, s: 0 });
+            timed.push({ sp, start: u.start, end: u.end, hold: u.hold || u.end, p: 0, s: 0 });
         }
         el.textContent = "";
         el.append(frag);
@@ -640,7 +654,7 @@
                 u.p = p;
                 u.sp.style.setProperty("--p", p.toFixed(3));
             }
-            const st = t < u.start ? 0 : t >= u.end ? 2 : 1;
+            const st = t < u.start ? 0 : t >= u.hold ? 2 : 1;
             if (st !== u.s) {
                 u.s = st;
                 u.sp.classList.toggle("cs-cur", st === 1);
@@ -691,6 +705,29 @@
         g.append(clone);
         document.body.append(g);
         setTimeout(() => g.remove(), 260);
+    }
+
+    // ---- Vista cine / pantalla completa: título y artista bajo la portada -----
+    // Spotify solo los enseña en el dock (que se esconde sin mover el ratón)
+    function cineTitle() {
+        const cover = document.querySelector(".Root__cinema-view .cover-art");
+        let el = document.getElementById("cs-cine-title");
+        if (!cover) return void (el && el.remove());
+        const host = cover.parentElement, it = Spicetify.Player.data && Spicetify.Player.data.item;
+        if (!it) return;
+        if (!el || el.previousElementSibling !== host) {
+            if (el) el.remove();
+            el = document.createElement("div");
+            el.id = "cs-cine-title";
+            host.after(el);
+        }
+        const name = it.name || "", artists = (it.artists || []).map((a) => a.name).join(", ");
+        if (el.dataset.k === name + "\n" + artists) return;
+        el.dataset.k = name + "\n" + artists;
+        const t = document.createElement("div"), a = document.createElement("div");
+        t.className = "cs-cine-name"; t.textContent = name;
+        a.className = "cs-cine-artist"; a.textContent = artists;
+        el.replaceChildren(t, a);
     }
 
     // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
@@ -981,6 +1018,7 @@
         }, true);
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
+        Spicetify.Player.addEventListener("songchange", cineTitle);
         loadLyrics();
         setInterval(() => {
             const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
@@ -1004,6 +1042,8 @@
             loadLyrics(); // al arrancar la canción ya está cargada y no salta `songchange`
             root.toggleAttribute("data-cs-synced", !!(lyr.lines && lyr.lines.length));
             tagLyrics13();
+            cineTitle();
+            if (cineEl) cineIdleCheck();
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);
         // La UI de Spotify se monta después que Spicetify: espera al contenedor
@@ -1194,6 +1234,27 @@
         [".main-nowPlayingView-headerText > div:first-child", "main-trackInfo-overlay"],
         [".main-nowPlayingView-headerWrapper > span", "main-nowPlayingView-headerButtonContainer"],
         [".main-nowPlayingView-headerButtonContainer > div", "main-nowPlayingView-headerButtonWrapper"],
+        // vista cine (tagCine la marca): la isla es el hijo que lleva el escenario; la cabecera, el otro
+        [".Root__cinema-view", "cs-cine-island", ':scope > div:first-child + div'],
+        // escenario: lleva los colores de la portada en `style`, pero a veces Spotify no se los pone
+        // (p. ej. recién pasada la reproducción desde otro dispositivo); entonces es el primer nivel,
+        // bajando por los primeros hijos, cuyo 2.º hijo tiene la carátula o el vídeo
+        [".Root__cinema-view > .cs-cine-island", "cs-cine-stage", (isl) => {
+            const s = isl.querySelector('[style*="--cinema-mode-bg-color-from"]');
+            if (s) return s;
+            let n = isl.firstElementChild && isl.firstElementChild.firstElementChild;
+            for (let d = 0; n && d < 6; d++, n = n.firstElementChild) {
+                if (n.children.length >= 2 && n.children[1].querySelector("img, video")) return n;
+            }
+            return null;
+        }],
+        // píldora "Cambiar a vídeo/audio": un botón con su aviso de "Cargando" al lado, los dos solos
+        [".Root__cinema-view > div:first-child:not(.cs-cine-island)", "main-nowPlayingView-actionButton", (h) =>
+            [...h.querySelectorAll("div > div + button")].filter((b) => b.parentElement.children.length === 2).flatMap((b) => [b, b.previousElementSibling])],
+        // carátula: dentro del primer hijo del escenario (con vídeo ahí va el reproductor)
+        ['.Root__cinema-view .cs-cine-stage > div:first-child + div > div:first-child', "cover-art", ":scope > div:has(img):not(:has(video))"],
+        // en reposo Spotify saca su título abajo a la izquierda: un 3.er hijo del escenario, solo texto
+        ['.Root__cinema-view .cs-cine-stage', "main-trackInfo-container", ":scope > div:nth-child(n+3):not(:has(video, img, button))"],
     ];
     // El tercer campo, si es texto, se busca dentro de cada ancla: los `:has()` sueltos obligan a
     // probar cada div de la página (12 ms por pasada); desde un ancla con testid o clase, menos de 1.
@@ -1255,12 +1316,53 @@
         const [a, b, c] = v.split(".").map(Number);
         return (aliasVer = a > 1 || (a === 1 && (b > 3 || (b === 3 && c >= 2))));
     };
+    // Vista cine / pantalla completa en 1.3.3: sin .Root__cinema-view ni su clase de reposo
+    // (--controls-hidden). Es el hijo del contenedor raíz que lleva el escenario con los colores de
+    // la portada; el reposo se deduce de su cabecera, que Spotify funde a 0 al esconder los controles.
+    // React reescribe `className` al entrar y salir del reposo: un observador repone las clases.
+    let cineEl = null, cineIdle = false, cineMO = null;
+    function cinePaint() {
+        const c = cineEl;
+        if (!c) return;
+        if (!c.classList.contains("Root__cinema-view")) c.classList.add("Root__cinema-view");
+        if (c.classList.contains("Root__cinema-view--controls-hidden") !== cineIdle) c.classList.toggle("Root__cinema-view--controls-hidden", cineIdle);
+    }
+    function tagCine() {
+        const top = document.querySelector(".Root__top-container");
+        // se reconoce por su cabecera (o por los colores del escenario, que no siempre están); el
+        // panel derecho también puede llevar esos colores, así que se mira hijo a hijo
+        let c = null;
+        for (const k of top ? top.children : []) {
+            if (/\bRoot__(nav-bar|main-view|right-sidebar|now-playing-bar|lyrics-cinema|globalNav)\b/.test(k.className)) continue;
+            if (k.querySelector(':scope > [style*="--header-buttons-hover-bg"], [style*="--cinema-mode-bg-color-from"]')) { c = k; break; }
+        }
+        if (c !== cineEl) {
+            cineEl = c;
+            cineIdle = false;
+            cineMO ||= new MutationObserver(cinePaint);
+            cineMO.disconnect();
+            if (c) cineMO.observe(c, { attributes: true, attributeFilter: ["class"] });
+        }
+        cinePaint();
+    }
+    function cineIdleCheck() {
+        const h = cineEl && cineEl.isConnected && cineEl.firstElementChild;
+        if (!h || h.classList.contains("cs-cine-island") || h.getAnimations().length) return; // a medio fundido: ya avisará transitionend
+        const idle = parseFloat(getComputedStyle(h).opacity) < 0.1;
+        if (idle !== cineIdle) { cineIdle = idle; cinePaint(); }
+    }
+    document.addEventListener("transitionend", (e) => {
+        if (cineEl && e.target === cineEl.firstElementChild && e.propertyName === "opacity") cineIdleCheck();
+    }, true);
+    // al mover el ratón Spotify enseña los controles: el dock vuelve sin esperar al fundido
+    document.addEventListener("pointermove", () => { if (cineIdle && cineEl) { cineIdle = false; cinePaint(); } }, true);
+
     let tagQueued = 0; // 1: solo la lista de canciones, 2: todo
     const tagAll = () => {
         const all = tagQueued !== 1;
         tagQueued = 0;
         if (!needAliases()) return;
-        if (all) tagInner();
+        if (all) { tagCine(); tagInner(); }
         tagTrackList();
     };
     new MutationObserver((ms) => {

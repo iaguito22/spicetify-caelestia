@@ -1755,7 +1755,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 
 /* Vista "Sonando" expandida: la isla usa el mismo radio (28) que los demás paneles, así el
    dock (16) queda concéntrico con su esquina en vez de asomar sobre ella */
-.Root__cinema-view > .main-actionBar-ActionBarContainer { border-radius: 28px !important; overflow: hidden; }
+.Root__cinema-view > :is(.main-actionBar-ActionBarContainer, .cs-cine-island) { border-radius: 28px !important; overflow: hidden; }
 
 /* --------------------------------------------------------------------------
    Botones de los paneles (contraer/ampliar biblioteca, ocultar/expandir "Sonando"):
@@ -1880,6 +1880,16 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8
     background: linear-gradient(to bottom, rgb(0 0 0 / .74), rgb(0 0 0 / .4) 62%, transparent) !important;
 }
 .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerTextWrapper { text-shadow: 0 1px 8px rgb(0 0 0 / .6); }
+/* Spotify oscurece la portada/el vídeo y lo de debajo del título con degradados que acaban en el
+   color del panel OPACO; el panel del tema es translúcido → línea dura donde acaban (bajo las
+   tarjetas de vídeos relacionados). Ahora se desvanecen: el vídeo con máscara, el resto a transparente */
+.main-nowPlayingView-canvasVisualEnhancement {
+    -webkit-mask-image: linear-gradient(#000 68%, transparent 97%);
+    mask-image: linear-gradient(#000 68%, transparent 97%);
+}
+.main-nowPlayingView-contextItemInfo::before {
+    background-image: linear-gradient(rgb(18 18 18 / 0) 0%, rgb(18 18 18 / .45) 18%, rgb(18 18 18 / .22) 55%, transparent 100%) !important;
+}
 /* Playlists propias: la fila de chips va justo debajo del play, alineada con él, sin pisar nada */
 section:has(.main-entityHeader-containerNormal) .contentSpacing > .main-actionBar-ActionBarContainer { margin-top: 0 !important; margin-bottom: 6px !important; height: 44px !important; }
 /* la fila (en 1.2 y 1.3.3) es el div con los botones y la caja de "Mezcla" como hijos */
@@ -1890,3 +1900,92 @@ section:has(.main-entityHeader-containerNormal) .main-actionBar-ActionBarContain
 /* Otro tema metido por JS a la vez (Default Dynamic): su botón claro/oscuro no hace nada aquí
    (theme.js quita sus colores) */
 #main-topBar-moon-button { display: none !important; }
+
+/* --------------------------------------------------------------------------
+   24. Vista "Sonando" ampliada (cine) y pantalla completa: isla de cristal como
+   las demás sobre el fondo del tema (Spotify la pinta opaca del color de la
+   portada), portada o vídeo centrados como tarjeta redondeada
+   -------------------------------------------------------------------------- */
+.Root__cinema-view > :is(.main-actionBar-ActionBarContainer, .cs-cine-island) {
+    background-color: color-mix(in srgb, var(--spice-main) 62%, transparent) !important;
+    background-image: radial-gradient(90% 620px at 50% -14%,
+        color-mix(in srgb, var(--cs-accent) 20%, transparent), transparent 74%) !important;
+    background-repeat: no-repeat !important;
+    border: 1px solid var(--cs-border) !important;
+    box-shadow: inset 0 1px 0 rgba(var(--spice-rgb-text), 0.06), var(--cs-shadow) !important;
+}
+/* fondo del escenario (degradado con los colores de la portada) y el fundido opaco de debajo */
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child,
+.Root__cinema-view [style*="--section-padding: 24px"] > div:first-child { display: none !important; }
+/* lo de debajo (vídeos relacionados, artista…) empieza fuera de la vista: no asoma bajo el dock */
+.Root__cinema-view [style*="--section-padding: 24px"] { margin-top: 140px !important; }
+/* vídeo: la caja toma la proporción del vídeo (sin bandas) para poder redondearla */
+.Root__cinema-view [data-testid="video-player-cinema"],
+.Root__cinema-view .VideoPlayer__container {
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    width: 100% !important; height: 100% !important;
+}
+/* Spotify centra esta caja en la isla (más alta que ella si el vídeo es 16:9): el vídeo queda en el
+   centro, con el alto limitado abajo para no tocar la cabecera ni el dock */
+.Root__cinema-view .VideoPlayer__container {
+    padding: 0 48px !important; box-sizing: border-box !important;
+}
+.Root__cinema-view .VideoPlayer__container video {
+    width: auto !important; height: auto !important;
+    /* el alto en %, no: la caja de Spotify no tiene alto definido y un 16:9 se salía por arriba y
+       por abajo de la isla. En ventana la isla va de 80 px a 100vh − 16 y el hueco libre entre
+       cabecera y dock, centrado, deja 100vh − 276 (con 16 px de aire); a pantalla completa, 100vh − 212 */
+    max-width: 100% !important; max-height: calc(100vh - 276px) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 18px 50px rgb(0 0 0 / 0.45) !important;
+    object-fit: contain !important;
+}
+/* el escenario no se mueve al mostrar/ocultar los controles (Spotify lo sube 56 px bajo la cabecera) */
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div { margin-top: 0 !important; height: 100% !important; }
+.Root__cinema-view .cover-art { box-shadow: 0 18px 50px rgb(0 0 0 / 0.45) !important; }
+/* píldora "Cambiar a vídeo / audio": cristal en vez del color de la portada */
+.Root__cinema-view .main-nowPlayingView-actionButton {
+    background: color-mix(in srgb, var(--spice-main) 55%, transparent) !important;
+    border: 1px solid var(--cs-border) !important;
+}
+/* lo de detrás no se trasluce a través de la isla */
+.Root__top-container:has(> .Root__cinema-view) > :is(.Root__nav-bar, .Root__main-view, .Root__right-sidebar) { visibility: hidden !important; }
+/* pantalla completa: la isla flota a 16 px de los cuatro bordes, con las cuatro esquinas curvas */
+/* (Spotify la estira 45 px por debajo de la pantalla al ocultar los controles: se cortaban las esquinas de abajo) */
+html.fullscreen .Root__cinema-view { margin: -64px 0 0 !important; }
+html.fullscreen .Root__cinema-view .VideoPlayer__container video { max-height: calc(100vh - 212px) !important; }
+html:not(.fullscreen) .Root__cinema-view { margin: 0 !important; transition: margin-top 400ms var(--cs-ease); } /* en ventana hace lo mismo */
+/* en ventana, en reposo Spotify funde la barra de arriba pero deja su hueco: la isla sube a taparlo */
+html:not(.fullscreen) .Root__cinema-view.Root__cinema-view--controls-hidden { margin-top: -64px !important; }
+html:not(.fullscreen) .Root__top-container:has(> .Root__cinema-view--controls-hidden) > .Root__globalNav { visibility: hidden !important; }
+html.fullscreen .Root__top-container:has(> .Root__cinema-view) > .Root__globalNav { visibility: hidden !important; }
+/* Spotify la rodea con un outline casi negro de 8 px y radio 8: marco oscuro con picos en las esquinas */
+.Root__cinema-view, .Root__cinema-view > :is(.main-actionBar-ActionBarContainer, .cs-cine-island) { outline: none !important; border-radius: var(--cs-radius) !important; }
+/* sin mover el ratón Spotify esconde los controles: el cristal del dock y el cursor se van con ellos */
+.Root__now-playing-bar { transition: opacity 400ms var(--cs-ease), translate 400ms var(--cs-ease); }
+.Root__top-container:has(> .Root__cinema-view--controls-hidden) > .Root__now-playing-bar {
+    opacity: 0 !important; translate: 0 14px; pointer-events: none;
+}
+.Root__cinema-view--controls-hidden { cursor: none !important; }
+/* en reposo Spotify saca su propio título abajo a la izquierda: ya va bajo la portada */
+.Root__cinema-view .main-trackInfo-container { display: none !important; }
+/* título y artista bajo la portada (theme.js); el escenario es el 2.º hijo (en reposo Spotify añade un 3.º) */
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div:has(> #cs-cine-title) {
+    display: flex !important; align-items: center !important; justify-content: center !important;
+    flex-direction: column !important; gap: 30px; padding-bottom: 56px; box-sizing: border-box;
+}
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div:has(> #cs-cine-title) > div:first-child {
+    width: min(58vh, 60%) !important; height: auto !important; aspect-ratio: 1; flex: none;
+}
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div:has(> #cs-cine-title) .cover-art { width: 100% !important; height: 100% !important; }
+/* 1.3.3: la carátula son tres capas (inclinación 3D y brillo) con su tamaño fijo */
+.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div:has(> #cs-cine-title) .cover-art :is(div, img) { width: 100% !important; height: 100% !important; }
+#cs-cine-title { text-align: center; max-width: min(720px, 80%); animation: cs-page-in 600ms var(--cs-ease) both; }
+#cs-cine-title .cs-cine-name {
+    font-size: clamp(22px, 2.4vw, 34px); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15;
+    color: var(--spice-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#cs-cine-title .cs-cine-artist {
+    margin-top: 4px; font-size: clamp(14px, 1.3vw, 18px);
+    color: rgba(var(--spice-rgb-text), 0.62); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
