@@ -916,23 +916,33 @@ html[data-cs-scrolled] .main-topBar-background {
     background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
     backdrop-filter: blur(16px) !important;
 }
-/* La cabecera solo es cristal cuando ya está pegada (theme.js pone data-cs-stuck);
-   el contenido se desvanece bajo ella en vez de cortarse en seco */
+/* La cabecera solo es cristal cuando ya está pegada (theme.js pone data-cs-stuck). Entonces un
+   solo cristal cubre la barra del título y la de columnas: lo lleva la cabecera, que sube por
+   detrás de la barra (--cs-bar-h), y se desvanece abajo en vez de cortarse en seco */
+html[data-cs-stuck] .main-topBar-background {
+    background: transparent !important;
+    backdrop-filter: none !important;
+}
 html[data-cs-stuck] .main-trackList-trackListHeader {
     border-radius: 0 !important;
     border: 0 !important;
-    background: color-mix(in srgb, var(--spice-main) 42%, transparent) !important;
-    backdrop-filter: blur(16px) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
 }
-html[data-cs-stuck] .main-trackList-trackListHeader::after {
+html[data-cs-stuck] .main-trackList-trackListHeader::before {
     content: "";
     position: absolute;
+    z-index: -1;
     left: 0;
     right: 0;
-    top: 100%;
-    height: 30px;
+    top: calc(-1 * var(--cs-bar-h, 64px));
+    bottom: -22px;
     pointer-events: none;
-    background: linear-gradient(to bottom, color-mix(in srgb, var(--spice-main) 42%, transparent), transparent);
+    background: color-mix(in srgb, var(--spice-main) 72%, transparent);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 22px), transparent);
+    mask-image: linear-gradient(#000 calc(100% - 22px), transparent);
 }
 /* Inicio: la barra de chips (Todo / Música / Pódcasts) se pega arriba con fondo gris opaco y
    corta las tarjetas en seco: el mismo cristal que las demás cabeceras, con desvanecido debajo */
@@ -1514,6 +1524,21 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-rom][data-cs-rt]:is([dat
     padding: 2px 0 8px !important;
 }
 .lyrics-lyricsContent-lyric[data-cs-bvl] .cs-bv { font-size: 1em; opacity: 0.86; }
+/* la frase ya acabó pero su coro sigue sonando (theme.js: data-cs-bvhold): la voz se apaga como
+   siempre y la fila de coros sigue encendida, con el acento, hasta que termina */
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"][data-cs-bvhold] {
+    opacity: 1;
+    transform: scale(1.03);
+    animation: none !important;
+    filter: none !important;
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvhold] > .lyrics-lyricsContent-text > :not(.cs-bvrow) { opacity: 0.34; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"] > .lyrics-lyricsContent-text > :not(.cs-bvrow) {
+    transition: opacity calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1);
+}
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvhold] .cs-bvrow {
+    filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent));
+}
 /* la línea de coro que suena brilla menos que una frase principal */
 html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvl][data-cs-d="0"] { text-shadow: 0 0 22px color-mix(in srgb, var(--cs-accent) 40%, transparent); }
 .lyrics-lyrics-container[data-cs-out] { animation: none; opacity: 0; transition: opacity 380ms var(--cs-ease) 120ms; }
@@ -2007,6 +2032,15 @@ html[data-cs-route] .Root__main-view [data-testid="tracklist-row"]:nth-child(n+8
 #cs-amb.cs-on { opacity: 0.85; }
 /* videoclips (DRM): resplandor con un filtro SVG en el propio vídeo (theme.js) */
 .Root__cinema-view video.cs-amb-f { filter: url(#cs-amb-f); }
+#cs-amb-dmg {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483646;
+    pointer-events: none;
+    background: rgb(0 0 0 / 0.004);
+    animation: cs-amb-dmg 1s linear infinite alternate;
+}
+@keyframes cs-amb-dmg { to { opacity: 0.5; } }
 html[data-cs-mode="light"] #cs-amb { filter: blur(56px) saturate(1.3) brightness(1.1); }
 html[data-cs-mode="light"] #cs-amb.cs-on { opacity: 0.6; }
 /* Spotify deja girando para siempre el spinner de un botón oculto del panel ("Cargando"): con su
@@ -2102,6 +2136,8 @@ html:not(.fullscreen) .Root__cinema-view { margin: 0 !important; transition: mar
 html:not(.fullscreen) .Root__cinema-view.Root__cinema-view--controls-hidden { margin-top: -64px !important; }
 html:not(.fullscreen) .Root__top-container:has(> .Root__cinema-view--controls-hidden) > .Root__globalNav { visibility: hidden !important; }
 html.fullscreen .Root__top-container:has(> .Root__cinema-view) > .Root__globalNav { visibility: hidden !important; }
+/* letra y salir de pantalla completa: arriba repiten los del dock (theme.js: cineDup) */
+html.fullscreen .Root__cinema-view .cs-cine-dup, :fullscreen .Root__cinema-view .cs-cine-dup { display: none !important; }
 /* Spotify la rodea con un outline casi negro de 8 px y radio 8: marco oscuro con picos en las esquinas */
 .Root__cinema-view, .Root__cinema-view > :is(.main-actionBar-ActionBarContainer, .cs-cine-island) { outline: none !important; border-radius: var(--cs-radius) !important; }
 /* sin mover el ratón Spotify esconde los controles: el cristal del dock y el cursor se van con ellos */
@@ -2198,6 +2234,10 @@ html[data-cs-fslyr] #cs-fslyr-art {
     z-index: 3;
     pointer-events: none;
 }
+/* sin letra: la portada, el título y la barra, centrados; el aviso de Spotify no se ve */
+html[data-cs-fslyr] #cs-fslyr-art { transition: left 700ms var(--cs-ease), width 700ms var(--cs-ease); }
+html[data-cs-fslyr][data-cs-fsnolyr] #cs-fslyr-art { left: calc(50% - min(34vw, 54vh) / 2); width: min(34vw, 54vh); text-align: center; }
+html[data-cs-fslyr][data-cs-fsnolyr] .Root__main-view .main-view-container { opacity: 0; transition: opacity 300ms ease; }
 #cs-fslyr-art .cs-fa-cover {
     aspect-ratio: 1;
     border-radius: 22px;
@@ -2362,4 +2402,24 @@ html[data-cs-fslyr][data-cs-idle], html[data-cs-fslyr][data-cs-idle] * { cursor:
 @media (max-width: 1100px), (max-aspect-ratio: 1/1) {
     html[data-cs-fslyr] #cs-fslyr-art { display: none; }
     html[data-cs-fslyr] .lyrics-lyrics-contentWrapper { padding: 0 8vw !important; }
+}
+
+/* Letra: el botón "Sincronizar" (sale al desplazar la letra a mano) iba pegado abajo, detrás
+   del dock, y en blanco de Spotify: sube por encima del dock y lleva el cristal del tema */
+.Root__main-view .after-scroll-node > div:has(> button[class*="button-primary"]) {
+    bottom: 124px !important;
+    z-index: 5 !important;
+}
+.Root__main-view .after-scroll-node > div > button[class*="button-primary"] > span {
+    background: color-mix(in srgb, var(--spice-main) 62%, transparent) !important;
+    backdrop-filter: blur(20px) saturate(1.3);
+    color: var(--spice-text) !important;
+    border: 1px solid var(--cs-border-soft);
+    border-radius: 999px !important;
+    box-shadow: 0 10px 30px rgb(0 0 0 / 0.3);
+    transition: background-color 160ms ease, transform 160ms var(--cs-ease);
+}
+.Root__main-view .after-scroll-node > div > button[class*="button-primary"]:hover > span {
+    background: color-mix(in srgb, var(--spice-main) 45%, rgba(var(--spice-rgb-text), 0.14)) !important;
+    transform: scale(1.04);
 }

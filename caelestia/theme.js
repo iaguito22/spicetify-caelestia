@@ -698,10 +698,31 @@
         }
     }
 
+    // Coros que siguen sonando cuando ya empieza la frase siguiente: hasta cuándo suena la fila de
+    // coros de la línea i (0 si no tiene). La línea anterior lleva data-cs-bvhold mientras tanto
+    // y su fila sigue encendida (la voz se apaga como siempre).
+    const bvEnds = new Map();
+    function bvEnd(i) {
+        const k = lyr.id + ":" + i;
+        if (bvEnds.has(k)) return bvEnds.get(k);
+        let end = 0;
+        if (lyr.lines && lyr.lines[i] && BV_RE.test(lyr.lines[i].text + (lyr.lines[i].bw ? "(" : "")) && splitBv(lyr.lines[i].text).main) {
+            let depth = 0;
+            for (const u of lineUnits(i)) {
+                const opens = (u.text.match(/[(（]/g) || []).length, closes = (u.text.match(/[)）]/g) || []).length;
+                const bv = !!u.bv || depth > 0 || opens > 0;
+                depth = Math.max(0, depth + opens - closes);
+                if (bv && u.end !== undefined && u.text.trim()) end = Math.max(end, u.hold || u.end);
+            }
+        }
+        bvEnds.set(k, end);
+        return end;
+    }
+
     // ---- Frase actual por el reloj de la canción -----------------------------
     // Spotify marca la activa 250-400 ms tarde (hasta 1 s tras un ♪): aquí se calcula con
     // el progreso y cada línea lleva data-cs-d (distancia a la actual; ver el CSS)
-    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null, t: 0, wall: 0, playing: null, jump: false };
+    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null, t: 0, wall: 0, playing: null, jump: false, hold: null };
     function clockOff() {
         if (!clk.on) return;
         clk.on = false;
@@ -898,6 +919,14 @@
         const seekd = resumed || (playing ? clk.wall && Math.abs(t - (clk.t + (wall - clk.wall))) > 350 : Math.abs(t - clk.t) > 350);
         clk.t = t; clk.wall = playing ? wall : 0;
         if (seekd) clk.jump = true; // se aplica al llegar a una frase con texto
+        const prevEl = cur >= 1 && clk.els[cur - 1 + clk.off];
+        if (prevEl || clk.hold) {
+            const hold = prevEl && t < bvEnd(cur - 1) ? prevEl : null;
+            // al acabar el coro la línea hace ahora su salida (desde el principio)
+            if (clk.hold && clk.hold !== hold) { clk.hold.style.setProperty("--cs-ad", "0ms"); clk.hold.removeAttribute("data-cs-bvhold"); }
+            if (hold && !hold.hasAttribute("data-cs-bvhold")) hold.setAttribute("data-cs-bvhold", "");
+            clk.hold = hold;
+        }
         if (cur < 0) return;
         const lineEl = clk.els[cur + clk.off];
         const el = lineEl && lineEl.querySelector(".lyrics-lyricsContent-text");
@@ -931,15 +960,15 @@
         const l = H && H.location;
         if (l && l.pathname !== "/lyrics") lastRoute = { pathname: l.pathname, search: l.search || "", state: l.state };
     }
+    function lyricsBack() {
+        const H = Spicetify.Platform.History, prev = H.entries && H.entries[H.index - 1];
+        if (prev && prev.pathname !== "/lyrics") H.goBack();
+        else H.push(lastRoute || { pathname: "/" });
+    }
     function closeLyrics() {
-        const H = Spicetify.Platform.History, box = document.querySelector(".lyrics-lyrics-container");
+        const box = document.querySelector(".lyrics-lyrics-container");
         if (closing) return;
-        const leave = () => {
-            closing = false;
-            const prev = H.entries && H.entries[H.index - 1];
-            if (prev && prev.pathname !== "/lyrics") H.goBack();
-            else H.push(lastRoute || { pathname: "/" });
-        };
+        const leave = () => { closing = false; lyricsBack(); };
         if (!box) return leave();
         closing = true;
         box.setAttribute("data-cs-out", "");
@@ -1015,8 +1044,22 @@
             '<feMerge><feMergeNode in="k"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
         document.body.append(s);
     }
+    // En Windows la pantalla solo se repinta donde cambia algo, y el resplandor llega más lejos de lo
+    // que el navegador cree: el borde exterior se quedaba con los colores viejos en los cortes
+    // bruscos del vídeo. Una capa casi transparente que cambia en cada fotograma obliga a repintar
+    // toda la vista (#cs-amb-dmg; en Linux no hace falta).
+    function ambDamage(on) {
+        let d = document.getElementById("cs-amb-dmg");
+        on = on && document.documentElement.dataset.csOs !== "linux";
+        if (!on) return void (d && d.remove());
+        if (d) return;
+        d = document.createElement("div");
+        d.id = "cs-amb-dmg";
+        document.body.append(d);
+    }
     function ambient() {
         const v = !document.hidden && document.querySelector(".Root__cinema-view video");
+        ambDamage(!!(v && v.mediaKeys));
         if (v && v.mediaKeys) {
             ambSvg();
             if (!v.classList.contains("cs-amb-f")) v.classList.add("cs-amb-f");
@@ -1047,7 +1090,8 @@
     // letra ocupa toda la pantalla sobre el fondo de la carátula, con la portada grande, el
     // título y el artista a la izquierda (#cs-fslyr-art). Sin mover el ratón 3 s, el dock y el
     // cursor se esconden (data-cs-idle). El listener del puntero solo existe en este modo.
-    let fsIdleT = 0, fsOn = false, fsMine = false, fsChangeAt = 0; // fsMine: la pantalla completa la pidió el tema
+    let fsIdleT = 0, fsOn = false, fsChangeAt = 0;
+    let fsPass = false; // el clic en el botón de pantalla completa va directo a Spotify
     const fsWake = () => {
         const root = document.documentElement;
         if (root.hasAttribute("data-cs-idle")) root.removeAttribute("data-cs-idle");
@@ -1103,7 +1147,21 @@
         // hacia atrás (seek, canción nueva) va directa; hacia delante, en línea con el tiempo
         bar.style.transition = p < prev || p - prev > 0.05 ? "none" : "";
         if (Math.abs(p - prev) > 0.0005) { bar.style.transform = `scaleX(${p.toFixed(4)})`; bar.__p = p; }
+        fsNoLyrics();
         fsProgT = setTimeout(fsProg, 500);
+    }
+
+    // Sin letra (ni sincronizada ni sin sincronizar), la portada se centra como en la vista sin letra
+    // (data-cs-fsnolyr). Se espera a que la búsqueda propia haya acabado y a que siga sin líneas un
+    // segundo: mientras carga, o si la letra sin sincronizar tarda en pintarse, no se mueve.
+    let fsNoLyrN = 0;
+    function fsNoLyrics() {
+        const root = document.documentElement;
+        const none = fsOn && !!lyr.id && lyrCache.has(lyr.id) && !lyrCache.get(lyr.id) &&
+            !document.querySelector(".Root__main-view .lyrics-lyricsContent-lyric");
+        fsNoLyrN = none ? fsNoLyrN + 1 : 0;
+        const on = fsNoLyrN >= 2;
+        if (root.hasAttribute("data-cs-fsnolyr") !== on && (on || !none)) root.toggleAttribute("data-cs-fsnolyr", on);
     }
 
     // La portada late con la canción: un pulso de escala en cada beat (análisis de audio de
@@ -1333,11 +1391,11 @@
             else {
                 clearTimeout(fsProgT);
                 clearTimeout(fsBeat.t);
+                fsNoLyrN = 0;
+                root.removeAttribute("data-cs-fsnolyr");
                 document.removeEventListener("pointermove", fsWake, true);
                 clearTimeout(fsIdleT);
                 root.removeAttribute("data-cs-idle");
-                // se entró desde la letra con el botón: al cerrar la letra se sale también de pantalla completa
-                if (fsMine && document.fullscreenElement && !(H && H.location && H.location.pathname === "/lyrics")) document.exitFullscreen().catch(() => {});
             }
         }
         fsArt();
@@ -1528,6 +1586,11 @@
             const st = t.scrollTop;
             if (root.hasAttribute("data-cs-scrolled") !== st > 6) root.toggleAttribute("data-cs-scrolled", st > 6);
             if (root.hasAttribute("data-cs-stuck") !== stuck) root.toggleAttribute("data-cs-stuck", stuck);
+            // pegada, la cabecera lleva el cristal de las dos (sube por detrás de la barra del título)
+            if (stuck && h) {
+                const bar = document.querySelector(".main-topBar-container"), bh = bar ? Math.round(bar.getBoundingClientRect().height) : 64;
+                if (h.__csBar !== bh) { h.__csBar = bh; h.style.setProperty("--cs-bar-h", bh + "px"); }
+            }
             // La foto de cabecera (artista) está fija detrás: se desvanece al desplazar. La variable
             // va solo en su contenedor y se deja de escribir una vez apagada (>260 px).
             const fade = Math.min(260, Math.round(st));
@@ -1537,12 +1600,25 @@
                 fe.style.setProperty("--cs-scroll", fade);
             }
         }
+        let scrollEl = null;
         document.addEventListener("scroll", (e) => {
             const t = e.target;
             if (t instanceof Element && t.closest(".Root__main-view") && !raf) {
+                scrollEl = t;
                 raf = requestAnimationFrame(() => syncStuck(t));
             }
         }, true);
+        // al volver de la letra o de la pantalla completa Spotify repone el scroll sin evento: la
+        // barra se quedaba sin fondo hasta volver a desplazar
+        const resyncStuck = () => [120, 500, 1200].forEach((ms) => setTimeout(() => {
+            if (!scrollEl || !scrollEl.isConnected) {
+                const mv = document.querySelector(".Root__main-view");
+                scrollEl = mv && [...mv.querySelectorAll(".main-view-container__scroll-node, [data-overlayscrollbars-viewport]")]
+                    .find((e) => e.scrollHeight > e.clientHeight + 4) || null;
+            }
+            if (scrollEl && !raf) syncStuck(scrollEl);
+        }, ms));
+        document.addEventListener("fullscreenchange", resyncStuck);
         // Cambio de página (p. ej. de una playlist a otra): entrada animada del panel central.
         // Se ignora la letra (tiene su propia animación) y los cambios de solo query/hash.
         // Spotify sustituye el objeto History después de arrancar: se re-engancha si cambia.
@@ -1553,6 +1629,7 @@
             lastFade = -1;
             const path = loc && loc.pathname;
             fsLyrics();
+            resyncStuck();
             if (path === lastPath) return;
             const skip = path === "/lyrics" || lastPath === "/lyrics";
             lastPath = path;
@@ -1591,7 +1668,8 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
         }, true);
         trackRoute();
-        let fsPass = false;
+        const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+        const spotifyFs = (b) => { fsPass = true; try { b.click(); } finally { fsPass = false; } };
         // Pantalla completa con la letra abierta: en vez de la vista cine (que tapa la letra), la
         // ventana a pantalla completa con la letra (data-cs-fslyr); el mismo botón la cierra
         document.addEventListener("click", (e) => {
@@ -1613,11 +1691,11 @@
                 const t0 = performance.now(), leaving = !!document.fullscreenElement && !fromTop;
                 const done = () => {
                     document.removeEventListener("fullscreenchange", done);
-                    const wait = () => {
+                    const poll = () => {
                         if (!leaving || !document.querySelector(".Root__cinema-view") || performance.now() - t0 > 4000) return res();
-                        setTimeout(wait, 50);
+                        setTimeout(poll, 50);
                     };
-                    wait();
+                    poll();
                 };
                 setTimeout(() => { if (performance.now() - t0 >= 3990) done(); }, 4000);
                 document.addEventListener("fullscreenchange", done);
@@ -1630,20 +1708,56 @@
             if (document.fullscreenElement || cine || !lyrics) {
                 // la pantalla completa de Spotify (normal o vista cine), con la misma coreografía: el
                 // clic llega a Spotify cuando el velo ya ha entrado (el gesto del usuario sigue valiendo)
-                fsVeil(() => { const p = fsDone(); fsPass = true; try { b.click(); } finally { fsPass = false; } return p; });
+                fsVeil(() => { const p = fsDone(); spotifyFs(b); return p; });
                 return;
             }
-            fsVeil(() => document.documentElement.requestFullscreen().then(() => { fsMine = true; }));
+            fsVeil(() => document.documentElement.requestFullscreen());
         }, true);
+        // cierra la vista cine sin soltar la pantalla completa: en 1.2 basta con ir a otra ruta; si
+        // sigue abierta (1.3), se minimiza en ventana y se vuelve a pedir la pantalla completa (el
+        // gesto del clic sigue valiendo unos segundos)
+        async function cineClose() {
+            if (!document.querySelector(".Root__cinema-view")) return;
+            const min = Spicetify.Locale && Spicetify.Locale.get("web-player.cinema-mode.minimize");
+            const head = () => document.querySelector(".Root__cinema-view > div:first-child");
+            const btn = (label) => label && head() && [...head().querySelectorAll("button")].find((x) => x.getAttribute("aria-label") === label);
+            if (document.fullscreenElement && !btn(min)) {
+                const fb = document.querySelector('.Root__now-playing-bar [data-testid="fullscreen-mode-button"]');
+                const out = btn(fb && fb.getAttribute("aria-label"));
+                if (out) { spotifyFs(out); await wait(500); }
+            }
+            const m = btn(min);
+            if (m) { m.click(); await wait(400); }
+            if (!document.fullscreenElement) await document.documentElement.requestFullscreen().catch(() => {});
+        }
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
-            // en la vista cine el botón es el de Spotify: abre la letra y cierra la vista (a pantalla
-            // completa queda la letra del tema)
-            if (b && document.querySelector(".Root__cinema-view")) return;
-            if (!b || !Spicetify.Platform.History.location || Spicetify.Platform.History.location.pathname !== "/lyrics") return;
+            const H = Spicetify.Platform.History;
+            if (!b || !H.location) return;
+            const cine = document.querySelector(".Root__cinema-view"), lyr = H.location.pathname === "/lyrics";
+            // vista cine en ventana: el botón de Spotify abre la letra y cierra la vista
+            if (cine && !document.fullscreenElement) return;
+            if (!cine && !lyr) return;
             e.preventDefault();
             e.stopImmediatePropagation();
-            closeLyrics();
+            if (cine) {
+                // a pantalla completa, la letra del tema (la de Spotify se queda dentro de la vista cine)
+                fsVeil(async () => {
+                    H.push("/lyrics");
+                    await wait(400);
+                    await cineClose();
+                });
+                return;
+            }
+            if (!fsOn) return closeLyrics();
+            // letra a pantalla completa: se cierra la letra y sigue la pantalla completa, con la vista cine
+            fsVeil(async () => {
+                lyricsBack();
+                await wait(350);
+                const fb = document.querySelector('.Root__now-playing-bar [data-testid="fullscreen-mode-button"]');
+                if (document.fullscreenElement && !document.querySelector(".Root__cinema-view") && fb) spotifyFs(fb);
+                await wait(300);
+            });
         }, true);
         // En Windows/macOS el botón de letra abría la letra a pantalla completa (vista "Sonando"
         // expandida): se lleva a la página /lyrics como en Linux. Si esa página no llega a
@@ -1689,7 +1803,6 @@
         document.addEventListener("visibilitychange", ambient);
         document.addEventListener("fullscreenchange", () => {
             fsChangeAt = performance.now();
-            if (!document.fullscreenElement) fsMine = false;
             // cambio sin el botón (Esc, F11) con la letra o la vista cine abiertas: la misma coreografía
             // (la carátula vuela a su sitio nuevo) y el velo tapa la recolocación
             const H = Spicetify.Platform.History;
@@ -2035,10 +2148,25 @@
     // al mover el ratón Spotify enseña los controles: el dock vuelve sin esperar al fundido
     document.addEventListener("pointermove", () => { if (cineIdle && cineEl) { cineIdle = false; cinePaint(); } }, true);
 
+    // Arriba a la derecha de la vista cine, la letra y salir de pantalla completa repiten los del
+    // dock: a pantalla completa se esconden (cs-cine-dup); se reconocen por el mismo texto
+    function cineDup() {
+        const head = document.querySelector(".Root__cinema-view > div:first-child");
+        if (!head) return;
+        const dock = document.querySelector(".Root__now-playing-bar");
+        const labels = new Set([...(dock ? dock.querySelectorAll('[data-testid="fullscreen-mode-button"], [data-testid="lyrics-button"]') : [])]
+            .map((b) => b.getAttribute("aria-label")).filter(Boolean));
+        for (const b of head.querySelectorAll("button")) {
+            const dup = b.matches('[data-testid="lyrics-button"]') || labels.has(b.getAttribute("aria-label"));
+            if (b.classList.contains("cs-cine-dup") !== dup) b.classList.toggle("cs-cine-dup", dup);
+        }
+    }
+
     let tagQueued = 0; // 1: solo la lista de canciones, 2: todo
     const tagAll = () => {
         const all = tagQueued !== 1;
         tagQueued = 0;
+        if (all) cineDup();
         if (!needAliases()) return;
         if (all) { tagCine(); tagInner(); }
         tagTrackList();
