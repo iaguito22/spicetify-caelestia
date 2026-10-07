@@ -11,7 +11,9 @@ A Spotify theme where the panels float as rounded islands and **the only color c
 
 *[Leer en español ↓](#-en-español)*
 
-https://github.com/user-attachments/assets/ff34e68d-3193-46a1-9336-d382b18ca547
+
+https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
+
 
 ## Design
 
@@ -101,7 +103,9 @@ MIT license.
 
 Un tema para Spotify con los paneles flotando como islas redondeadas, en el que **el único color lo pone la canción que está sonando**.
 
-https://github.com/user-attachments/assets/af224b68-5478-4441-8afb-b3c7af961219
+
+https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
+
 
 > [!IMPORTANT]
 > Esto es un tema para **[Spicetify](https://spicetify.app)**, no una aplicación aparte. Primero instala Spicetify y ejecuta `spicetify apply` una vez; luego instala el tema siguiendo los pasos de abajo.
