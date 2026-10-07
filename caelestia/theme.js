@@ -2159,8 +2159,25 @@
     document.addEventListener("transitionend", (e) => {
         if (cineEl && e.target === cineEl.firstElementChild && e.propertyName === "opacity") cineIdleCheck();
     }, true);
-    // al mover el ratón Spotify enseña los controles: el dock vuelve sin esperar al fundido
-    document.addEventListener("pointermove", () => { if (cineIdle && cineEl) { cineIdle = false; cinePaint(); } }, true);
+    // al mover el ratón Spotify enseña los controles: el dock vuelve sin esperar al fundido. Pero solo
+    // si Spotify ha despertado de verdad (su cabecera empieza a aparecer): al volver con el ratón desde
+    // otra pantalla, sin clicar, Spotify puede seguir dormido, y el dock salía como una caja vacía (sus
+    // controles siguen ocultos). Entonces se le despierta con un mousemove y se vuelve a mirar.
+    let cineWakeT = 0;
+    function cineWake(e, nudged) {
+        cineWakeT = 0;
+        const h = cineIdle && cineEl && cineEl.isConnected && cineEl.firstElementChild;
+        if (!h || h.classList.contains("cs-cine-island")) return;
+        if (parseFloat(getComputedStyle(h).opacity) > 0.02) { cineIdle = false; cinePaint(); return; }
+        if (nudged) return; // sigue dormido: el dock también (transitionend avisará cuando despierte)
+        const o = { bubbles: true, clientX: e.clientX, clientY: e.clientY };
+        (document.elementFromPoint(e.clientX, e.clientY) || cineEl).dispatchEvent(new MouseEvent("mousemove", o));
+        cineWakeT = setTimeout(() => cineWake(e, true), 120);
+    }
+    document.addEventListener("pointermove", (e) => {
+        if (!e.isTrusted || !cineIdle || !cineEl || cineWakeT) return;
+        cineWakeT = setTimeout(() => cineWake(e, false), 60);
+    }, true);
 
     // Arriba a la derecha de la vista cine, la letra y salir de pantalla completa repiten los del
     // dock: a pantalla completa se esconden (cs-cine-dup); se reconocen por el mismo texto
