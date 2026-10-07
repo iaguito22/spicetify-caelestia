@@ -1007,6 +1007,9 @@
             el.id = "cs-cine-title";
             host.after(el);
         }
+        // con Canvas o vídeo la portada es la miniatura de abajo a la izquierda: el título va al lado, alineado a la izquierda
+        const side = cover.offsetWidth > 0 && cover.offsetWidth < 200;
+        if (el.classList.contains("cs-cine-side") !== side) el.classList.toggle("cs-cine-side", side);
         const name = it.name || "", artists = (it.artists || []).map((a) => a.name).join(", ");
         if (el.dataset.k === name + "\n" + artists) return;
         el.dataset.k = name + "\n" + artists;
@@ -1249,7 +1252,7 @@
         document.__csVT = true;
         document.startViewTransition = (...a) => {
             const vt = svt(...a);
-            if (fsVeilBusy) try { vt.skipTransition(); } catch (e) { /* ya terminada */ }
+            if (fsVeilBusy) try { vt.ready.catch(() => {}); vt.skipTransition(); } catch (e) { /* ya terminada */ }
             return vt;
         };
     }
