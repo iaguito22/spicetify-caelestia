@@ -2174,6 +2174,15 @@
         (document.elementFromPoint(e.clientX, e.clientY) || cineEl).dispatchEvent(new MouseEvent("mousemove", o));
         cineWakeT = setTimeout(() => cineWake(e, true), 120);
     }
+    // el cursor (oculto en reposo) vuelve con el ratón aunque Spotify siga dormido, y se va a los 3 s quieto
+    let cineCurT = 0;
+    document.addEventListener("pointermove", (e) => {
+        if (!e.isTrusted || !cineIdle || !cineEl) return;
+        const c = cineEl;
+        if (!c.hasAttribute("data-cs-cur")) c.setAttribute("data-cs-cur", "");
+        clearTimeout(cineCurT);
+        cineCurT = setTimeout(() => c.removeAttribute("data-cs-cur"), 3000);
+    }, true);
     document.addEventListener("pointermove", (e) => {
         if (!e.isTrusted || !cineIdle || !cineEl || cineWakeT) return;
         cineWakeT = setTimeout(() => cineWake(e, false), 60);

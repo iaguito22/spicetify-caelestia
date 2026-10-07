@@ -2151,7 +2151,9 @@ html.fullscreen .Root__cinema-view .cs-cine-dup, :fullscreen .Root__cinema-view 
 .Root__top-container:has(> .Root__cinema-view--controls-hidden) > .Root__now-playing-bar {
     opacity: 0 !important; translate: 0 14px; pointer-events: none;
 }
-.Root__cinema-view--controls-hidden { cursor: none !important; }
+.Root__cinema-view--controls-hidden:not([data-cs-cur]) { cursor: none !important; }
+/* (Spotify también lo oculta en su reposo: con data-cs-cur se fuerza a la vista) */
+.Root__cinema-view[data-cs-cur], .Root__cinema-view[data-cs-cur] div { cursor: default !important; }
 /* en reposo Spotify saca su propio título abajo a la izquierda: ya va bajo la portada */
 .Root__cinema-view .main-trackInfo-container { display: none !important; }
 /* título y artista bajo la portada (theme.js); el escenario es el 2.º hijo (en reposo Spotify añade un 3.º) */
