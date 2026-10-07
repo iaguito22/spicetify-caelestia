@@ -1628,6 +1628,7 @@
             if (fadeEl) fadeEl.style.setProperty("--cs-scroll", 0);
             lastFade = -1;
             const path = loc && loc.pathname;
+            if (lastPath === "/lyrics" && path !== "/lyrics" && !document.fullscreenElement) { lyricsLeftAt = performance.now(); cineSkip(true); }
             fsLyrics();
             resyncStuck();
             if (path === lastPath) return;
@@ -1708,7 +1709,17 @@
             if (document.fullscreenElement || cine || !lyrics) {
                 // la pantalla completa de Spotify (normal o vista cine), con la misma coreografía: el
                 // clic llega a Spotify cuando el velo ya ha entrado (el gesto del usuario sigue valiendo)
-                fsVeil(() => { const p = fsDone(); spotifyFs(b); return p; });
+                // si la pantalla completa la pidió el tema (vista cine abierta al quitar la letra), Spotify
+                // cierra la vista pero no la suelta: se suelta aquí
+                const wasFs = !!document.fullscreenElement && !fromTop;
+                fsVeil(async () => {
+                    const p = fsDone();
+                    spotifyFs(b);
+                    if (!wasFs) return p;
+                    for (let i = 0; i < 20 && document.fullscreenElement && document.querySelector(".Root__cinema-view"); i++) await wait(50);
+                    if (document.fullscreenElement && !document.querySelector(".Root__cinema-view")) await document.exitFullscreen().catch(() => {});
+                    return p;
+                });
                 return;
             }
             fsVeil(() => document.documentElement.requestFullscreen());
@@ -2156,17 +2167,45 @@
         const dock = document.querySelector(".Root__now-playing-bar");
         const labels = new Set([...(dock ? dock.querySelectorAll('[data-testid="fullscreen-mode-button"], [data-testid="lyrics-button"]') : [])]
             .map((b) => b.getAttribute("aria-label")).filter(Boolean));
+        // 1.3: el selector de vista lleva "Mostrar letra" (la letra de Spotify, dentro de la vista cine)
+        const L = Spicetify.Locale;
+        if (L) for (const k of ["web-player.cinema-mode.fullscreen.exit", "web-player.now-playing-view.show.lyrics"]) {
+            const v = L.get(k);
+            if (v && v !== k) labels.add(v);
+        }
         for (const b of head.querySelectorAll("button")) {
             const dup = b.matches('[data-testid="lyrics-button"]') || labels.has(b.getAttribute("aria-label"));
             if (b.classList.contains("cs-cine-dup") !== dup) b.classList.toggle("cs-cine-dup", dup);
         }
     }
 
+    // Al quitar la letra en ventana, Spotify vuelve a abrir la vista cine si la letra se abrió desde
+    // ella (aunque fuera a pantalla completa y ya se haya salido): se minimiza en cuanto aparece
+    let lyricsLeftAt = 0;
+    function cineReopened() {
+        if (!lyricsLeftAt || document.fullscreenElement) return void cineSkip(false);
+        if (performance.now() - lyricsLeftAt > 2500) { lyricsLeftAt = 0; return void cineSkip(false); }
+        const head = document.querySelector(".Root__cinema-view > div:first-child");
+        const L = Spicetify.Locale, min = L && L.get("web-player.cinema-mode.minimize");
+        const b = head && min && [...head.querySelectorAll("button")].find((x) => x.getAttribute("aria-label") === min);
+        if (!b) return;
+        lyricsLeftAt = 0;
+        b.click();
+        setTimeout(() => cineSkip(false), 400);
+    }
+    // mientras tanto no se ve (html[data-cs-cineskip])
+    let cineSkipT = 0;
+    function cineSkip(on) {
+        clearTimeout(cineSkipT);
+        document.documentElement.toggleAttribute("data-cs-cineskip", on);
+        if (on) cineSkipT = setTimeout(() => cineSkip(false), 2600);
+    }
+
     let tagQueued = 0; // 1: solo la lista de canciones, 2: todo
     const tagAll = () => {
         const all = tagQueued !== 1;
         tagQueued = 0;
-        if (all) cineDup();
+        if (all) { cineDup(); cineReopened(); }
         if (!needAliases()) return;
         if (all) { tagCine(); tagInner(); }
         tagTrackList();

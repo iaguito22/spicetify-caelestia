@@ -2136,6 +2136,8 @@ html:not(.fullscreen) .Root__cinema-view { margin: 0 !important; transition: mar
 html:not(.fullscreen) .Root__cinema-view.Root__cinema-view--controls-hidden { margin-top: -64px !important; }
 html:not(.fullscreen) .Root__top-container:has(> .Root__cinema-view--controls-hidden) > .Root__globalNav { visibility: hidden !important; }
 html.fullscreen .Root__top-container:has(> .Root__cinema-view) > .Root__globalNav { visibility: hidden !important; }
+/* la vista cine que Spotify reabre al quitar la letra se cierra sola (theme.js: cineReopened) */
+html[data-cs-cineskip]:not(.fullscreen) .Root__cinema-view { opacity: 0 !important; transition: none !important; }
 /* letra y salir de pantalla completa: arriba repiten los del dock (theme.js: cineDup) */
 html.fullscreen .Root__cinema-view .cs-cine-dup, :fullscreen .Root__cinema-view .cs-cine-dup { display: none !important; }
 /* Spotify la rodea con un outline casi negro de 8 px y radio 8: marco oscuro con picos en las esquinas */
