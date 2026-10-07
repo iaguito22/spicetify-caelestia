@@ -4,7 +4,7 @@
 
 # Caelestia for Spicetify
 
-A Spotify theme where the panels float as rounded islands and **the only color comes from the song that's playing**.
+A Spotify theme where **the panels float as rounded islands** and **the only color comes from the song that's playing**.
 
 > [!IMPORTANT]
 > This is a theme for **[Spicetify](https://spicetify.app)**, not a standalone app. Install Spicetify first and run `spicetify apply` once; then install the theme below.
@@ -18,11 +18,11 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 ## What changes compared to Spotify
 
 **Look**
-- The panels float as rounded islands over the blurred cover of the song that's playing.
-- The only color is the song's: the play button, progress bar, current lyric and highlights take the main color of the cover, and change with every song.
-- The player is a floating liquid glass dock, and the top bar is three pills: navigation, search and profile.
-- No scrollbars, focus outlines or boxes around lists. Buttons you don't need all the time show up on hover.
-- Light and dark mode. With [Caelestia shell](https://github.com/caelestia-dots/shell), it follows the shell's colors.
+- **Floating islands.** The panels float as rounded islands over the blurred cover of the song that's playing.
+- **Color from the cover.** The only color is the song's: the play button, progress bar, current lyric and highlights take the main color of the cover, and change with every song.
+- **Liquid glass player.** The player is a floating dock, and the top bar is three pills: navigation, search and profile.
+- **Less clutter.** No scrollbars, focus outlines or boxes around lists. Buttons you don't need all the time show up on hover.
+- **Light and dark mode.** With [Caelestia shell](https://github.com/caelestia-dots/shell), it follows the shell's colors.
 
 <p align="center">
   <img src="screenshots/home.webp" width="49%" alt="Home">
@@ -32,10 +32,10 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 ![Playlist, with the accent taken from the song playing](screenshots/playlist.webp)
 
 **Lyrics**
-- Each line lights up right when it's sung (Spotify's are up to a second late).
-- Word by word, and letter by letter on many songs.
-- Backing vocals go on their own smaller line under the main vocal, and stay lit for as long as they're sung.
-- Japanese, Chinese, Korean and Cyrillic lyrics show their romanization under each line.
+- **On time.** Each line lights up right when it's sung (Spotify's are up to a second late).
+- **Word by word**, and **letter by letter** on many songs.
+- **Backing vocals** go on their own smaller line under the main vocal, and stay lit for as long as they're sung.
+- **Romanization.** Japanese, Chinese, Korean and Cyrillic lyrics show their romanization under each line.
 
 <p align="center">
   <img src="screenshots/demo-lyrics.webp" width="35%" alt="Karaoke lyrics: Korean line with its romanization and the backing vocals underneath">
@@ -43,10 +43,10 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 </p>
 
 **Fullscreen**
-- With the lyrics open, fullscreen shows them across the whole screen over the blurred cover, with the artwork, title and progress on the left. Songs without lyrics show the artwork centered.
-- The artwork pulses to the beat and tilts towards the mouse. The player and cursor hide when the mouse stops.
-- Entering and leaving, the artwork flies between the player and the screen.
-- Ambient mode: around a Canvas or music video, the background takes on its colors, like YouTube's.
+- **Fullscreen lyrics.** With the lyrics open, fullscreen shows them across the whole screen over the blurred cover, with the artwork, title and progress on the left. Songs without lyrics show the **artwork centered**.
+- **Living artwork.** It pulses to the beat and tilts towards the mouse. The player and cursor **hide when the mouse stops**.
+- **Smooth transitions.** Entering and leaving, the artwork flies between the player and the screen.
+- **Ambient mode.** Around a Canvas or music video, the background takes on its colors, like YouTube's.
 
 ![Ambient mode around a music video](screenshots/demo-ambient.webp)
 
@@ -71,7 +71,7 @@ iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/i
 ```
 Or download the ZIP (Code → Download ZIP) and double-click `install.bat`.
 
-It installs in dark mode. For light: `spicetify config color_scheme light`, then `spicetify apply`.
+It installs in **dark mode**. For light: `spicetify config color_scheme light`, then `spicetify apply`.
 
 **White background, fixed green text or a moon button?** Another theme from Marketplace (e.g. *Default Dynamic*) is still installed and paints its own colors over these. The theme removes them, but uninstall it anyway: Marketplace → Installed → Remove.
 
@@ -99,7 +99,7 @@ MIT license.
 
 # 🇪🇸 En español
 
-Un tema para Spotify con los paneles flotando como islas redondeadas, en el que **el único color lo pone la canción que está sonando**.
+Un tema para Spotify con **los paneles flotando como islas redondeadas**, en el que **el único color lo pone la canción que está sonando**.
 
 
 https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
@@ -111,11 +111,11 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 ## Qué cambia respecto a Spotify
 
 **Aspecto**
-- Los paneles flotan como islas redondeadas sobre la portada difuminada de la canción que suena.
-- El único color es el de la canción: el botón de reproducir, la barra de progreso, la línea de la letra que se canta y los resaltados toman el color principal de la portada, y cambian con cada canción.
-- El reproductor es un dock de liquid glass flotante, y la barra de arriba son tres píldoras: navegación, búsqueda y perfil.
-- Sin barras de scroll, sin contornos de foco y sin recuadros alrededor de las listas. Los botones que no se usan todo el rato aparecen al pasar el ratón.
-- Modo claro y oscuro. Con [Caelestia shell](https://github.com/caelestia-dots/shell), sigue los colores del shell.
+- **Islas flotantes.** Los paneles flotan como islas redondeadas sobre la portada difuminada de la canción que suena.
+- **Color de la portada.** El único color es el de la canción: el botón de reproducir, la barra de progreso, la línea de la letra que se canta y los resaltados toman el color principal de la portada, y cambian con cada canción.
+- **Reproductor de liquid glass.** El reproductor es un dock flotante, y la barra de arriba son tres píldoras: navegación, búsqueda y perfil.
+- **Menos ruido.** Sin barras de scroll, sin contornos de foco y sin recuadros alrededor de las listas. Los botones que no se usan todo el rato aparecen al pasar el ratón.
+- **Modo claro y oscuro.** Con [Caelestia shell](https://github.com/caelestia-dots/shell), sigue los colores del shell.
 
 <p align="center">
   <img src="screenshots/home.webp" width="49%" alt="Inicio">
@@ -125,10 +125,10 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 ![Playlist, con el acento sacado de la canción que suena](screenshots/playlist.webp)
 
 **Letra**
-- Cada línea se ilumina justo cuando se canta (la de Spotify va hasta un segundo tarde).
-- Palabra a palabra, y letra a letra en muchas canciones.
-- Los coros van en su propia fila, más pequeña, debajo de la voz, y siguen encendidos mientras suenan.
-- Las letras en japonés, chino, coreano y cirílico llevan su romanización debajo de cada línea.
+- **A tiempo.** Cada línea se ilumina justo cuando se canta (la de Spotify va hasta un segundo tarde).
+- **Palabra a palabra**, y **letra a letra** en muchas canciones.
+- **Los coros** van en su propia fila, más pequeña, debajo de la voz, y siguen encendidos mientras suenan.
+- **Romanización.** Las letras en japonés, chino, coreano y cirílico llevan su romanización debajo de cada línea.
 
 <p align="center">
   <img src="screenshots/demo-lyrics.webp" width="35%" alt="Letra karaoke: línea en coreano con su romanización y los coros debajo">
@@ -136,10 +136,10 @@ https://github.com/user-attachments/assets/fe99c5d0-3b18-4ddb-965a-6d041ead1b8b
 </p>
 
 **Pantalla completa**
-- Con la letra abierta, la pantalla completa la muestra a toda pantalla sobre la portada difuminada, con la carátula, el título y el progreso a la izquierda. Si la canción no tiene letra, la carátula sale centrada.
-- La carátula late con los beats y se inclina hacia el ratón. El reproductor y el cursor se esconden cuando dejas de mover el ratón.
-- Al entrar y al salir, la carátula vuela entre el reproductor y la pantalla.
-- Modo ambiente: alrededor de un Canvas o un videoclip, el fondo toma sus colores, como en YouTube.
+- **Letra a pantalla completa.** Con la letra abierta, la pantalla completa la muestra a toda pantalla sobre la portada difuminada, con la carátula, el título y el progreso a la izquierda. Si la canción no tiene letra, la **carátula sale centrada**.
+- **Carátula viva.** Late con los beats y se inclina hacia el ratón. El reproductor y el cursor **se esconden cuando dejas de mover el ratón**.
+- **Transiciones suaves.** Al entrar y al salir, la carátula vuela entre el reproductor y la pantalla.
+- **Modo ambiente.** Alrededor de un Canvas o un videoclip, el fondo toma sus colores, como en YouTube.
 
 ![Modo ambiente alrededor de un videoclip](screenshots/demo-ambient.webp)
 
@@ -164,7 +164,7 @@ iwr -useb https://raw.githubusercontent.com/iaguito22/spicetify-caelestia/main/i
 ```
 También puedes descargar el ZIP (Code → Download ZIP) y abrir `install.bat` con doble clic.
 
-Se instala en modo oscuro. Si lo prefieres claro: `spicetify config color_scheme light` y luego `spicetify apply`.
+Se instala en **modo oscuro**. Si lo prefieres claro: `spicetify config color_scheme light` y luego `spicetify apply`.
 
 **¿Fondo blanco, texto verde fijo o un botón de luna?** Sigue instalado otro tema de Marketplace (p. ej. *Default Dynamic*) que pinta sus colores encima. El tema los quita, pero desinstálalo igualmente: Marketplace → Instalados → Eliminar.
 
