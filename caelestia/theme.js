@@ -130,7 +130,7 @@
     //  2. sílabas de Spotify (`syllables`), si algún día las envía;
     //  3. el tiempo de la línea repartido entre sus palabras según su longitud;
     //  4. sin tiempos, la letra normal de Spotify.
-    const lyr = { id: "", lines: null };
+    const lyr = { id: "", lines: null, rom: null };
     const lyrCache = new Map();
     let lyrRaf = 0;
 
@@ -142,7 +142,7 @@
     // (Antes arrancaba despacio y duraba más: la vista saltaba a la línea de abajo y luego
     // el scroll se la llevaba hacia arriba.)
     const nativeSIV = Element.prototype.scrollIntoView;
-    let lyrScroll = { raf: 0, el: null };
+    let lyrScroll = { raf: 0, anim: null, wrap: null };
     let lyrDur = 620;
     // Duración del paso a la frase i: una fracción de lo que dura esa frase (letra rápida → paso
     // rápido; lenta → pausado), entre 420 y 1000 ms
@@ -150,34 +150,53 @@
         const L = lyr.lines;
         const g = L && i >= 0 && i + 1 < L.length ? L[i + 1].t - L[i].t : 2600;
         const d = Math.round(Math.max(420, Math.min(1000, g * 0.3)));
-        if (d !== lyrDur) {
+        // en el contenedor de la letra, no en <html>: ahí recalculaba el estilo de toda la página
+        // (~2000 elementos) justo en el fotograma en que arranca el cambio de frase
+        const box = document.querySelector(".lyrics-lyrics-container");
+        if (d !== lyrDur || (box && box.__lyrDur !== d)) {
             lyrDur = d;
-            document.documentElement.style.setProperty("--cs-lyr-dur", d + "ms");
+            if (box) { box.style.setProperty("--cs-lyr-dur", d + "ms"); box.__lyrDur = d; }
         }
     }
     // Centra una frase con la animación propia (sobre el ancestro que hace scroll)
-    function smoothCenter(line) {
+    function smoothCenter(line, instant) {
         let sc = line.parentElement;
         while (sc && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
         if (!sc) return false;
-        const r = line.getBoundingClientRect(), s = sc.getBoundingClientRect();
+        // se mide sin la animación en curso (lo que le quedaba se suma al nuevo desplazamiento)
+        const off = stopScroll(true), r = line.getBoundingClientRect(), s = sc.getBoundingClientRect();
         // la frase activa crece 3% (transform): se centra su caja sin escalar
         const to = Math.max(0, Math.min(sc.scrollHeight - sc.clientHeight,
             sc.scrollTop + (r.top + r.height / 2) - (s.top + s.height / 2)));
-        const from = sc.scrollTop, d = to - from;
-        cancelAnimationFrame(lyrScroll.raf);
-        lyrScroll.raf = 0;
-        if (Math.abs(d) < 1) return true;
+        const wrap = line.parentElement, d = to - sc.scrollTop + off;
+        if (Math.abs(d) < 1 || instant) { if (off || instant) sc.scrollTop = to; return true; }
+        // En la GPU: un solo salto de scroll y la lista vuelve a su sitio con un transform
+        // compensado (escribir scrollTop en cada fotograma forzaba un layout por fotograma)
+        sc.scrollTop = to;
         // misma duración que el relevo de la frase (--cs-lyr-dur), algo más si el salto es largo
-        const dur = lyrDur + (Math.abs(d) > 400 ? 200 : 0), t0 = performance.now();
-        const step = (now) => {
-            const p = Math.min(1, (now - t0) / dur);
-            const e = 1 - Math.pow(1 - p, 4); // easeOutQuart ≈ cubic-bezier(0.25, 1, 0.5, 1)
-            sc.scrollTop = from + d * e;
-            lyrScroll.raf = p < 1 ? requestAnimationFrame(step) : 0;
-        };
-        lyrScroll.raf = requestAnimationFrame(step);
+        const dur = lyrDur + (Math.abs(d) > 400 ? 200 : 0);
+        const anim = wrap.animate([{ transform: `translate3d(0,${d}px,0)` }, { transform: "translate3d(0,0,0)" }],
+            { duration: dur, easing: "cubic-bezier(0.25, 1, 0.5, 1)" }); // ≈ easeOutQuart
+        Object.assign(lyrScroll, { anim, wrap, raf: 1 });
+        anim.onfinish = () => { if (lyrScroll.anim === anim) Object.assign(lyrScroll, { anim: null, wrap: null, raf: 0 }); };
         return true;
+    }
+    // Para la animación del scroll donde va. Devuelve el desplazamiento que le quedaba (px);
+    // sin `keep`, lo pasa al scroll para que la vista no salte
+    function stopScroll(keep) {
+        const { anim, wrap } = lyrScroll;
+        if (!anim) return 0;
+        const m = /matrix(?:3d)?\(([^)]+)\)/.exec(getComputedStyle(wrap).transform);
+        const v = m ? m[1].split(",").map(Number) : [];
+        const off = v.length === 16 ? v[13] : v.length === 6 ? v[5] : 0;
+        anim.cancel();
+        Object.assign(lyrScroll, { anim: null, wrap: null, raf: 0 });
+        if (!keep && off) {
+            let sc = wrap.parentElement;
+            while (sc && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+            if (sc) sc.scrollTop -= off;
+        }
+        return off;
     }
     Element.prototype.scrollIntoView = function (opts) {
         if (!(this.classList && this.classList.contains("lyrics-lyricsContent-lyric")) ||
@@ -202,13 +221,21 @@
         if (id === lyr.id) return;
         lyr.id = id;
         lyr.lines = null;
+        lyr.rom = null;
         if (!id) return;
-        if (lyrCache.has(id)) { lyr.lines = lyrCache.get(id); return; }
-        let lines = null;
+        if (lyrCache.has(id)) {
+            lyr.lines = lyrCache.get(id);
+            lyr.rom = romCache.get(id) || null;
+            // la romanización falló la otra vez (red, límite de Google): se reintenta
+            if (lyr.lines && !romCache.has(id)) romanize(id, lyr.lines.map((l) => l.text), "");
+            return;
+        }
+        let lines = null, lang = "";
         try {
             const r = await Spicetify.CosmosAsync.get(
                 `https://spclient.wg.spotify.com/color-lyrics/v2/track/${id}?format=json&vocalRemoval=false&market=from_token`);
             const L = r && r.lyrics;
+            lang = (L && L.language) || "";
             if (L && /SYNCED/.test(L.syncType) && Array.isArray(L.lines)) {
                 lines = L.lines.map((l) => ({
                     t: +l.startTimeMs, end: +l.endTimeMs || 0, text: l.words || "",
@@ -218,7 +245,66 @@
         } catch (e) { if (e && e.status !== 404) return; } // sin red: no se cachea, se reintenta
         lyrCache.set(id, lines);
         if (lyr.id === id) lyr.lines = lines;
+        if (lines) romanize(id, lines.map((l) => l.text), lang);
         if (lines && !(await lyricsPlusWords(lines, item))) await neteaseWords(lines, item);
+    }
+
+    // ---- Romanización: japonés, chino y coreano (Google Translate, una petición por canción)
+    // y cirílico (tabla local). Va bajo cada línea con un ::after (data-cs-rom en la línea): el
+    // texto de la línea no cambia y la sincronización (findOff) no se entera.
+    const romCache = new Map();
+    const CJK_RE = /[\u3040-\u30ff\u3400-\u9fff\uf900-\ufaff\uac00-\ud7af\u1100-\u11ff]/, CYR_RE = /[\u0400-\u04ff]/;
+    const CYR = { а: "a", б: "b", в: "v", г: "g", ґ: "g", д: "d", е: "e", ё: "yo", є: "ye", ж: "zh", з: "z", и: "i", і: "i", ї: "yi",
+        й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts",
+        ч: "ch", ш: "sh", щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya" };
+    const cyrLatin = (t) => Array.from(t).map((c) => {
+        const l = c.toLowerCase(), r = CYR[l];
+        if (r === undefined) return c;
+        return c !== l && r ? r[0].toUpperCase() + r.slice(1) : r;
+    }).join("");
+    // clave de una línea que no cambia al pasar los coros a su fila (ver bvText)
+    const romKey = (t) => { const sp = splitBv(t || ""); return norm(sp.main) + "|" + norm(sp.bv); };
+    async function romanize(id, texts, lang) {
+        if (romCache.has(id)) return;
+        // se romaniza solo la voz (sin los coros entre paréntesis: van en su fila y salían repetidos,
+        // y Google destroza el inglés: "the mūn"); una línea entera de coro, entera
+        const src = (t) => splitBv(t).main || t;
+        const uniq = [...new Set(texts.map((t) => t.trim()).filter((t) => CJK_RE.test(src(t)) || CYR_RE.test(src(t))))];
+        if (!uniq.length) return void romCache.set(id, null);
+        const m = new Map();
+        for (const t of uniq) if (!CJK_RE.test(src(t))) m.set(romKey(t), cyrLatin(src(t)));
+        const cjk = uniq.filter((t) => CJK_RE.test(src(t)));
+        const sl = /^(ja|zh|ko)/.test(lang || "") ? lang : "auto";
+        try {
+            // de 25 en 25 líneas, separadas por " | " (sobrevive a la romanización; "\n" no)
+            for (let i = 0; i < cjk.length; i += 25) {
+                const part = cjk.slice(i, i + 25), q = part.map((t) => src(t).replace(/\|/g, " ")).join(" | ");
+                const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+                let j;
+                try {
+                    j = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=en&dt=rm&q=${encodeURIComponent(q)}`, { signal: ctl.signal })).json();
+                } finally { clearTimeout(to); }
+                const out = ((j && j[0]) || []).map((x) => (x && x[3]) || "").join("").split(/\s*\|\s*/);
+                if (out.length !== part.length) continue; // no casa línea a línea: mejor nada
+                part.forEach((t, k) => { const r = out[k].trim(); if (r) m.set(romKey(t), r[0].toLowerCase() + r.slice(1)); });
+            }
+        } catch (e) { return; } // sin red: se reintenta la próxima vez que suene
+        romCache.set(id, m.size ? m : null);
+        if (lyr.id === id) lyr.rom = m.size ? m : null;
+    }
+    // si la línea tiene fila de coros, la romanización va al principio de esa fila (::before):
+    // pegada a la voz y con el coro debajo (data-cs-romrow oculta el ::after de la línea)
+    function romLine(line, text) {
+        const r = lyr.rom && lyr.rom.get(romKey(text));
+        if (r) { if (line.getAttribute("data-cs-rom") !== r) line.setAttribute("data-cs-rom", r); }
+        else if (line.hasAttribute("data-cs-rom")) line.removeAttribute("data-cs-rom");
+        const row = line.querySelector(":scope > .lyrics-lyricsContent-text > .cs-bvrow");
+        if (row) {
+            if (r) { if (row.getAttribute("data-cs-rom") !== r) row.setAttribute("data-cs-rom", r); }
+            else if (row.hasAttribute("data-cs-rom")) row.removeAttribute("data-cs-rom");
+        }
+        const rr = !!(r && row);
+        if (line.hasAttribute("data-cs-romrow") !== rr) line.toggleAttribute("data-cs-romrow", rr);
     }
 
     // ---- Tiempos reales por palabra (Netease, formato yrc) ------------------
@@ -264,29 +350,45 @@
         return out;
     }
 
+    // "a (b) c (d)" → voz principal "a c" y coros "(b) (d)"
+    function splitBv(text) {
+        const bv = [];
+        const main = text.replace(/[(（][^()（）]*[)）]/g, (g) => (bv.push(g), " ")).replace(/\s+/g, " ").trim();
+        return { main, bv: bv.join(" ") };
+    }
     // Pone a cada línea de Spotify los tiempos por palabra de la línea externa con el mismo
     // texto (la más cercana en el tiempo). Devuelve false si casan menos de la mitad.
+    // Si la externa trae los coros aparte (c.bg, lyricsplus), voz y coros se casan por separado
+    // (sirve en cualquier orden) y el coro guarda sus tiempos en ln.bw: suena a la vez que la voz.
     function applyWords(lines, nl) {
+        const jn = (ws) => norm(ws.map((w) => w.tx).join(""));
+        const keys = nl.map((c) => ({ all: jn(c.words), main: c.bg ? jn(c.main) : "", bg: c.bg ? jn(c.bg) : "" }));
         const pairs = [];
         let total = 0;
         for (const ln of lines) {
             const key = norm(ln.text);
             if (!key) continue;
             total++;
-            let bl = null, bt = 6000;
-            for (const c of nl) {
-                if (norm(c.words.map((w) => w.tx).join("")) !== key) continue;
-                const dt = Math.abs(c.t - ln.t);
-                if (dt < bt) { bl = c; bt = dt; }
-            }
-            if (bl) pairs.push([ln, bl]);
+            const sp = splitBv(ln.text), km = sp.bv ? norm(sp.main) : "", kb = sp.bv ? norm(sp.bv) : "";
+            let bl = null, bt = 6000, how = "";
+            nl.forEach((c, k) => {
+                const dt = Math.abs(c.t - ln.t), K = keys[k];
+                if (dt >= bt) return;
+                const h = K.all === key ? "all" : km && kb && K.main === km && K.bg === kb ? "split" : K.main === key ? "main" : "";
+                if (h) { bl = c; bt = dt; how = h; }
+            });
+            if (bl) pairs.push([ln, bl, how, sp]);
         }
         if (!total || pairs.length / total < 0.5) return false;
         const diffs = pairs.map(([a, b]) => b.t - a.t).sort((x, y) => x - y);
         const med = diffs[diffs.length >> 1], shift = Math.abs(med) > 700 ? med : 0;
-        for (const [ln, c] of pairs) {
-            const w = alignWords(ln.text, c.words);
-            if (w.length) ln.w = w.map((x) => ({ t: x.t - shift, d: x.d, tx: x.tx }));
+        const sh = (w) => w.map((x) => ({ t: x.t - shift, d: x.d, tx: x.tx }));
+        for (const [ln, c, how, sp] of pairs) {
+            const w = how === "split" ? alignWords(sp.main, c.main) : alignWords(ln.text, how === "main" ? c.main : c.words);
+            if (!w.length) continue;
+            ln.w = sh(w);
+            delete ln.bw;
+            if (how === "split") { const b = alignWords(sp.bv, c.bg); if (b.length) ln.bw = sh(b); }
         }
         return true;
     }
@@ -311,15 +413,15 @@
             }
             finally { clearTimeout(to); }
             if (!d || !Array.isArray(d.lyrics) || !/word|syllable/i.test(d.type || "")) return false;
-            // cada línea dos veces: con los coros entre paréntesis y sin ellos (Spotify a veces no los trae)
+            // voz y coros por separado (con sus tiempos: pueden solaparse); Spotify a veces no trae los coros
             const nl = [];
+            const ws = (arr) => arr.map((x) => ({ t: +x.time, d: +x.duration, tx: x.text }));
             for (const l of d.lyrics) {
                 const syl = (l.syllabus || []).filter((x) => x.text);
                 if (!syl.length) continue;
-                const mk = (arr) => ({ t: +l.time, d: +l.duration, words: arr.map((x) => ({ t: +x.time, d: +x.duration, tx: x.text })) });
-                nl.push(mk(syl));
-                const main = syl.filter((x) => !x.isBackground);
-                if (main.length && main.length < syl.length) nl.push(mk(main));
+                const bg = syl.filter((x) => x.isBackground), c = { t: +l.time, d: +l.duration, words: ws(syl) };
+                if (bg.length) { c.main = ws(syl.filter((x) => !x.isBackground)); c.bg = ws(bg); }
+                nl.push(c);
             }
             return applyWords(lines, nl);
         } catch (e) { return false; }
@@ -377,15 +479,19 @@
         const next = i + 1 < L.length ? L[i + 1].t : ln.t + 4000;
         if (ln.w) {
             // una palabra puede venir en varias sílabas (sin espacio entre ellas): baja junta y crece por su duración total
-            const u = ln.w.flatMap(wordUnits);
-            for (let i = 0; i < u.length;) {
-                let j = i + 1;
-                while (j < u.length && !/^\s/.test(u[j].text) && !/\s$/.test(u[j - 1].text)) j++;
-                const hold = Math.max(...u.slice(i, j).map((x) => x.end)), wd = hold - u[i].start;
-                for (let k = i; k < j; k++) { u[k].hold = hold; u[k].wd = wd; }
-                i = j;
-            }
-            return u;
+            const units = (ws) => {
+                const u = ws.flatMap(wordUnits);
+                for (let i = 0; i < u.length;) {
+                    let j = i + 1;
+                    while (j < u.length && !/^\s/.test(u[j].text) && !/\s$/.test(u[j - 1].text)) j++;
+                    const hold = Math.max(...u.slice(i, j).map((x) => x.end)), wd = hold - u[i].start;
+                    for (let k = i; k < j; k++) { u[k].hold = hold; u[k].wd = wd; }
+                    i = j;
+                }
+                return u;
+            };
+            // coros con tiempos propios (ln.bw): detrás de la voz, en su fila
+            return ln.bw ? units(ln.w).concat(units(ln.bw).map((x) => ((x.bv = true), x))) : units(ln.w);
         }
         if (ln.syl.length && Math.abs(ln.syl.reduce((a, s) => a + s.n, 0) - text.trim().length) <= 2) {
             const off = ln.syl[0].t < ln.t - 1 ? ln.t : 0;
@@ -399,10 +505,24 @@
             });
         }
         const cjk = !/\s/.test(text) && /[぀-ヿ㐀-鿿가-힯]/.test(text);
-        const toks = cjk ? Array.from(text) : text.split(/(\s+)/);
+        // japonés y chino van letra a letra aunque la línea lleve espacios (p. ej. un coro en inglés
+        // entre paréntesis): si no, toda la frase era un solo trozo y no se animaba
+        const toks = cjk ? Array.from(text) : text.split(/(\s+)/).flatMap((w) =>
+            /[぀-ヿ㐀-鿿]/.test(w) ? w.match(/[぀-ヿ㐀-鿿]|[^぀-ヿ㐀-鿿]+/g) : [w]);
+        // Coros entre paréntesis en una línea con voz: no le quitan tiempo a la voz; cada grupo
+        // arranca al acabar la palabra que tiene delante y suena a la vez que lo que sigue
+        const inBv = [];
+        if (/[(（]/.test(text) && splitBv(text).main) {
+            let depth = 0;
+            for (const w of toks) {
+                const o = (w.match(/[(（]/g) || []).length, c = (w.match(/[)）]/g) || []).length;
+                inBv.push(w.trim() !== "" && (depth > 0 || o > 0));
+                depth = Math.max(0, depth + o - c);
+            }
+        }
         // Las palabras van a ritmo de canto (~60 ms por letra) y la última se alarga: es la que
         // el cantante suele estirar hasta la respiración antes de la frase siguiente
-        const words = toks.filter((w) => w.trim()), U = 60;
+        const words = toks.filter((w, i) => w.trim() && !inBv[i]), U = 60;
         const units = words.map((w) => Array.from(w).length + 2);
         const lastU = units.pop() || 0, bodyU = units.reduce((a, u) => a + u, 0);
         const room = Math.max(300, next - ln.t - Math.min(450, (next - ln.t) * 0.12)); // hasta la respiración
@@ -414,47 +534,164 @@
             k = U + (bodyU ? slow / bodyU : 0);
             hold = Math.min(lastU * U + free - slow, lastU * U + 2600); // el resto, a la última (con tope)
         }
-        let acc = ln.t, wi = 0;
-        return toks.map((w) => {
+        let acc = ln.t, wi = 0, bvAt = ln.t, sung = ln.t;
+        return toks.map((w, i) => {
             if (!w.trim()) return { text: w };
+            if (inBv[i]) {
+                const start = bvAt, n = Array.from(w).length + 2;
+                bvAt += n * U;
+                return { text: w, start, end: bvAt, bv: true };
+            }
             const start = acc;
+            sung = start + Math.min(wi < units.length ? units[wi] * k : hold, (Array.from(w).length + 2) * U);
             acc += wi < units.length ? units[wi] * k : hold;
             wi++;
+            bvAt = sung;
             return { text: w, start, end: acc };
         });
     }
 
-    // Cada palabra va en un `.cs-g` (no se parte) y cada letra/sílaba en un `.cs-w` (se rellena y crece al cantarse)
-    function buildLine(el, idx) {
-        const units = lineUnits(idx), frag = document.createDocumentFragment(), timed = [];
-        let group = null;
-        for (const u of units) {
-            const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
-            if (!m[2] || u.start === undefined) { group = null; frag.append(u.text); continue; }
-            if (m[1]) { group = null; frag.append(m[1]); }
-            const sp = document.createElement("span");
-            sp.className = "cs-w";
-            sp.textContent = m[2];
-            if (!(u.syl && group)) {
-                group = document.createElement("span");
-                group.className = "cs-g";
-                frag.append(group);
-            }
-            group.append(sp);
-            sp.style.setProperty("--sw", Math.min(0.085, 0.032 + (u.wd || u.end - u.start) / 1000 * 0.03).toFixed(3));
-            if (m[3]) { group = null; frag.append(m[3]); }
-            else if (!u.syl) group = null;
-            timed.push({ sp, start: u.start, end: u.end, hold: u.hold || u.end, p: 0, s: 0 });
+    // ---- Coros: lo que va entre paréntesis ------------------------------------
+    // Más pequeño y más tenue que la voz principal, sin los paréntesis (siguen en el DOM, ocultos:
+    // el texto de la línea no cambia y findOff sigue casando). Una línea entera entre paréntesis
+    // es una línea de coro (data-cs-bvl). Spotify recrea el texto de las líneas que cambian de
+    // estado: bvScan las repasa (cuesta comparar un string por línea).
+    const BV_RE = /[()（）]/;
+    // texto con los paréntesis en `.cs-par` (ocultos por CSS)
+    function parText(node, text) {
+        for (const part of text.split(/([()（）])/)) {
+            if (!part) continue;
+            if (BV_RE.test(part)) {
+                const p = document.createElement("span");
+                p.className = "cs-par";
+                p.textContent = part;
+                node.append(p);
+            } else node.append(part);
         }
+    }
+    function bvLine(line, text) {
+        const t = text.trim(), whole = /^(?:[(（][^()（）]*[)）][\s.,!?…]*)+$/.test(t);
+        if (whole !== line.hasAttribute("data-cs-bvl")) line.toggleAttribute("data-cs-bvl", whole);
+    }
+    function bvText(el) {
+        const text = el.textContent;
+        // React puede reescribir solo el nodo de texto (mismo div, mismo texto): entonces faltan los spans
+        if (el.__bv === text && (el.firstElementChild || !BV_RE.test(text) || el.__bvPlain === text)) return;
+        el.__bv = text;
+        const line = el.parentElement;
+        if (line) bvLine(line, text);
+        if (el.querySelector(".cs-w") || !BV_RE.test(text)) return;
+        // en una línea con voz, los coros van debajo, en su fila (.cs-bvrow); una línea entera de coro, tal cual
+        const whole = !splitBv(text).main, frag = document.createDocumentFragment(), row = document.createElement("span");
+        row.className = "cs-bvrow";
+        let depth = 0, cur = null;
+        for (const part of text.split(/([()（）])/)) {
+            if (!part) continue;
+            if (/[(（]/.test(part)) depth++;
+            if (depth > 0) {
+                if (!cur) {
+                    cur = document.createElement("span");
+                    cur.className = "cs-bv";
+                    if (whole) frag.append(cur);
+                    else { if (row.firstChild) row.append(" "); row.append(cur); }
+                }
+                parText(cur, part);
+            } else { cur = null; frag.append(part); }
+            if (/[)）]/.test(part)) { depth = Math.max(0, depth - 1); if (!depth) cur = null; }
+        }
+        // sin ningún "(" (p. ej. un ")" suelto) no hay coro: no se toca el DOM, o el observador
+        // volvería a llamar aquí sin fin
+        if (!frag.querySelector(".cs-bv") && !row.firstChild) { el.__bvPlain = text; return; }
         el.textContent = "";
         el.append(frag);
+        if (row.firstChild) el.append(row);
+        el.__bv = el.textContent;
+        if (line && row.firstChild) romLine(line, text);
+    }
+    function bvScan(box) {
+        for (const el of box.querySelectorAll(".lyrics-lyricsContent-lyric > .lyrics-lyricsContent-text")) {
+            bvText(el);
+            if (lyr.rom || el.parentElement.hasAttribute("data-cs-rom")) romLine(el.parentElement, el.textContent);
+        }
+    }
+
+    // Cada palabra va en un `.cs-g` (no se parte) y cada letra/sílaba en un `.cs-w` (se rellena y crece al cantarse)
+    // El relleno (--p) y el salto de cada trozo son animaciones CSS con su retardo calculado aquí,
+    // una vez: escribir --p en cada fotograma era una mutación de `style` dentro del scroll y
+    // OverlayScrollbars (Spotify) respondía a cada una con un layout forzado (≈25% de CPU).
+    function buildLine(el, idx, t) {
+        const units = lineUnits(idx), timed = [];
+        // [voz, coros]: los coros van a su fila salvo en una línea entera de coro
+        const whole = !splitBv(lyr.lines[idx].text).main;
+        const sinks = [{ frag: document.createDocumentFragment(), group: null }, { frag: document.createDocumentFragment(), group: null }];
+        let depth = 0;
+        for (const u of units) {
+            // dentro de paréntesis (coro): se mira antes de contar los de este trozo
+            const opens = (u.text.match(/[(（]/g) || []).length, closes = (u.text.match(/[)）]/g) || []).length;
+            const bv = !!u.bv || depth > 0 || opens > 0;
+            depth = Math.max(0, depth + opens - closes);
+            const S = sinks[bv && !whole ? 1 : 0];
+            // un grupo nuevo en la fila de coros va separado del anterior
+            if (S === sinks[1] && opens && S.frag.childNodes.length) { S.group = null; S.frag.append(" "); }
+            const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(u.text);
+            if (!m[2] || u.start === undefined) { S.group = null; S.frag.append(u.text); continue; }
+            // un trozo que solo es "(" o ")" (letra a letra) no lleva animación: va oculto
+            if (/^[()（）]+$/.test(m[2])) {
+                if (m[1]) { S.group = null; S.frag.append(m[1]); }
+                parText(S.group || S.frag, m[2]);
+                if (m[3]) { S.group = null; S.frag.append(m[3]); }
+                continue;
+            }
+            if (m[1]) { S.group = null; S.frag.append(m[1]); }
+            const sp = document.createElement("span");
+            sp.className = bv ? "cs-w cs-bv" : "cs-w";
+            if (BV_RE.test(m[2])) parText(sp, m[2]); else sp.textContent = m[2];
+            if (!(u.syl && S.group)) {
+                S.group = document.createElement("span");
+                S.group.className = "cs-g";
+                S.frag.append(S.group);
+            }
+            S.group.append(sp);
+            sp.style.setProperty("--sw", Math.min(0.085, 0.032 + (u.wd || u.end - u.start) / 1000 * 0.03).toFixed(3));
+            sp.style.setProperty("--f0", Math.round(u.start - t) + "ms");
+            sp.style.setProperty("--fd", Math.max(1, Math.round(u.end - u.start)) + "ms");
+            sp.style.setProperty("--h0", Math.round((u.hold || u.end) - t) + "ms");
+            // la subida no puede durar más que la palabra: si no, la bajada arrancaba desde arriba de golpe
+            sp.style.setProperty("--ud", Math.round(Math.max(120, Math.min(420, (u.hold || u.end) - u.start))) + "ms");
+            if (m[3]) { S.group = null; S.frag.append(m[3]); }
+            else if (!u.syl) S.group = null;
+            timed.push(sp);
+        }
+        el.textContent = "";
+        el.append(sinks[0].frag);
+        if (sinks[1].frag.childNodes.length) {
+            const row = document.createElement("span");
+            row.className = "cs-bvrow";
+            row.append(sinks[1].frag);
+            el.append(row);
+        }
         el.__cs = { idx, timed, real: !!lyr.lines[idx].w };
+        el.__bv = el.textContent;
+        const line = el.parentElement;
+        if (line) {
+            bvLine(line, el.__bv);
+            romLine(line, el.__bv);
+            // la romanización (::after) se rellena a la vez que la voz: de la primera a la última sílaba;
+            // data-cs-rt alterna a/b para que la animación vuelva a empezar al reconstruir la línea
+            const vo = units.filter((u) => u.start !== undefined && !u.bv && u.text.trim());
+            if (vo.length) {
+                const s0 = Math.min(...vo.map((u) => u.start)), s1 = Math.max(...vo.map((u) => u.end));
+                line.style.setProperty("--cs-r0", Math.round(s0 - t) + "ms");
+                line.style.setProperty("--cs-rd", Math.max(1, Math.round(s1 - s0)) + "ms");
+                line.setAttribute("data-cs-rt", line.getAttribute("data-cs-rt") === "a" ? "b" : "a");
+            }
+        }
     }
 
     // ---- Frase actual por el reloj de la canción -----------------------------
     // Spotify marca la activa 250-400 ms tarde (hasta 1 s tras un ♪): aquí se calcula con
     // el progreso y cada línea lleva data-cs-d (distancia a la actual; ver el CSS)
-    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null };
+    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null, t: 0, wall: 0, playing: null, jump: false };
     function clockOff() {
         if (!clk.on) return;
         clk.on = false;
@@ -480,7 +717,11 @@
     // en versiones con lista virtualizada, solo monta las visibles: el desfase puede ser
     // cualquiera). Se parte de las primeras líneas del DOM y se puntúa cada candidato.
     function findOff(els, L) {
-        const key = (x) => (x || "").replace(/\s+/g, " ").trim();
+        // sin los coros: en el DOM van al final de la línea (su fila), en la API en su sitio
+        const key = (x) => {
+            const s = (x || "").replace(/\s+/g, " ").trim();
+            return s.replace(/[(（][^()（）]*[)）]/g, " ").replace(/\s+/g, " ").trim() || s;
+        };
         const cand = new Set([-2, -1, 0, 1, 2, 3, 4, 5, 6]);
         for (let j = 0, n = 0; j < els.length && n < 6; j++) {
             const kj = key(els[j].textContent);
@@ -526,8 +767,7 @@
             if (!clk.on || (ev === "keydown" && !/Arrow|Page|Home|End|Space/.test(e.code))) return;
             if (e.target instanceof Node && clk.box && (clk.box.contains(e.target) || e.target.contains(clk.box))) {
                 clk.follow = false;
-                cancelAnimationFrame(lyrScroll.raf);
-                lyrScroll.raf = 0;
+                stopScroll();
             }
         }, { capture: true, passive: true });
     }
@@ -614,6 +854,14 @@
             box.__csReady = true;
             setTimeout(() => box.setAttribute("data-cs-ready", ""), 1250);
         }
+        // coros (paréntesis): se repasan en cuanto Spotify toca el texto (el observador corre antes
+        // de pintar: sin un fotograma con paréntesis); el repaso cada segundo es la red
+        if (!box.__bvMO) {
+            box.__bvMO = new MutationObserver(() => bvScan(box));
+            box.__bvMO.observe(box, { childList: true, subtree: true, characterData: true });
+        }
+        const now = performance.now();
+        if (!(now - (box.__bvAt || 0) < 1000)) { box.__bvAt = now; bvScan(box); }
         const L = lyr.lines;
         if (!L || !L.length) return clockOff();
         if (!clk.on || clk.box !== box || clk.id !== lyr.id || !clk.wrap.isConnected) {
@@ -632,13 +880,25 @@
             const line = clk.els[cur + clk.off];
             if (clk.follow && line) smoothCenter(line);
         }
+        // pausa / salto: se mira siempre (también en la intro, antes de la primera frase)
+        const wall = performance.now(), playing = Spicetify.Player.isPlaying();
+        // al reanudar también se rehace: entre la pausa real y la marca pasan unos fotogramas
+        const resumed = playing && clk.playing === false;
+        if (playing !== clk.playing) { clk.playing = playing; document.documentElement.toggleAttribute("data-cs-paused", !playing); }
+        const seekd = resumed || (playing ? clk.wall && Math.abs(t - (clk.t + (wall - clk.wall))) > 350 : Math.abs(t - clk.t) > 350);
+        clk.t = t; clk.wall = playing ? wall : 0;
+        if (seekd) clk.jump = true; // se aplica al llegar a una frase con texto
         if (cur < 0) return;
         const lineEl = clk.els[cur + clk.off];
         const el = lineEl && lineEl.querySelector(".lyrics-lyricsContent-text");
         const text = el && el.textContent.trim();
         if (!text || !/[\p{L}\p{N}]/u.test(text) || /[\u0590-\u08ff]/.test(text)) return; // ♪, vacías y RTL: tal cual
-        if (!el.__cs || el.__cs.idx !== cur || !el.querySelector(".cs-w") || el.__cs.real !== !!L[cur].w) buildLine(el, cur);
+        // Salto (seek) o deriva respecto al reloj: las animaciones ya lanzadas van desfasadas → se rehacen
+        const jump = clk.jump;
+        clk.jump = false;
+        if (jump || !el.__cs || el.__cs.idx !== cur || !el.querySelector(".cs-w") || el.__cs.real !== !!L[cur].w) buildLine(el, cur, t);
         const cs = el.__cs;
+        if (jump) cs.prepped = -9;
         // La siguiente se trocea ya (sus trozos solo tienen estilo cuando es la actual): al
         // encenderse sale directamente con el relleno por palabras
         if (cs.prepped !== cur) {
@@ -646,20 +906,7 @@
             const nx = clk.els[cur + 1 + clk.off], nEl = nx && nx.querySelector(".lyrics-lyricsContent-text");
             const n = cur + 1, nt = nEl && nEl.textContent.trim();
             if (nEl && n < L.length && nt && /[\p{L}\p{N}]/u.test(nt) &&
-                !(nEl.__cs && nEl.__cs.idx === n && nEl.querySelector(".cs-w"))) buildLine(nEl, n);
-        }
-        for (const u of cs.timed) {
-            const p = Math.max(0, Math.min(1, (t - u.start) / Math.max(1, u.end - u.start)));
-            if (Math.abs(p - u.p) > 0.004 || (p !== u.p && (p === 0 || p === 1))) {
-                u.p = p;
-                u.sp.style.setProperty("--p", p.toFixed(3));
-            }
-            const st = t < u.start ? 0 : t >= u.hold ? 2 : 1;
-            if (st !== u.s) {
-                u.s = st;
-                u.sp.classList.toggle("cs-cur", st === 1);
-                u.sp.classList.toggle("cs-done", st === 2);
-            }
+                (jump || !(nEl.__cs && nEl.__cs.idx === n && nEl.querySelector(".cs-w")))) buildLine(nEl, n, t);
         }
     }
 
@@ -728,6 +975,362 @@
         t.className = "cs-cine-name"; t.textContent = name;
         a.className = "cs-cine-artist"; a.textContent = artists;
         el.replaceChildren(t, a);
+    }
+
+    // ---- Modo ambiente del vídeo a pantalla completa (vista cine con Canvas) -------------
+    // Como el de YouTube: alrededor del vídeo, el fondo toma sus colores. Cada 100 ms se copia el
+    // fotograma, estirado, a un canvas de 32×18 px (mezclado con el anterior: los colores cambian
+    // suave) que el CSS amplía y difumina detrás del vídeo. Solo con vídeo sonando y la ventana visible.
+    const amb = { c: null, g: null, t: 0, v: null };
+    function ambDraw() {
+        const v = amb.v;
+        if (!v || !v.isConnected || v.readyState < 2 || v.paused || !v.videoWidth || !v.videoHeight) return;
+        amb.g.drawImage(v, 0, 0, 32, 18);
+    }
+    // Los videoclips van con DRM (Widevine): sus fotogramas no se pueden leer (drawImage da negro).
+    // Con ellos, un filtro SVG en el propio vídeo pinta debajo una copia ensanchada y difuminada:
+    // lo hace el compositor, sin pasar por JS, y sigue al vídeo fotograma a fotograma.
+    function ambSvg() {
+        if (document.getElementById("cs-amb-svg")) return;
+        const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        s.id = "cs-amb-svg";
+        s.setAttribute("width", "0"); s.setAttribute("height", "0");
+        s.style.position = "absolute";
+        s.innerHTML = '<filter id="cs-amb-f" x="-50%" y="-70%" width="200%" height="240%" color-interpolation-filters="sRGB">' +
+            '<feMorphology in="SourceGraphic" operator="dilate" radius="40" result="d"/>' +
+            '<feGaussianBlur in="d" stdDeviation="110" result="b"/>' +
+            '<feColorMatrix in="b" type="saturate" values="1.7" result="c"/>' +
+            '<feComponentTransfer in="c" result="k"><feFuncR type="linear" slope="0.9"/><feFuncG type="linear" slope="0.9"/>' +
+            '<feFuncB type="linear" slope="0.9"/><feFuncA type="linear" slope="1.3"/></feComponentTransfer>' +
+            '<feMerge><feMergeNode in="k"/><feMergeNode in="SourceGraphic"/></feMerge></filter>';
+        document.body.append(s);
+    }
+    function ambient() {
+        const v = !document.hidden && document.querySelector(".Root__cinema-view video");
+        if (v && v.mediaKeys) {
+            ambSvg();
+            if (!v.classList.contains("cs-amb-f")) v.classList.add("cs-amb-f");
+            if (amb.t) { clearInterval(amb.t); amb.t = 0; amb.v = null; }
+            if (amb.c) amb.c.remove();
+            return;
+        }
+        const stage = v && (v.closest('.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]') || v.parentElement && v.parentElement.parentElement);
+        if (!v || !stage) {
+            if (amb.t) { clearInterval(amb.t); amb.t = 0; amb.v = null; }
+            if (amb.c) { amb.c.classList.remove("cs-on"); if (!v) amb.c.remove(); }
+            return;
+        }
+        if (!amb.c) {
+            amb.c = document.createElement("canvas");
+            amb.c.id = "cs-amb";
+            amb.c.width = 32; amb.c.height = 18;
+            amb.g = amb.c.getContext("2d");
+        }
+        if (amb.c.parentElement !== stage) stage.append(amb.c);
+        if (amb.v !== v) { amb.v = v; amb.g.globalAlpha = 1; ambDraw(); amb.g.globalAlpha = 0.3; }
+        if (!amb.t) amb.t = setInterval(ambDraw, 100);
+        requestAnimationFrame(() => amb.c && amb.c.classList.add("cs-on"));
+    }
+
+    // ---- Letra a pantalla completa ---------------------------------------------
+    // Con la ventana a pantalla completa y la letra abierta (/lyrics), html[data-cs-fslyr]: la
+    // letra ocupa toda la pantalla sobre el fondo de la carátula, con la portada grande, el
+    // título y el artista a la izquierda (#cs-fslyr-art). Sin mover el ratón 3 s, el dock y el
+    // cursor se esconden (data-cs-idle). El listener del puntero solo existe en este modo.
+    let fsIdleT = 0, fsOn = false, fsMine = false, fsChangeAt = 0; // fsMine: la pantalla completa la pidió el tema
+    const fsWake = () => {
+        const root = document.documentElement;
+        if (root.hasAttribute("data-cs-idle")) root.removeAttribute("data-cs-idle");
+        clearTimeout(fsIdleT);
+        fsIdleT = setTimeout(() => {
+            // con el ratón encima del dock no se esconde
+            if (fsOn && !document.querySelector(".Root__now-playing-bar:hover")) root.setAttribute("data-cs-idle", "");
+        }, 3000);
+    };
+    function fsArt() {
+        let el = document.getElementById("cs-fslyr-art");
+        const top = document.querySelector(".Root__top-container");
+        if (!fsOn || !top) return void (el && el.remove());
+        const it = Spicetify.Player.data && Spicetify.Player.data.item;
+        if (!el || el.parentElement !== top) {
+            if (el) el.remove();
+            el = document.createElement("div");
+            el.id = "cs-fslyr-art";
+            el.innerHTML = '<div class="cs-fa-tilt"><div class="cs-fa-cover"><img alt="" draggable="false"></div></div><div class="cs-fa-name"></div><div class="cs-fa-artist"></div><div class="cs-fa-prog"><i></i></div>';
+            top.append(el);
+        }
+        const name = (it && it.name) || "", artists = ((it && it.artists) || []).map((a) => a.name).join(", ");
+        const m = it && it.metadata, uri = m && (m.image_xlarge_url || m.image_large_url || m.image_url);
+        const src = uri && uri.startsWith("spotify:image:") ? "https://i.scdn.co/image/" + uri.slice(14) : uri && uri.startsWith("http") ? uri : "";
+        const k = name + "\n" + artists + "\n" + src;
+        if (el.dataset.k === k) return;
+        el.dataset.k = k;
+        const img = el.querySelector("img");
+        if (src && img.getAttribute("src") !== src) {
+            // cambio de canción: la portada nueva entra cuando ya ha cargado
+            el.classList.add("cs-fa-swap");
+            const pre = new Image();
+            pre.onload = pre.onerror = () => {
+                if (el.dataset.k !== k) return; // ya suena otra canción
+                img.src = src;
+                el.classList.remove("cs-fa-swap");
+            };
+            pre.src = src;
+        }
+        el.querySelector(".cs-fa-cover").classList.toggle("cs-fa-empty", !src);
+        el.querySelector(".cs-fa-name").textContent = name;
+        el.querySelector(".cs-fa-artist").textContent = artists;
+    }
+    // Barra de progreso bajo el artista: un scaleX cada 500 ms con transición lineal (fuera del
+    // scroll de la letra: no despierta a OverlayScrollbars)
+    let fsProgT = 0;
+    function fsProg() {
+        clearTimeout(fsProgT);
+        const bar = fsOn && document.querySelector("#cs-fslyr-art .cs-fa-prog i");
+        if (!bar) return;
+        const P = Spicetify.Player, dur = P.getDuration() || 0, t = P.getProgress() || 0;
+        const p = dur ? Math.min(1, t / dur) : 0, prev = bar.__p || 0;
+        // hacia atrás (seek, canción nueva) va directa; hacia delante, en línea con el tiempo
+        bar.style.transition = p < prev || p - prev > 0.05 ? "none" : "";
+        if (Math.abs(p - prev) > 0.0005) { bar.style.transform = `scaleX(${p.toFixed(4)})`; bar.__p = p; }
+        fsProgT = setTimeout(fsProg, 500);
+    }
+
+    // La portada late con la canción: un pulso de escala en cada beat (análisis de audio de
+    // Spotify), más fuerte en el primero de cada compás y en las partes que suenan fuerte
+    const fsBeat = { id: "", beats: null, t: 0 };
+    async function fsBeatLoad() {
+        const it = Spicetify.Player.data && Spicetify.Player.data.item, id = (it && it.uri) || "";
+        if (fsBeat.id === id) return;
+        fsBeat.id = id;
+        fsBeat.beats = null;
+        if (!/^spotify:track:/.test(id) || !Spicetify.getAudioData) return;
+        try {
+            const d = await Spicetify.getAudioData(id);
+            if (fsBeat.id !== id || !d || !Array.isArray(d.beats)) return;
+            const segs = d.segments || [], bars = new Set((d.bars || []).map((b) => Math.round(b.start * 1000)));
+            const base = (d.track && d.track.loudness) || -10;
+            let si = 0;
+            fsBeat.beats = d.beats.filter((b) => b.confidence > 0.05).map((b) => {
+                const t = Math.round(b.start * 1000);
+                while (si + 1 < segs.length && segs[si + 1].start <= b.start) si++;
+                const L = segs[si] ? segs[si].loudness_max : base;
+                const k = Math.max(0, Math.min(1, (L - base + 8) / 12)) * (bars.has(t) ? 1 : 0.6);
+                return { t, a: 0.004 + 0.016 * k, d: Math.round(b.duration * 1000) };
+            });
+            fsBeatTick();
+        } catch (e) { /* sin análisis: la portada se queda quieta */ }
+    }
+    function fsBeatTick() {
+        clearTimeout(fsBeat.t);
+        const B = fsBeat.beats, cover = fsOn && B && document.querySelector("#cs-fslyr-art .cs-fa-cover");
+        if (!cover || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (!Spicetify.Player.isPlaying()) return void (fsBeat.t = setTimeout(fsBeatTick, 400));
+        const t = Spicetify.Player.getProgress();
+        let lo = 0, hi = B.length;
+        while (lo < hi) { const m = (lo + hi) >> 1; if (B[m].t <= t + 15) lo = m + 1; else hi = m; }
+        const b = B[lo];
+        if (!b) return void (fsBeat.t = setTimeout(fsBeatTick, 1000));
+        const wait = b.t - t;
+        if (wait > 1200) return void (fsBeat.t = setTimeout(fsBeatTick, 1000));
+        fsBeat.t = setTimeout(() => {
+            if (!fsOn) return;
+            cover.animate([{ transform: "scale(1)" }, { transform: `scale(${(1 + b.a).toFixed(4)})`, offset: 0.16 }, { transform: "scale(1)" }],
+                { duration: Math.max(220, Math.min(700, b.d * 0.95)), easing: "cubic-bezier(0.3, 0.7, 0.4, 1)" });
+            fsBeatTick();
+        }, Math.max(0, wait));
+    }
+
+    // Entrar o salir de pantalla completa recoloca toda la ventana (unos cientos de ms a
+    // trompicones): un velo con el color del tema lo tapa y se retira cuando el tamaño se asienta
+    let fsVeilN = 0;
+    // Coreografía: al pedir el cambio, lo que hay se aparta (data-cs-fsgo: la portada y la letra se
+    // encogen y se apagan) mientras entra el velo, que lleva la carátula difuminada; al retirarse el
+    // velo, el modo nuevo entra (data-cs-fsin: portada, letra y dock, en cascada; data-cs-fsback:
+    // la ventana normal vuelve a su tamaño)
+    function coverSrc() {
+        const it = Spicetify.Player.data && Spicetify.Player.data.item, m = it && it.metadata;
+        const uri = m && (m.image_xlarge_url || m.image_large_url || m.image_url);
+        return uri && uri.startsWith("spotify:image:") ? "https://i.scdn.co/image/" + uri.slice(14) : uri && uri.startsWith("http") ? uri : "";
+    }
+    let fsAnimT = 0;
+    // la portada del dock (ventana normal) o la grande de la pantalla completa
+    // (en la vista cine, su portada; con videoclip no hay: la carátula sale y llega al centro)
+    const fsCoverEl = () => document.querySelector(fsOn ? "#cs-fslyr-art .cs-fa-cover" :
+        document.querySelector(".Root__cinema-view") ? ".Root__cinema-view .cover-art" :
+        ".Root__now-playing-bar .main-nowPlayingWidget-coverArt, .Root__now-playing-bar .main-coverSlotCollapsed-container");
+    const rectOf = (el) => { const r = el && el.getBoundingClientRect(); return r && r.width > 4 ? { l: r.left, t: r.top, w: r.width, h: r.height } : null; };
+    function centerRect() {
+        const s = Math.min(innerHeight * 0.42, innerWidth * 0.34);
+        return { l: (innerWidth - s) / 2, t: (innerHeight - s) / 2, w: s, h: s };
+    }
+    // FLIP: la caja queda en `to` y un transform la lleva desde `from`
+    function flyCover(img, from, to, dur) {
+        Object.assign(img.style, { left: to.l + "px", top: to.t + "px", width: to.w + "px", height: to.h + "px" });
+        if (!from) return null;
+        return img.animate([
+            { transform: `translate(${from.l - to.l}px, ${from.t - to.t}px) scale(${from.w / to.w}, ${from.h / to.h})` },
+            { transform: "none" },
+        ], { duration: dur, easing: "cubic-bezier(0.22, 1, 0.36, 1)", fill: "backwards" });
+    }
+    let fsVeilBusy = false;
+    // la vista cine abre y cierra con una view transition de Spotify, que se pinta por encima de
+    // todo (capa superior): con el velo puesto se salta (el cambio ocurre igual, sin animación)
+    if (document.startViewTransition && !document.__csVT) {
+        const svt = document.startViewTransition.bind(document);
+        document.__csVT = true;
+        document.startViewTransition = (...a) => {
+            const vt = svt(...a);
+            if (fsVeilBusy) try { vt.skipTransition(); } catch (e) { /* ya terminada */ }
+            return vt;
+        };
+    }
+    function fsVeil(action) {
+        const n = ++fsVeilN, root = document.documentElement;
+        fsVeilBusy = true;
+        setTimeout(() => { if (n === fsVeilN) fsVeilBusy = false; }, 8000);
+        let v = document.getElementById("cs-fs-veil");
+        if (!v) {
+            v = document.createElement("div");
+            v.id = "cs-fs-veil";
+            v.innerHTML = '<img class="cs-veil-cover" alt="" draggable="false">';
+            document.body.append(v);
+        }
+        const src = coverSrc(), img = v.querySelector(".cs-veil-cover");
+        v.style.setProperty("--cs-veil-img", src ? `url("${src}")` : "none");
+        clearTimeout(fsAnimT);
+        root.removeAttribute("data-cs-fsin");
+        root.removeAttribute("data-cs-fsback");
+        // con el botón, la carátula vuela desde donde está (dock o pantalla completa) al centro
+        // mientras la ventana se recoloca, y de ahí a su sitio en el modo nuevo
+        const fly = !!(action && src && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+        img.getAnimations().forEach((x) => x.cancel());
+        img.classList.toggle("cs-on", fly);
+        if (fly) {
+            if (img.getAttribute("src") !== src) img.src = src;
+            const from = rectOf(fsCoverEl()), mid = centerRect();
+            flyCover(img, from || mid, mid, 620);
+            root.setAttribute("data-cs-fsfly", "");
+            // la ventana cambia de tamaño: el centro se mueve, y la carátula lo sigue suave
+            const recenter = () => {
+                if (n !== fsVeilN || !img.classList.contains("cs-on")) return;
+                const cur = rectOf(img);
+                img.getAnimations().forEach((x) => x.cancel());
+                flyCover(img, cur, centerRect(), 380);
+            };
+            addEventListener("resize", recenter, { once: true });
+        }
+        v.classList.add("cs-on");
+        if (action) root.setAttribute("data-cs-fsgo", "");
+        let revealed = false;
+        const reveal = () => {
+            if (n !== fsVeilN || revealed) return;
+            revealed = true;
+            fsVeilBusy = false;
+            root.removeAttribute("data-cs-fsfly");
+            root.setAttribute(fsOn ? "data-cs-fsin" : "data-cs-fsback", "");
+            fsAnimT = setTimeout(() => { root.removeAttribute("data-cs-fsin"); root.removeAttribute("data-cs-fsback"); }, 1600);
+            v.classList.remove("cs-on");
+        };
+        const lift = () => {
+            // espera a que la recolocación acabe: 3 fotogramas rápidos seguidos (máx. 1,2 s de
+            // reloj: al salir de la vista cine Spotify pasa segundos a 1–2 fps y el velo no se iría)
+            let calm = 0, last = performance.now(), went = false;
+            const t0 = last;
+            const go = () => {
+                if (n !== fsVeilN || went) return;
+                went = true;
+                fsLyrics();
+                fsRecenter();
+                root.removeAttribute("data-cs-fsgo");
+                if (!fly) return void setTimeout(reveal, 16);
+                // la carátula aterriza en su sitio nuevo y entonces se retira el velo
+                const cur = rectOf(img), to = rectOf(fsCoverEl()) || centerRect();
+                img.getAnimations().forEach((x) => x.cancel());
+                const an = flyCover(img, cur, to, 520);
+                if (an) { an.onfinish = reveal; setTimeout(reveal, 700); } else reveal();
+            };
+            const chk = (now) => {
+                if (n !== fsVeilN || went) return;
+                calm = now - last < 34 ? calm + 1 : 0;
+                last = now;
+                if (calm < 3 && now - t0 < 1200) return void requestAnimationFrame(chk);
+                go();
+            };
+            requestAnimationFrame(chk);
+            setTimeout(go, 1200);
+        };
+        if (!action) return lift();
+        // el velo entra (220 ms) antes de pedir el cambio
+        setTimeout(() => { if (n === fsVeilN) Promise.resolve().then(action).catch(() => {}).finally(lift); }, 230);
+    }
+
+    // ---- Carátula que se inclina hacia el ratón (pantalla completa) ---------------------------
+    // La de la letra a pantalla completa y la de la vista cine: gira hasta 9° hacia la esquina que
+    // tiene el ratón, con un brillo que lo sigue; al salir vuelve suave a su sitio.
+    const TILT_SEL = "#cs-fslyr-art .cs-fa-tilt, .Root__cinema-view .cover-art";
+    let tiltEl = null, tiltRaf = 0, tiltEv = null;
+    function tiltApply() {
+        tiltRaf = 0;
+        const e = tiltEv, el = tiltEl;
+        if (!el || !e) return;
+        const r = el.getBoundingClientRect();
+        const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1));
+        const y = Math.max(-1, Math.min(1, ((e.clientY - r.top) / r.height) * 2 - 1));
+        el.style.setProperty("--tx", x.toFixed(3));
+        el.style.setProperty("--ty", y.toFixed(3));
+    }
+    function tiltLeave() {
+        if (!tiltEl) return;
+        tiltEl.removeAttribute("data-cs-tilt");
+        tiltEl.style.setProperty("--tx", "0");
+        tiltEl.style.setProperty("--ty", "0");
+        tiltEl = null;
+    }
+    document.addEventListener("pointermove", (e) => {
+        const el = e.target instanceof Element && e.target.closest(TILT_SEL);
+        if (el !== tiltEl) { tiltLeave(); if (el) { tiltEl = el; el.setAttribute("data-cs-tilt", ""); } }
+        if (!el) return;
+        tiltEv = e;
+        if (!tiltRaf) tiltRaf = requestAnimationFrame(tiltApply);
+    }, { capture: true, passive: true });
+    document.documentElement.addEventListener("mouseleave", tiltLeave);
+
+    // la letra cambia de tamaño al entrar y salir: la frase actual vuelve al centro, sin animación
+    function fsRecenter() {
+        const line = clk.on && clk.follow && clk.els && clk.els[clk.cur + clk.off];
+        if (line) smoothCenter(line, true);
+    }
+
+    function fsLyrics() {
+        const root = document.documentElement, H = Spicetify.Platform && Spicetify.Platform.History;
+        const on = !!document.fullscreenElement && !!(H && H.location && H.location.pathname === "/lyrics") &&
+            !document.querySelector(".Root__cinema-view");
+        if (on !== fsOn) {
+            fsOn = on;
+            root.toggleAttribute("data-cs-fslyr", on);
+            // el botón del dock sale de pantalla completa en este modo (el icono cambia por CSS)
+            const fb = document.querySelector('.Root__now-playing-bar [data-testid="fullscreen-mode-button"]');
+            if (fb) {
+                if (on) { fb.__csLabel = fb.getAttribute("aria-label"); fb.setAttribute("aria-label", "Salir de pantalla completa"); }
+                else if (fb.__csLabel) fb.setAttribute("aria-label", fb.__csLabel);
+            }
+            if (on) {
+                document.addEventListener("pointermove", fsWake, { capture: true, passive: true });
+                fsWake();
+                setTimeout(() => { fsProg(); fsBeatLoad(); fsBeatTick(); }, 0);
+            }
+            else {
+                clearTimeout(fsProgT);
+                clearTimeout(fsBeat.t);
+                document.removeEventListener("pointermove", fsWake, true);
+                clearTimeout(fsIdleT);
+                root.removeAttribute("data-cs-idle");
+                // se entró desde la letra con el botón: al cerrar la letra se sale también de pantalla completa
+                if (fsMine && document.fullscreenElement && !(H && H.location && H.location.pathname === "/lyrics")) document.exitFullscreen().catch(() => {});
+            }
+        }
+        fsArt();
     }
 
     // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
@@ -820,6 +1423,9 @@
             // Spotify >= 1.3.2: sin animación. Interpolar la rejilla desde JS compite con su propio
             // layout (variables --left/right-sidebar-width) y en Windows cierra la app (issue #7)
             if (noSideAnim()) return;
+            // al entrar o salir de pantalla completa los anchos cambian con la ventana: sin animación
+            // (con la letra a pantalla completa ni se ven, y el tween alargaba 1-2 s el tirón)
+            if (fsOn || performance.now() - fsChangeAt < 2500) return;
             const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
             if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
             // Cortafuegos: si la rejilla no es la de Spotify 1.2 (p. ej. 1.3.x en Windows) o el ancho
@@ -936,6 +1542,7 @@
             if (fadeEl) fadeEl.style.setProperty("--cs-scroll", 0);
             lastFade = -1;
             const path = loc && loc.pathname;
+            fsLyrics();
             if (path === lastPath) return;
             const skip = path === "/lyrics" || lastPath === "/lyrics";
             lastPath = path;
@@ -974,8 +1581,52 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
         }, true);
         trackRoute();
+        let fsPass = false;
+        // Pantalla completa con la letra abierta: en vez de la vista cine (que tapa la letra), la
+        // ventana a pantalla completa con la letra (data-cs-fslyr); el mismo botón la cierra
+        document.addEventListener("click", (e) => {
+            const FSB = '[data-testid="fullscreen-mode-button"]';
+            let b = e.target instanceof Element && e.target.closest(FSB);
+            // la vista cine tiene su propio botón de salir arriba (sin data-testid): mismo texto que el del dock
+            if (!b && e.target instanceof Element && e.target.closest(".Root__cinema-view")) {
+                const c = e.target.closest("button"), d = document.querySelector(FSB);
+                if (c && d && c.getAttribute("aria-label") && c.getAttribute("aria-label") === d.getAttribute("aria-label")) b = c;
+            }
+            const H = Spicetify.Platform.History;
+            if (!b || fsPass) return;
+            // espera al cambio de pantalla completa y, al salir, a que se cierre la vista cine: Spotify
+            // suelta primero la pantalla completa y la cierra segundos después (máx. 4 s en total)
+            const fsDone = () => new Promise((res) => {
+                const t0 = performance.now(), leaving = !!document.fullscreenElement;
+                const done = () => {
+                    document.removeEventListener("fullscreenchange", done);
+                    const wait = () => {
+                        if (!leaving || !document.querySelector(".Root__cinema-view") || performance.now() - t0 > 4000) return res();
+                        setTimeout(wait, 50);
+                    };
+                    wait();
+                };
+                setTimeout(() => { if (performance.now() - t0 >= 3990) done(); }, 4000);
+                document.addEventListener("fullscreenchange", done);
+            });
+            const cine = b.closest(".Root__cinema-view") || document.querySelector(".Root__cinema-view");
+            const lyrics = H.location && H.location.pathname === "/lyrics";
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            if (fsOn) { fsChangeAt = performance.now(); fsVeil(() => document.exitFullscreen()); return; }
+            if (document.fullscreenElement || cine || !lyrics) {
+                // la pantalla completa de Spotify (normal o vista cine), con la misma coreografía: el
+                // clic llega a Spotify cuando el velo ya ha entrado (el gesto del usuario sigue valiendo)
+                fsVeil(() => { const p = fsDone(); fsPass = true; try { b.click(); } finally { fsPass = false; } return p; });
+                return;
+            }
+            fsVeil(() => document.documentElement.requestFullscreen().then(() => { fsMine = true; }));
+        }, true);
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
+            // en la vista cine el botón es el de Spotify: abre la letra y cierra la vista (a pantalla
+            // completa queda la letra del tema)
+            if (b && document.querySelector(".Root__cinema-view")) return;
             if (!b || !Spicetify.Platform.History.location || Spicetify.Platform.History.location.pathname !== "/lyrics") return;
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -1002,7 +1653,8 @@
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
             const H = Spicetify.Platform.History;
-            if (!b || lyrBypass || lyrPageBroken || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics") return;
+            if (!b || lyrBypass || lyrPageBroken || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics" ||
+                document.querySelector(".Root__cinema-view")) return;
             e.preventDefault();
             e.stopImmediatePropagation();
             H.push("/lyrics");
@@ -1019,6 +1671,17 @@
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
         Spicetify.Player.addEventListener("songchange", cineTitle);
+        Spicetify.Player.addEventListener("songchange", () => { fsArt(); if (fsOn) fsBeatLoad(); });
+        setInterval(ambient, 1000);
+        document.addEventListener("visibilitychange", ambient);
+        document.addEventListener("fullscreenchange", () => {
+            fsChangeAt = performance.now();
+            if (!document.fullscreenElement) fsMine = false;
+            // cambio sin el botón (Esc, F11) con la letra abierta: el velo tapa también la recolocación
+            const H = Spicetify.Platform.History;
+            if ((fsOn || (H.location && H.location.pathname === "/lyrics") || document.querySelector(".Root__cinema-view")) && !fsVeilBusy) fsVeil();
+            setTimeout(fsLyrics, 50);
+        });
         loadLyrics();
         setInterval(() => {
             const sp = document.querySelector("#search-dropdown .main-actionBar-ActionBarContainer");
@@ -1043,6 +1706,7 @@
             root.toggleAttribute("data-cs-synced", !!(lyr.lines && lyr.lines.length));
             tagLyrics13();
             cineTitle();
+            fsLyrics();
             if (cineEl) cineIdleCheck();
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
         }, 500);
@@ -1405,6 +2069,20 @@
             console.warn("[caelestia] another theme was injecting colors (Marketplace theme / Default Dynamic); removed. Uninstall it from Marketplace to stop it.");
         }
     }
+    // ---- Vista cine: estado atascado de Spotify ------------------------------------------
+    // Al abrir la letra desde la vista cine, Spotify cierra la vista y marca <html> con
+    // data-cinema-npv-postexit pero no quita data-cinema-npv-postenter: con esa marca su CSS
+    // oculta el panel central (display: none) y desplaza la biblioteca fuera de la pantalla, y así
+    // se queda hasta reiniciar. Si ya ha salido y la vista no existe, la marca de entrada sobra.
+    const CINE_STALE = ["data-cinema-npv-postenter", "data-cinema-npv-duringenter", "data-cinema-npv-preexit"];
+    function cineUnstick() {
+        const r = document.documentElement;
+        if (!r.hasAttribute("data-cinema-npv-postexit") || document.querySelector(".Root__cinema-view")) return;
+        for (const a of CINE_STALE) if (r.hasAttribute(a)) r.removeAttribute(a);
+    }
+    new MutationObserver(() => setTimeout(cineUnstick, 0)).observe(document.documentElement, { attributes: true, attributeFilter: ["data-cinema-npv-postexit", ...CINE_STALE] });
+    setInterval(cineUnstick, 1000);
+
     evictForeign();
     // Antes que el observador de syncMode (init): este limpia primero y aquel ya no ve el cambio
     new MutationObserver(evictForeign).observe(document.documentElement, { attributes: true, attributeFilter: ["style"] });
