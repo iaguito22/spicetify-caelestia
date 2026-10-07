@@ -395,23 +395,33 @@
 
     // ---- Tiempos por palabra de lyricsplus (letra de Apple Music, sin proxy) ---
     // Netease bloquea con captcha las búsquedas que salen de Spotify (oct. 2026): queda de reserva
+    const LP_HOSTS = ["lyricsplus.prjktla.workers.dev", "lyricsplus.binimum.org"], lpDown = new Set();
     async function lyricsPlusWords(lines, item) {
         try {
             const name = item.name || "", artist = (item.artists || []).map((a) => a.name).join(", ");
             const album = (item.album && item.album.name) || "", dur = item.duration && item.duration.milliseconds;
             const q = `title=${encodeURIComponent(name)}&artist=${encodeURIComponent(artist)}&album=${encodeURIComponent(album)}` +
                 (dur ? `&duration=${Math.round(dur / 1000)}` : "");
-            const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
             let d;
-            try {
-                // el JSON llega comprimido en gzip sin Content-Encoding: se descomprime a mano
-                const buf = await (await fetch(`https://lyricsplus.prjktla.workers.dev/v2/lyrics/get?${q}`, { signal: ctl.signal })).arrayBuffer();
-                const gz = new Uint8Array(buf, 0, 2);
-                const raw = gz[0] === 0x1f && gz[1] === 0x8b
-                    ? new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))) : new Response(buf);
-                d = await raw.json();
+            // el servidor principal agota su cupo diario (429) y entonces se prueba el espejo; el que
+            // falla se salta el resto de la sesión
+            for (const host of LP_HOSTS) {
+                if (lpDown.has(host)) continue;
+                const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+                try {
+                    const res = await fetch(`https://${host}/v2/lyrics/get?${q}`, { signal: ctl.signal });
+                    if (res.status === 404) return false; // no la tiene: el espejo tampoco
+                    if (!res.ok) { lpDown.add(host); continue; }
+                    // el JSON llega comprimido en gzip sin Content-Encoding: se descomprime a mano
+                    const buf = await res.arrayBuffer();
+                    const gz = new Uint8Array(buf, 0, 2);
+                    const raw = gz[0] === 0x1f && gz[1] === 0x8b
+                        ? new Response(new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"))) : new Response(buf);
+                    d = await raw.json();
+                    break;
+                } catch (e) { lpDown.add(host); }
+                finally { clearTimeout(to); }
             }
-            finally { clearTimeout(to); }
             if (!d || !Array.isArray(d.lyrics) || !/word|syllable/i.test(d.type || "")) return false;
             // voz y coros por separado (con sus tiempos: pueden solaparse); Spotify a veces no trae los coros
             const nl = [];
@@ -1594,10 +1604,13 @@
             }
             const H = Spicetify.Platform.History;
             if (!b || fsPass) return;
-            // espera al cambio de pantalla completa y, al salir, a que se cierre la vista cine: Spotify
-            // suelta primero la pantalla completa y la cierra segundos después (máx. 4 s en total)
+            // espera al cambio de pantalla completa y, al salir con el botón del dock, a que se cierre
+            // la vista cine: Spotify suelta primero la pantalla completa y la cierra segundos después
+            // (máx. 4 s en total). El de arriba (y Esc) solo quita la pantalla completa: la vista cine
+            // sigue abierta, en la ventana
+            const fromTop = !!b.closest(".Root__cinema-view");
             const fsDone = () => new Promise((res) => {
-                const t0 = performance.now(), leaving = !!document.fullscreenElement;
+                const t0 = performance.now(), leaving = !!document.fullscreenElement && !fromTop;
                 const done = () => {
                     document.removeEventListener("fullscreenchange", done);
                     const wait = () => {
@@ -1677,9 +1690,10 @@
         document.addEventListener("fullscreenchange", () => {
             fsChangeAt = performance.now();
             if (!document.fullscreenElement) fsMine = false;
-            // cambio sin el botón (Esc, F11) con la letra abierta: el velo tapa también la recolocación
+            // cambio sin el botón (Esc, F11) con la letra o la vista cine abiertas: la misma coreografía
+            // (la carátula vuela a su sitio nuevo) y el velo tapa la recolocación
             const H = Spicetify.Platform.History;
-            if ((fsOn || (H.location && H.location.pathname === "/lyrics") || document.querySelector(".Root__cinema-view")) && !fsVeilBusy) fsVeil();
+            if ((fsOn || (H.location && H.location.pathname === "/lyrics") || document.querySelector(".Root__cinema-view")) && !fsVeilBusy) fsVeil(() => {});
             setTimeout(fsLyrics, 50);
         });
         loadLyrics();

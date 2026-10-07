@@ -349,13 +349,15 @@ img[class*="playingIcon"] { filter: grayscale(1) brightness(1.6) !important; }
 }
 
 /* El mismo hover con borde en las filas de la biblioteca */
-.main-rootlist-wrapper [role="row"] [class*="box--interactive"] {
+.main-yourLibraryX-libraryRootlist [role="row"] [class*="box--interactive"] {
     border: 1px solid transparent !important;
     border-radius: 12px !important;
     box-sizing: border-box !important;
     transition: background-color 140ms ease, border-color 140ms ease !important;
 }
-.main-rootlist-wrapper [role="row"] [class*="box--interactive"]:hover {
+/* en Spotify 1.3 (Windows) el hover propio va en un ::after, encima de este fondo */
+.main-yourLibraryX-libraryRootlist [role="row"] [class*="box--interactive"]::after { background: none !important; }
+.main-yourLibraryX-libraryRootlist [role="row"] [class*="box--interactive"]:hover {
     background-color: rgba(var(--spice-rgb-text), 0.07) !important;
     border-color: var(--cs-border-soft) !important;
 }
@@ -1450,11 +1452,14 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="
 @property --rp { syntax: "<number>"; inherits: false; initial-value: 0; }
 @keyframes cs-rfill-a { from { --rp: 0; } to { --rp: 1; } }
 @keyframes cs-rfill-b { from { --rp: 0; } to { --rp: 1; } }
+/* va en línea, no como bloque: si ocupa dos renglones, el relleno los recorre uno detrás de otro
+   (en línea el fondo se pinta como si los trozos fueran seguidos). Ya cae debajo del texto (que es
+   un bloque); la línea lleva un interlineado pequeño para que sus renglones no se separen */
+.lyrics-lyricsContent-lyric[data-cs-rom] { line-height: 0.65 !important; }
+.lyrics-lyricsContent-lyric[data-cs-rom] > .lyrics-lyricsContent-text { line-height: 1.16; margin-bottom: 0.09em; }
 .lyrics-lyricsContent-lyric[data-cs-rom]::after {
     content: attr(data-cs-rom);
-    display: block;
-    width: fit-content;
-    margin-top: 0.18em;
+    display: inline;
     font-size: 0.5em;
     font-weight: 500;
     line-height: 1.3;
@@ -1464,10 +1469,9 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="
 /* con fila de coros, la romanización va al principio de esa fila (theme.js): pegada a la voz */
 .lyrics-lyricsContent-lyric[data-cs-romrow]::after { display: none; }
 .lyrics-lyricsContent-lyric[data-cs-romrow] .cs-bvrow[data-cs-rom]::before {
-    content: attr(data-cs-rom);
-    display: block;
-    width: fit-content;
-    margin: 0.05em 0 0.3em;
+    content: attr(data-cs-rom) "\A";
+    white-space: pre-line;
+    display: inline;
     font-size: 0.76em; /* = 0.5em de la línea (la fila va a 0.66em) */
     font-weight: 500;
     line-height: 1.3;
