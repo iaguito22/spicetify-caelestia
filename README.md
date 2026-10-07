@@ -1,3 +1,7 @@
+
+
+
+
 # Caelestia for Spicetify
 
 A Spotify theme where the panels float as rounded islands and **the only color comes from the song that's playing**.
@@ -8,6 +12,10 @@ A Spotify theme where the panels float as rounded islands and **the only color c
 *[Leer en español ↓](#-en-español)*
 
 ![Lyrics going fullscreen: the artwork flies into place and tilts towards the mouse](screenshots/demo-fullscreen.webp)
+
+
+https://github.com/user-attachments/assets/ff34e68d-3193-46a1-9336-d382b18ca547
+
 
 <p align="center"><a href="screenshots/demo.mp4">▶ Full demo (MP4, 31 s)</a></p>
 
@@ -49,6 +57,10 @@ That color drives the play button, progress bar, active lyric, highlights and th
 </p>
 
 ![Ambient mode around a music video](screenshots/demo-ambient.webp)
+
+https://github.com/user-attachments/assets/2d193f74-8537-4db8-84f8-9957870da3a4
+
+
 
 > [!TIP]
 > The theme already has its own synced, word-by-word lyrics. If you use a lyrics extension or custom app (like lyrics-plus or Beautiful Lyrics), you can remove it.
@@ -100,6 +112,10 @@ Un tema para Spotify con los paneles flotando como islas redondeadas, en el que 
 
 ![La letra pasa a pantalla completa: la carátula vuela a su sitio y se inclina hacia el ratón](screenshots/demo-fullscreen.webp)
 
+
+https://github.com/user-attachments/assets/af224b68-5478-4441-8afb-b3c7af961219
+
+
 <p align="center"><a href="screenshots/demo.mp4">▶ Demo completa (MP4, 31 s)</a></p>
 
 > [!IMPORTANT]
@@ -143,6 +159,10 @@ Ese color es el del botón de reproducir, la barra de progreso, la línea de la 
 </p>
 
 ![Modo ambiente alrededor de un videoclip](screenshots/demo-ambient.webp)
+
+
+https://github.com/user-attachments/assets/44b10948-0de1-4b6f-ac1e-4dc8ac779f3a
+
 
 > [!TIP]
 > El tema ya trae su propia letra sincronizada palabra a palabra. Si usas alguna extensión o app de letras (como lyrics-plus o Beautiful Lyrics), puedes quitarla.
