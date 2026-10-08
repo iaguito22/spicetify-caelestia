@@ -325,6 +325,9 @@
     const OPT = Object.assign({ rom: true, tr: false, bv: true, size: 0, offs: {} }, (() => {
         try { return JSON.parse(localStorage.getItem(OPT_KEY)) || {}; } catch (e) { return {}; }
     })());
+    // vista cine (Sonando a pantalla completa, sin letra)
+    OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
+    const CINE_SIZES = [0.76, 0.88, 1, 1.12];
     const SIZES = [0.8, 0.9, 1, 1.12, 1.25];
     function optSave() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {} }
     function optApply() {
@@ -332,6 +335,11 @@
         h.toggleAttribute("data-cs-nobv", !OPT.bv);
         const k = SIZES[OPT.size + 2] || 1;
         if (k === 1) h.style.removeProperty("--cs-lyr-k"); else h.style.setProperty("--cs-lyr-k", String(k));
+        const C = OPT.cine, ck = CINE_SIZES[C.size + 2] || 1;
+        h.toggleAttribute("data-cs-cine-notitle", !C.title);
+        h.toggleAttribute("data-cs-cine-noprog", !C.prog);
+        h.toggleAttribute("data-cs-cine-times", C.prog && C.times);
+        if (ck === 1) h.style.removeProperty("--cs-cine-k"); else h.style.setProperty("--cs-cine-k", String(ck));
     }
     const lyrOffset = () => (lyr.id && OPT.offs[lyr.id]) || 0;
     // repasa las líneas en pantalla (romanización/traducción puestas o quitadas)
@@ -384,35 +392,27 @@
         m.classList.add("cs-out");
         setTimeout(() => m.remove(), 160);
     }
-    function menuOpen(x, y) {
+    // Menú flotante: `fill(ui)` lo rellena con interruptores (sw), contadores (stepper), separadores
+    // y botones; se vuelve a dibujar tras cada cambio
+    function menuOpen(x, y, fill) {
         menuClose();
         const m = document.createElement("div");
         m.id = "cs-lyrmenu";
         m.setAttribute("role", "menu");
-        const hasRom = !!(lyr.rom && lyr.rom.size);
-        const fmt = (ms) => (ms > 0 ? "+" : ms < 0 ? "−" : "") + (Math.abs(ms) / 1000).toFixed(2).replace(".", ",") + " s";
-        const render = () => {
-            const off = lyrOffset();
-            m.innerHTML = "";
-            const sw = (key, label, note, dis) => {
+        const ui = {
+            sw(label, on, toggle, note, dis) {
                 const b = document.createElement("button");
                 b.className = "cs-lm-item";
                 b.setAttribute("role", "menuitemcheckbox");
-                b.setAttribute("aria-checked", String(!!OPT[key]));
+                b.setAttribute("aria-checked", String(!!on));
                 if (dis) b.disabled = true;
                 b.innerHTML = `<span class="cs-lm-txt"><span></span><small></small></span><i class="cs-lm-sw"></i>`;
                 b.querySelector(".cs-lm-txt > span").textContent = label;
                 b.querySelector("small").textContent = note || "";
-                b.onclick = () => {
-                    OPT[key] = !OPT[key];
-                    optSave(); optApply();
-                    if (key === "tr" && OPT.tr && lyr.id && lyr.lines && !trCache.has(lyr.id)) translate(lyr.id, lyr.lines.map((l) => l.text));
-                    lyrRefresh();
-                    render();
-                };
+                b.onclick = () => { toggle(); render(); };
                 m.append(b);
-            };
-            const stepper = (label, value, onMinus, onPlus, onReset, title) => {
+            },
+            stepper(label, value, onMinus, onPlus, onReset, title) {
                 const r = document.createElement("div");
                 r.className = "cs-lm-item cs-lm-step";
                 r.innerHTML = `<span class="cs-lm-txt"><span></span></span><span class="cs-lm-ctl"><button aria-label="−">−</button><b></b><button aria-label="+">+</button></span>`;
@@ -425,35 +425,19 @@
                 pl.onclick = () => { onPlus(); render(); };
                 b.ondblclick = () => { onReset(); render(); };
                 m.append(r);
-            };
-            sw("rom", "Romanización", hasRom ? "" : "Esta canción no la necesita", !hasRom);
-            sw("tr", "Traducción", OPT.tr && lyr.id && trCache.has(lyr.id) && !trCache.get(lyr.id) ? "Ya está en tu idioma" : "");
-            sw("bv", "Coros", "");
-            m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" }));
-            const sizeName = ["Muy pequeña", "Pequeña", "Normal", "Grande", "Muy grande"][OPT.size + 2];
-            const setSize = (d) => { OPT.size = Math.max(-2, Math.min(2, OPT.size + d)); optSave(); optApply(); };
-            stepper("Tamaño", sizeName, () => setSize(-1), () => setSize(1), () => setSize(-OPT.size));
-            const setOff = (d) => {
-                if (!lyr.id) return;
-                const v = d === null ? 0 : Math.max(-5000, Math.min(5000, lyrOffset() + d));
-                if (v) OPT.offs[lyr.id] = v; else delete OPT.offs[lyr.id];
-                optSave();
-                clk.jump = true; clk.cur = -2; // rehace la frase actual con el nuevo reloj
-            };
-            stepper("Sincronía", fmt(off), () => setOff(-250), () => setOff(250), () => setOff(null), "Doble clic: volver a 0 · solo esta canción");
-            m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" }));
-            const cp = document.createElement("button");
-            cp.className = "cs-lm-item";
-            cp.innerHTML = `<span class="cs-lm-txt"><span>Copiar letra</span></span>`;
-            cp.disabled = !(lyr.lines && lyr.lines.length);
-            cp.onclick = async () => {
-                const txt = lyr.lines.map((l) => l.text).join("\n").replace(/♪/g, "").replace(/\n{3,}/g, "\n\n").trim();
-                try { await navigator.clipboard.writeText(txt); } catch (e) { Spicetify.Platform && Spicetify.Platform.ClipboardAPI && Spicetify.Platform.ClipboardAPI.copy(txt); }
-                Spicetify.showNotification && Spicetify.showNotification("Letra copiada");
-                menuClose();
-            };
-            m.append(cp);
+            },
+            sep() { m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" })); },
+            btn(label, fn, dis) {
+                const b = document.createElement("button");
+                b.className = "cs-lm-item";
+                b.innerHTML = `<span class="cs-lm-txt"><span></span></span>`;
+                b.querySelector(".cs-lm-txt > span").textContent = label;
+                b.disabled = !!dis;
+                b.onclick = fn;
+                m.append(b);
+            },
         };
+        const render = () => { m.innerHTML = ""; fill(ui); };
         render();
         document.body.append(m);
         const r = m.getBoundingClientRect(), W = innerWidth, H = innerHeight;
@@ -462,12 +446,56 @@
         m.style.transformOrigin = `${x > W - r.width - 8 ? "right" : "left"} ${y > H - r.height - 8 ? "bottom" : "top"}`;
         lyrMenu = m;
     }
+    function lyrMenuFill(ui) {
+        const hasRom = !!(lyr.rom && lyr.rom.size);
+        const fmt = (ms) => (ms > 0 ? "+" : ms < 0 ? "−" : "") + (Math.abs(ms) / 1000).toFixed(2).replace(".", ",") + " s";
+        const flip = (key) => () => {
+            OPT[key] = !OPT[key];
+            optSave(); optApply();
+            if (key === "tr" && OPT.tr && lyr.id && lyr.lines && !trCache.has(lyr.id)) translate(lyr.id, lyr.lines.map((l) => l.text));
+            lyrRefresh();
+        };
+        ui.sw("Romanización", OPT.rom, flip("rom"), hasRom ? "" : "Esta canción no la necesita", !hasRom);
+        ui.sw("Traducción", OPT.tr, flip("tr"), OPT.tr && lyr.id && trCache.has(lyr.id) && !trCache.get(lyr.id) ? "Ya está en tu idioma" : "");
+        ui.sw("Coros", OPT.bv, flip("bv"));
+        ui.sep();
+        const sizeName = ["Muy pequeña", "Pequeña", "Normal", "Grande", "Muy grande"][OPT.size + 2];
+        const setSize = (d) => { OPT.size = Math.max(-2, Math.min(2, OPT.size + d)); optSave(); optApply(); };
+        ui.stepper("Tamaño", sizeName, () => setSize(-1), () => setSize(1), () => setSize(-OPT.size));
+        const setOff = (d) => {
+            if (!lyr.id) return;
+            const v = d === null ? 0 : Math.max(-5000, Math.min(5000, lyrOffset() + d));
+            if (v) OPT.offs[lyr.id] = v; else delete OPT.offs[lyr.id];
+            optSave();
+            clk.jump = true; clk.cur = -2; // rehace la frase actual con el nuevo reloj
+        };
+        ui.stepper("Sincronía", fmt(lyrOffset()), () => setOff(-250), () => setOff(250), () => setOff(null), "Doble clic: volver a 0 · solo esta canción");
+        ui.sep();
+        ui.btn("Copiar letra", async () => {
+            const txt = lyr.lines.map((l) => l.text).join("\n").replace(/♪/g, "").replace(/\n{3,}/g, "\n\n").trim();
+            try { await navigator.clipboard.writeText(txt); } catch (e) { Spicetify.Platform && Spicetify.Platform.ClipboardAPI && Spicetify.Platform.ClipboardAPI.copy(txt); }
+            Spicetify.showNotification && Spicetify.showNotification("Letra copiada");
+            menuClose();
+        }, !(lyr.lines && lyr.lines.length));
+    }
+    function cineMenuFill(ui) {
+        const C = OPT.cine, flip = (k) => () => { C[k] = !C[k]; optSave(); optApply(); if (k === "tilt" && !C.tilt) tiltLeave(); };
+        ui.sw("Título y artista", C.title, flip("title"));
+        ui.sw("Barra de progreso", C.prog, flip("prog"), "A pantalla completa");
+        ui.sw("Tiempos", C.times, flip("times"), "Debajo de la barra", !C.prog);
+        ui.sw("Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
+        ui.sep();
+        const setSize = (d) => { C.size = Math.max(-2, Math.min(1, C.size + d)); optSave(); optApply(); };
+        ui.stepper("Portada", ["Pequeña", "Mediana", "Normal", "Grande"][C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
+    }
     document.addEventListener("contextmenu", (e) => {
         const t = e.target instanceof Element ? e.target : null;
-        if (!t || !t.closest(".lyrics-lyrics-container") || t.closest("#cs-lyrmenu")) return;
+        if (!t || t.closest("#cs-lyrmenu")) return;
+        const fill = t.closest(".lyrics-lyrics-container") ? lyrMenuFill : t.closest(".Root__cinema-view") ? cineMenuFill : null;
+        if (!fill) return;
         e.preventDefault();
         e.stopPropagation();
-        menuOpen(e.clientX, e.clientY);
+        menuOpen(e.clientX, e.clientY, fill);
     }, true);
     document.addEventListener("pointerdown", (e) => { if (lyrMenu && !(e.target instanceof Node && lyrMenu.contains(e.target))) menuClose(); }, true);
     document.addEventListener("keydown", (e) => { if (lyrMenu && e.key === "Escape") { e.stopPropagation(); menuClose(); } }, true);
@@ -1202,7 +1230,9 @@
         a.className = "cs-cine-artist"; a.textContent = artists;
         // la misma barra de progreso que la letra a pantalla completa (el CSS la enseña solo a pantalla completa)
         pr.className = "cs-fa-prog cs-cine-prog"; pr.append(document.createElement("i"));
-        el.replaceChildren(t, a, pr);
+        const tm = document.createElement("div");
+        tm.className = "cs-cine-times"; tm.append(document.createElement("span"), document.createElement("span"));
+        el.replaceChildren(t, a, pr, tm);
         cineProg();
     }
     let cineProgT = 0;
@@ -1211,6 +1241,13 @@
         const bar = document.querySelector("#cs-cine-title .cs-cine-prog i");
         if (!bar) return;
         if (bar.offsetParent) progBar(bar);
+        const tm = OPT.cine.times && document.querySelector("#cs-cine-title .cs-cine-times");
+        if (tm && tm.offsetParent) {
+            const P = Spicetify.Player, f = (ms) => { const x = Math.max(0, Math.floor(ms / 1000)); return Math.floor(x / 60) + ":" + String(x % 60).padStart(2, "0"); };
+            const [a, b] = tm.children, ta = f(P.getProgress() || 0), tb = f(P.getDuration() || 0);
+            if (a.textContent !== ta) a.textContent = ta;
+            if (b.textContent !== tb) b.textContent = tb;
+        }
         cineProgT = setTimeout(cineProg, 500);
     }
 
@@ -1557,7 +1594,8 @@
         tiltEl = null;
     }
     document.addEventListener("pointermove", (e) => {
-        const el = e.target instanceof Element && e.target.closest(TILT_SEL);
+        let el = e.target instanceof Element && e.target.closest(TILT_SEL);
+        if (el && !OPT.cine.tilt && el.classList.contains("cover-art")) el = null;
         if (el !== tiltEl) { tiltLeave(); if (el) { tiltEl = el; el.setAttribute("data-cs-tilt", ""); } }
         if (!el) return;
         tiltEv = e;
@@ -1601,6 +1639,65 @@
         }
         fsArt();
     }
+
+    // ---- Asas en el hueco entre paneles ---------------------------------------------------
+    // La barra de Spotify para cambiar el ancho de un panel mide 8 px y va metida en el borde del
+    // panel: costaba atinar. Un asa ocupa todo el hueco entre paneles y, al pulsarla, le pasa el
+    // pointerdown a esa barra (Spotify sigue el ratón por su cuenta, en document). Al pasar el
+    // ratón sale una píldora vertical en el centro del hueco.
+    const gaps = { l: null, r: null, raf: 0, ro: null, obs: [] };
+    const gapBar = (side) => document.querySelector(side === "l" ? ".Root__nav-bar > .LayoutResizer__resize-bar" : ".Root__right-sidebar > .LayoutResizer__resize-bar");
+    function gapEl(side) {
+        let g = gaps[side];
+        if (g && g.isConnected) return g;
+        g = gaps[side] = document.createElement("div");
+        g.className = "cs-gap";
+        g.hidden = true;
+        g.append(document.createElement("i"));
+        g.addEventListener("pointerdown", (e) => {
+            const bar = gapBar(side);
+            if (e.button !== 0 || !bar) return;
+            e.preventDefault();
+            bar.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY,
+                pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 1 }));
+            g.setAttribute("data-on", "");
+            const follow = () => { gapPlace(); gaps.raf = requestAnimationFrame(follow); };
+            gaps.raf = requestAnimationFrame(follow);
+            document.addEventListener("pointerup", () => { g.removeAttribute("data-on"); cancelAnimationFrame(gaps.raf); requestAnimationFrame(gapPlace); }, { once: true });
+        });
+        // doble clic: lo mismo que en la barra de Spotify
+        g.addEventListener("dblclick", () => { const bar = gapBar(side); if (bar) bar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); });
+        document.body.append(g);
+        return g;
+    }
+    function gapPlace() {
+        const root = document.documentElement, main = document.querySelector(".Root__main-view");
+        // sin paneles a la vista (letra a pantalla completa, vista cine): sin asas
+        const off = !main || root.hasAttribute("data-cs-fslyr") || !!document.querySelector(".Root__cinema-view");
+        const mr = !off && main.getBoundingClientRect();
+        for (const side of ["l", "r"]) {
+            const g = gapEl(side), bar = !off && gapBar(side), pr = bar && bar.parentElement.getBoundingClientRect();
+            const a = pr && (side === "l" ? pr.right : mr.right), b = pr && (side === "l" ? mr.left : pr.left);
+            const show = !!pr && pr.width > 0 && mr.width > 0 && b - a >= 2 && b - a <= 64;
+            if (g.hidden === show) g.hidden = !show;
+            if (!show) continue;
+            const top = Math.max(pr.top, mr.top), h = Math.min(pr.bottom, mr.bottom) - top;
+            g.style.cssText = `left:${a}px;width:${b - a}px;top:${top}px;height:${h}px`;
+        }
+    }
+    // se recolocan cuando cambia el tamaño de algún panel; cada 500 ms se mira si Spotify los sustituyó
+    function gapsWatch() {
+        const els = [".Root__nav-bar", ".Root__main-view", ".Root__right-sidebar"].map((q) => document.querySelector(q));
+        const wasOff = gaps.off, isOff = document.documentElement.hasAttribute("data-cs-fslyr") || !!document.querySelector(".Root__cinema-view");
+        gaps.off = isOff;
+        if (els.every((e, i) => e === gaps.obs[i]) && wasOff === isOff) return;
+        gaps.obs = els;
+        gaps.ro ||= new ResizeObserver(() => gapPlace());
+        gaps.ro.disconnect();
+        for (const e of els) if (e) gaps.ro.observe(e);
+        gapPlace();
+    }
+    window.addEventListener("resize", () => requestAnimationFrame(gapPlace));
 
     // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
     const DOCK_W = 760, DOCK_INSET = 12;
@@ -2071,6 +2168,7 @@
             root.toggleAttribute("data-cs-synced", !!(lyr.lines && lyr.lines.length));
             tagLyrics13();
             cineTitle();
+            gapsWatch();
             fsLyrics();
             if (cineEl) cineIdleCheck();
             if (!lyrRaf && document.querySelector(".lyrics-lyrics-container")) lyrRaf = requestAnimationFrame(lyricsTick);
