@@ -130,7 +130,7 @@
     //  2. sílabas de Spotify (`syllables`), si algún día las envía;
     //  3. el tiempo de la línea repartido entre sus palabras según su longitud;
     //  4. sin tiempos, la letra normal de Spotify.
-    const lyr = { id: "", lines: null, rom: null };
+    const lyr = { id: "", lines: null, rom: null, tr: null };
     const lyrCache = new Map();
     let lyrRaf = 0;
 
@@ -222,12 +222,15 @@
         lyr.id = id;
         lyr.lines = null;
         lyr.rom = null;
+        lyr.tr = null;
         if (!id) return;
         if (lyrCache.has(id)) {
             lyr.lines = lyrCache.get(id);
             lyr.rom = romCache.get(id) || null;
             // la romanización falló la otra vez (red, límite de Google): se reintenta
             if (lyr.lines && !romCache.has(id)) romanize(id, lyr.lines.map((l) => l.text), "");
+            lyr.tr = trCache.get(id) || null;
+            if (lyr.lines && OPT.tr && !trCache.has(id)) translate(id, lyr.lines.map((l) => l.text));
             return;
         }
         let lines = null, lang = "";
@@ -246,6 +249,7 @@
         lyrCache.set(id, lines);
         if (lyr.id === id) lyr.lines = lines;
         if (lines) romanize(id, lines.map((l) => l.text), lang);
+        if (lines && OPT.tr) translate(id, lines.map((l) => l.text));
         if (lines && !(await lyricsPlusWords(lines, item))) await neteaseWords(lines, item);
     }
 
@@ -295,7 +299,8 @@
     // si la línea tiene fila de coros, la romanización va al principio de esa fila (::before):
     // pegada a la voz y con el coro debajo (data-cs-romrow oculta el ::after de la línea)
     function romLine(line, text) {
-        const r = lyr.rom && lyr.rom.get(romKey(text));
+        trLine(line, text);
+        const r = OPT.rom && lyr.rom && lyr.rom.get(romKey(text));
         if (r) { if (line.getAttribute("data-cs-rom") !== r) line.setAttribute("data-cs-rom", r); }
         else if (line.hasAttribute("data-cs-rom")) line.removeAttribute("data-cs-rom");
         const row = line.querySelector(":scope > .lyrics-lyricsContent-text > .cs-bvrow");
@@ -306,6 +311,163 @@
         const rr = !!(r && row);
         if (line.hasAttribute("data-cs-romrow") !== rr) line.toggleAttribute("data-cs-romrow", rr);
     }
+
+
+    // ---- Opciones de la letra (clic derecho sobre la letra) -------------------
+    // Se guardan en localStorage; el desfase de sincronía va por canción.
+    const OPT_KEY = "cs-lyrics-opts";
+    const OPT = Object.assign({ rom: true, tr: false, bv: true, size: 0, offs: {} }, (() => {
+        try { return JSON.parse(localStorage.getItem(OPT_KEY)) || {}; } catch (e) { return {}; }
+    })());
+    const SIZES = [0.8, 0.9, 1, 1.12, 1.25];
+    function optSave() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {} }
+    function optApply() {
+        const h = document.documentElement;
+        h.toggleAttribute("data-cs-nobv", !OPT.bv);
+        const k = SIZES[OPT.size + 2] || 1;
+        if (k === 1) h.style.removeProperty("--cs-lyr-k"); else h.style.setProperty("--cs-lyr-k", String(k));
+    }
+    const lyrOffset = () => (lyr.id && OPT.offs[lyr.id]) || 0;
+    // repasa las líneas en pantalla (romanización/traducción puestas o quitadas)
+    function lyrRefresh() {
+        const box = document.querySelector(".lyrics-lyrics-container");
+        if (!box) return;
+        for (const el of box.querySelectorAll(".lyrics-lyricsContent-lyric > .lyrics-lyricsContent-text")) romLine(el.parentElement, el.textContent);
+    }
+
+    // ---- Traducción (Google Translate, al idioma de Spotify) -------------------
+    // Una línea por renglón, de 40 en 40. Si la canción ya está en ese idioma no se pone nada.
+    const trCache = new Map();
+    const trLang = () => String((Spicetify.Locale && Spicetify.Locale.getLocale && Spicetify.Locale.getLocale()) || navigator.language || "en").split(/[-_]/)[0];
+    async function translate(id, texts) {
+        if (trCache.has(id) || translate.busy === id) return;
+        translate.busy = id;
+        const tl = trLang(), src = (t) => (splitBv(t).main || t).trim();
+        const uniq = [...new Set(texts.map(src).filter((t) => /[\p{L}]/u.test(t)))];
+        const m = new Map();
+        try {
+            for (let i = 0; i < uniq.length; i += 40) {
+                const part = uniq.slice(i, i + 40);
+                const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
+                let j;
+                try {
+                    j = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${tl}&dt=t&q=${encodeURIComponent(part.join("\n"))}`, { signal: ctl.signal })).json();
+                } finally { clearTimeout(to); }
+                if (j && j[2] === tl) { m.clear(); break; } // ya está en tu idioma
+                const out = ((j && j[0]) || []).map((x) => (x && x[0]) || "").join("").split("\n");
+                if (out.length !== part.length) continue; // no casa línea a línea: mejor nada
+                part.forEach((t, k) => { const r = out[k].trim(); if (r && norm(r) !== norm(t)) m.set(norm(t), r); });
+            }
+        } catch (e) { translate.busy = ""; return; } // sin red: se reintenta
+        translate.busy = "";
+        trCache.set(id, m.size ? m : null);
+        if (lyr.id === id) { lyr.tr = m.size ? m : null; lyrRefresh(); }
+    }
+    function trLine(line, text) {
+        const r = OPT.tr && lyr.tr && lyr.tr.get(norm(splitBv(text || "").main || text || ""));
+        if (r) { if (line.getAttribute("data-cs-tr") !== r) line.setAttribute("data-cs-tr", r); }
+        else if (line.hasAttribute("data-cs-tr")) line.removeAttribute("data-cs-tr");
+    }
+
+    // ---- Menú ------------------------------------------------------------------
+    let lyrMenu = null;
+    function menuClose() {
+        if (!lyrMenu) return;
+        const m = lyrMenu;
+        lyrMenu = null;
+        m.classList.add("cs-out");
+        setTimeout(() => m.remove(), 160);
+    }
+    function menuOpen(x, y) {
+        menuClose();
+        const m = document.createElement("div");
+        m.id = "cs-lyrmenu";
+        m.setAttribute("role", "menu");
+        const hasRom = !!(lyr.rom && lyr.rom.size);
+        const fmt = (ms) => (ms > 0 ? "+" : ms < 0 ? "−" : "") + (Math.abs(ms) / 1000).toFixed(2).replace(".", ",") + " s";
+        const render = () => {
+            const off = lyrOffset();
+            m.innerHTML = "";
+            const sw = (key, label, note, dis) => {
+                const b = document.createElement("button");
+                b.className = "cs-lm-item";
+                b.setAttribute("role", "menuitemcheckbox");
+                b.setAttribute("aria-checked", String(!!OPT[key]));
+                if (dis) b.disabled = true;
+                b.innerHTML = `<span class="cs-lm-txt"><span></span><small></small></span><i class="cs-lm-sw"></i>`;
+                b.querySelector(".cs-lm-txt > span").textContent = label;
+                b.querySelector("small").textContent = note || "";
+                b.onclick = () => {
+                    OPT[key] = !OPT[key];
+                    optSave(); optApply();
+                    if (key === "tr" && OPT.tr && lyr.id && lyr.lines && !trCache.has(lyr.id)) translate(lyr.id, lyr.lines.map((l) => l.text));
+                    lyrRefresh();
+                    render();
+                };
+                m.append(b);
+            };
+            const stepper = (label, value, onMinus, onPlus, onReset, title) => {
+                const r = document.createElement("div");
+                r.className = "cs-lm-item cs-lm-step";
+                r.innerHTML = `<span class="cs-lm-txt"><span></span></span><span class="cs-lm-ctl"><button aria-label="−">−</button><b></b><button aria-label="+">+</button></span>`;
+                r.querySelector(".cs-lm-txt > span").textContent = label;
+                const b = r.querySelector("b");
+                b.textContent = value;
+                if (title) b.title = title;
+                const [mi, pl] = r.querySelectorAll("button");
+                mi.onclick = () => { onMinus(); render(); };
+                pl.onclick = () => { onPlus(); render(); };
+                b.ondblclick = () => { onReset(); render(); };
+                m.append(r);
+            };
+            sw("rom", "Romanización", hasRom ? "" : "Esta canción no la necesita", !hasRom);
+            sw("tr", "Traducción", OPT.tr && lyr.id && trCache.has(lyr.id) && !trCache.get(lyr.id) ? "Ya está en tu idioma" : "");
+            sw("bv", "Coros", "");
+            m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" }));
+            const sizeName = ["Muy pequeña", "Pequeña", "Normal", "Grande", "Muy grande"][OPT.size + 2];
+            const setSize = (d) => { OPT.size = Math.max(-2, Math.min(2, OPT.size + d)); optSave(); optApply(); };
+            stepper("Tamaño", sizeName, () => setSize(-1), () => setSize(1), () => setSize(-OPT.size));
+            const setOff = (d) => {
+                if (!lyr.id) return;
+                const v = d === null ? 0 : Math.max(-5000, Math.min(5000, lyrOffset() + d));
+                if (v) OPT.offs[lyr.id] = v; else delete OPT.offs[lyr.id];
+                optSave();
+                clk.jump = true; clk.cur = -2; // rehace la frase actual con el nuevo reloj
+            };
+            stepper("Sincronía", fmt(off), () => setOff(-250), () => setOff(250), () => setOff(null), "Doble clic: volver a 0 · solo esta canción");
+            m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" }));
+            const cp = document.createElement("button");
+            cp.className = "cs-lm-item";
+            cp.innerHTML = `<span class="cs-lm-txt"><span>Copiar letra</span></span>`;
+            cp.disabled = !(lyr.lines && lyr.lines.length);
+            cp.onclick = async () => {
+                const txt = lyr.lines.map((l) => l.text).join("\n").replace(/♪/g, "").replace(/\n{3,}/g, "\n\n").trim();
+                try { await navigator.clipboard.writeText(txt); } catch (e) { Spicetify.Platform && Spicetify.Platform.ClipboardAPI && Spicetify.Platform.ClipboardAPI.copy(txt); }
+                Spicetify.showNotification && Spicetify.showNotification("Letra copiada");
+                menuClose();
+            };
+            m.append(cp);
+        };
+        render();
+        document.body.append(m);
+        const r = m.getBoundingClientRect(), W = innerWidth, H = innerHeight;
+        m.style.left = Math.max(8, Math.min(x, W - r.width - 8)) + "px";
+        m.style.top = Math.max(8, Math.min(y, H - r.height - 8)) + "px";
+        m.style.transformOrigin = `${x > W - r.width - 8 ? "right" : "left"} ${y > H - r.height - 8 ? "bottom" : "top"}`;
+        lyrMenu = m;
+    }
+    document.addEventListener("contextmenu", (e) => {
+        const t = e.target instanceof Element ? e.target : null;
+        if (!t || !t.closest(".lyrics-lyrics-container") || t.closest("#cs-lyrmenu")) return;
+        e.preventDefault();
+        e.stopPropagation();
+        menuOpen(e.clientX, e.clientY);
+    }, true);
+    document.addEventListener("pointerdown", (e) => { if (lyrMenu && !(e.target instanceof Node && lyrMenu.contains(e.target))) menuClose(); }, true);
+    document.addEventListener("keydown", (e) => { if (lyrMenu && e.key === "Escape") { e.stopPropagation(); menuClose(); } }, true);
+    window.addEventListener("blur", menuClose);
+    document.addEventListener("wheel", (e) => { if (lyrMenu && !(e.target instanceof Node && lyrMenu.contains(e.target))) menuClose(); }, { capture: true, passive: true });
+    optApply();
 
     // ---- Tiempos reales por palabra (Netease, formato yrc) ------------------
     const PROXY = "https://cors-proxy.spicetify.app/";
@@ -621,7 +783,8 @@
     function bvScan(box) {
         for (const el of box.querySelectorAll(".lyrics-lyricsContent-lyric > .lyrics-lyricsContent-text")) {
             bvText(el);
-            if (lyr.rom || el.parentElement.hasAttribute("data-cs-rom")) romLine(el.parentElement, el.textContent);
+            const ln = el.parentElement;
+            if (lyr.rom || lyr.tr || ln.hasAttribute("data-cs-rom") || ln.hasAttribute("data-cs-tr")) romLine(ln, el.textContent);
         }
     }
 
@@ -876,11 +1039,21 @@
         L13.mo.observe(wrap, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
     }
 
+    // Sin el reloj del tema (letra sin tiempos propios) el CSS sigue las clases de Spotify
+    function lyrNoClock(box) {
+        clockOff();
+        const act = box.querySelector(".lyrics-lyricsContent-active"), prev = act && act.previousElementSibling;
+        markAll("data-cs-pa", [prev && prev.classList.contains("lyrics-lyricsContent-previous") ? prev : null]);
+        markAll("data-cs-noact", act ? [] : [box.querySelector(".lyrics-lyrics-contentWrapper")]);
+    }
     function lyricsTick() {
         lyrRaf = 0;
         const box = document.querySelector(".lyrics-lyrics-container");
         if (!box) return clockOff();
-        lyrRaf = requestAnimationFrame(lyricsTick);
+        // en pausa no se mueve nada (las animaciones también se paran): basta mirar 4 veces por
+        // segundo si hubo un salto. Pedir un fotograma tras otro hacía a Chrome pintar a 120 Hz
+        // para nada (~30 % de un núcleo)
+        lyrRaf = Spicetify.Player.isPlaying() ? requestAnimationFrame(lyricsTick) : -setTimeout(() => requestAnimationFrame(lyricsTick), 250);
         if (!box.__csReady) { // fin de la entrada en cascada (820 ms + 340 ms del último retardo)
             box.__csReady = true;
             setTimeout(() => box.setAttribute("data-cs-ready", ""), 1250);
@@ -894,11 +1067,12 @@
         const now = performance.now();
         if (!(now - (box.__bvAt || 0) < 1000)) { box.__bvAt = now; bvScan(box); }
         const L = lyr.lines;
-        if (!L || !L.length) return clockOff();
+        if (!L || !L.length) return lyrNoClock(box);
         if (!clk.on || clk.box !== box || clk.id !== lyr.id || !clk.wrap.isConnected) {
-            if (!clockSetup(box, L)) return clockOff();
+            if (!clockSetup(box, L)) return lyrNoClock(box);
+            markAll("data-cs-pa", []); markAll("data-cs-noact", []);
         }
-        const t = Spicetify.Player.getProgress();
+        const t = Spicetify.Player.getProgress() + lyrOffset();
         let cur = -1;
         while (cur + 1 < L.length && L[cur + 1].t <= t) cur++;
         if (cur !== clk.cur) {
@@ -998,7 +1172,7 @@
     function cineTitle() {
         const cover = document.querySelector(".Root__cinema-view .cover-art");
         let el = document.getElementById("cs-cine-title");
-        if (!cover) return void (el && el.remove());
+        if (!cover) return void (el && (markAll("data-cs-cinebox", []), el.remove()));
         const host = cover.parentElement, it = Spicetify.Player.data && Spicetify.Player.data.item;
         if (!it) return;
         if (!el || el.previousElementSibling !== host) {
@@ -1007,6 +1181,7 @@
             el.id = "cs-cine-title";
             host.after(el);
         }
+        markAll("data-cs-cinebox", [el.parentElement]);
         // con Canvas o vídeo la portada es la miniatura de abajo a la izquierda: el título va al lado, alineado a la izquierda
         const side = cover.offsetWidth > 0 && cover.offsetWidth < 200;
         if (el.classList.contains("cs-cine-side") !== side) el.classList.toggle("cs-cine-side", side);
@@ -2230,11 +2405,41 @@
         if (on) cineSkipT = setTimeout(() => cineSkip(false), 2600);
     }
 
+    // ---- Marcas en lugar de :has() ----------------------------------------------------
+    // Un `X:has(…) Y` (con el :has fuera del sujeto) obliga a Chrome a recalcular el estilo de lo
+    // que cuelga de X con CUALQUIER cambio del DOM: cada cambio de frase de la letra pagaba ~40 ms.
+    // Se marcan aquí (en el observador de abajo, antes de pintar) y el CSS mira el atributo.
+    const marked = new Map();
+    function markAll(attr, els) {
+        const now = new Set(els.filter(Boolean)), old = marked.get(attr) || new Set();
+        for (const e of old) if (!now.has(e) && e.hasAttribute(attr)) e.removeAttribute(attr);
+        for (const e of now) if (!e.hasAttribute(attr)) e.setAttribute(attr, "");
+        marked.set(attr, now);
+    }
+    const qa = (sel) => [...document.querySelectorAll(sel)];
+    function tagHas() {
+        markAll("data-cs-entity", qa(".main-entityHeader-containerNormal").map((e) => e.closest("section")));
+        markAll("data-cs-canvasve", qa(".Root__right-sidebar .main-nowPlayingView-canvasVisualEnhancement").map((e) => e.closest(".Root__right-sidebar")));
+        const h2 = qa(".main-yourLibraryX-collapseButton h2");
+        markAll("data-cs-h2", [
+            ...h2.map((e) => { let d = e; while (d.parentElement && !d.parentElement.classList.contains("main-yourLibraryX-collapseButton")) d = d.parentElement; return d.tagName === "DIV" ? d : null; }),
+            ...h2.map((e) => e.closest(".main-yourLibraryX-headerContent")),
+        ]);
+        // botones con icono y texto ("Crear"): con una carpeta abierta se quedan solo con el icono
+        markAll("data-cs-iconbtn", qa(".main-yourLibraryX-headerContent[data-cs-h2] button[aria-label]").filter((b) => b.querySelector(":scope > svg + span")));
+        markAll("data-cs-home", qa('main > div > section[data-testid="home-page"]').map((e) => e.parentElement));
+        tagSearchEmpty();
+    }
+    function tagSearchEmpty() {
+        markAll("data-cs-empty", qa(".main-globalNav-searchInputSection form").filter((f) => { const i = f.querySelector("input"); return i && !i.value; }));
+    }
+    document.addEventListener("input", (e) => { if (e.target instanceof Element && e.target.closest(".main-globalNav-searchInputSection")) tagSearchEmpty(); }, true);
+
     let tagQueued = 0; // 1: solo la lista de canciones, 2: todo
     const tagAll = () => {
         const all = tagQueued !== 1;
         tagQueued = 0;
-        if (all) { cineDup(); cineReopened(); }
+        if (all) { cineDup(); cineReopened(); tagHas(); }
         if (!needAliases()) return;
         if (all) { tagCine(); tagInner(); }
         tagTrackList();
