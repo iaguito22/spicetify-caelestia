@@ -1189,15 +1189,29 @@
         }
         markAll("data-cs-cinebox", [el.parentElement]);
         // con Canvas o vídeo la portada es la miniatura de abajo a la izquierda: el título va al lado, alineado a la izquierda
-        const side = cover.offsetWidth > 0 && cover.offsetWidth < 200;
+        const cw = cover.offsetWidth, side = cw > 0 && cw < 200;
+        // la barra de progreso mide lo mismo que la portada (Spotify la encoge con `scale`)
+        const vw = Math.round(cw * (parseFloat(getComputedStyle(cover).scale) || 1));
+        if (vw && el.__cw !== vw) { el.__cw = vw; el.style.setProperty("--cs-cover-w", vw + "px"); }
         if (el.classList.contains("cs-cine-side") !== side) el.classList.toggle("cs-cine-side", side);
         const name = it.name || "", artists = (it.artists || []).map((a) => a.name).join(", ");
         if (el.dataset.k === name + "\n" + artists) return;
         el.dataset.k = name + "\n" + artists;
-        const t = document.createElement("div"), a = document.createElement("div");
+        const t = document.createElement("div"), a = document.createElement("div"), pr = document.createElement("div");
         t.className = "cs-cine-name"; t.textContent = name;
         a.className = "cs-cine-artist"; a.textContent = artists;
-        el.replaceChildren(t, a);
+        // la misma barra de progreso que la letra a pantalla completa (el CSS la enseña solo a pantalla completa)
+        pr.className = "cs-fa-prog cs-cine-prog"; pr.append(document.createElement("i"));
+        el.replaceChildren(t, a, pr);
+        cineProg();
+    }
+    let cineProgT = 0;
+    function cineProg() {
+        clearTimeout(cineProgT);
+        const bar = document.querySelector("#cs-cine-title .cs-cine-prog i");
+        if (!bar) return;
+        if (bar.offsetParent) progBar(bar);
+        cineProgT = setTimeout(cineProg, 500);
     }
 
     // ---- Modo ambiente del vídeo a pantalla completa (vista cine con Canvas) -------------
@@ -1322,15 +1336,18 @@
     // Barra de progreso bajo el artista: un scaleX cada 500 ms con transición lineal (fuera del
     // scroll de la letra: no despierta a OverlayScrollbars)
     let fsProgT = 0;
-    function fsProg() {
-        clearTimeout(fsProgT);
-        const bar = fsOn && document.querySelector("#cs-fslyr-art .cs-fa-prog i");
-        if (!bar) return;
+    function progBar(bar) {
         const P = Spicetify.Player, dur = P.getDuration() || 0, t = P.getProgress() || 0;
         const p = dur ? Math.min(1, t / dur) : 0, prev = bar.__p || 0;
         // hacia atrás (seek, canción nueva) va directa; hacia delante, en línea con el tiempo
         bar.style.transition = p < prev || p - prev > 0.05 ? "none" : "";
         if (Math.abs(p - prev) > 0.0005) { bar.style.transform = `scaleX(${p.toFixed(4)})`; bar.__p = p; }
+    }
+    function fsProg() {
+        clearTimeout(fsProgT);
+        const bar = fsOn && document.querySelector("#cs-fslyr-art .cs-fa-prog i");
+        if (!bar) return;
+        progBar(bar);
         fsNoLyrics();
         fsProgT = setTimeout(fsProg, 500);
     }

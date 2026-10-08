@@ -2168,6 +2168,19 @@ html.fullscreen .Root__cinema-view .cs-cine-dup, :fullscreen .Root__cinema-view 
 .Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) > div:first-child + div[data-cs-cinebox] .cover-art :is(div, img) { width: 100% !important; height: 100% !important; }
 #cs-cine-title { text-align: center; max-width: min(720px, 80%); animation: cs-page-in 600ms var(--cs-ease) both; }
 #cs-cine-title.cs-cine-side { text-align: left; }
+/* barra de progreso bajo el título, como en la letra a pantalla completa: solo a pantalla completa y
+   con la portada grande (con Canvas o vídeo el título va al lado de la miniatura) */
+#cs-cine-title .cs-cine-prog {
+    width: var(--cs-cover-w, min(58vh, 60vw)); margin: 22px auto 0; height: 3px; border-radius: 3px; overflow: hidden;
+    background: rgba(var(--spice-rgb-text), 0.14);
+}
+#cs-cine-title .cs-cine-prog i {
+    display: block; height: 100%; border-radius: inherit; background: var(--spice-text); opacity: 0.85;
+    transform: scaleX(0); transform-origin: left; transition: transform 500ms linear;
+}
+#cs-cine-title .cs-cine-prog { display: none; }
+/* 1.2 no pone html.fullscreen: vale también :fullscreen (la ventana entera) */
+:is(html.fullscreen, :fullscreen) #cs-cine-title:not(.cs-cine-side) .cs-cine-prog { display: block; }
 #cs-cine-title .cs-cine-name {
     font-size: clamp(22px, 2.4vw, 34px); font-weight: 700; letter-spacing: -0.01em; line-height: 1.15;
     color: var(--spice-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
