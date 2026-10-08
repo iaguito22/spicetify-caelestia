@@ -330,6 +330,10 @@
     OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
     OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0, center: false }, OPT.canvas);
     const CINE_SIZES = [0.76, 0.88, 1, 1.12];
+    // Canvas: alto del vídeo. Pequeño, Normal (deja sitio a la barra centrada) y Grande (casi toda la
+    // altura: no cabe con la barra centrada)
+    const CANVAS_H = ["59vh", "72vh", "calc(100% - 40px)"];
+    OPT.canvas.size = Math.max(-1, Math.min(1, OPT.canvas.size | 0));
     const SIZES = [0.8, 0.9, 1, 1.12, 1.25];
     function optSave() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {} }
     function optApply() {
@@ -337,10 +341,10 @@
         h.toggleAttribute("data-cs-nobv", !OPT.bv);
         const k = SIZES[OPT.size + 2] || 1;
         if (k === 1) h.style.removeProperty("--cs-lyr-k"); else h.style.setProperty("--cs-lyr-k", String(k));
-        for (const [k, C] of [["--cs-cine-k", OPT.cine], ["--cs-canvas-k", OPT.canvas]]) {
-            const v = CINE_SIZES[C.size + 2] || 1;
-            if (v === 1) h.style.removeProperty(k); else h.style.setProperty(k, String(v));
-        }
+        const v = CINE_SIZES[OPT.cine.size + 2] || 1;
+        if (v === 1) h.style.removeProperty("--cs-cine-k"); else h.style.setProperty("--cs-cine-k", String(v));
+        h.style.setProperty("--cs-canvas-h", CANVAS_H[OPT.canvas.size + 1] || CANVAS_H[1]);
+        h.toggleAttribute("data-cs-canvas-big", OPT.canvas.size === 1);
         cineOpts();
     }
     const lyrOffset = () => (lyr.id && OPT.offs[lyr.id]) || 0;
@@ -488,11 +492,16 @@
         ui.sw("Título y artista", C.title, flip("title"));
         ui.sw("Barra de progreso", C.prog, flip("prog"), "A pantalla completa");
         ui.sw("Tiempos", C.times, flip("times"), "Debajo de la barra", !C.prog);
-        if (canvas) ui.sw("Barra centrada", C.center, flip("center"), "Abajo, en el centro", !C.prog);
+        if (canvas) ui.sw("Barra centrada", C.center && C.size < 1, flip("center"), C.size === 1 ? "No cabe con el Canvas grande" : "Abajo, en el centro", !C.prog || C.size === 1);
         ui.sw(canvas ? "Inclinación del Canvas" : "Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
         ui.sep();
-        const setSize = (d) => { C.size = Math.max(-2, Math.min(1, C.size + d)); optSave(); optApply(); };
-        ui.stepper(canvas ? "Canvas" : "Portada", ["Pequeño", "Mediano", "Normal", "Grande"].map((x) => canvas ? x : x.replace(/o$/, "a"))[C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
+        if (canvas) {
+            const setSize = (d) => { C.size = Math.max(-1, Math.min(1, C.size + d)); optSave(); optApply(); };
+            ui.stepper("Canvas", ["Pequeño", "Normal", "Grande"][C.size + 1], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
+        } else {
+            const setSize = (d) => { C.size = Math.max(-2, Math.min(1, C.size + d)); optSave(); optApply(); };
+            ui.stepper("Portada", ["Pequeña", "Mediana", "Normal", "Grande"][C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
+        }
     }
     document.addEventListener("contextmenu", (e) => {
         const t = e.target instanceof Element ? e.target : null;
@@ -1224,7 +1233,7 @@
         if (el.hasAttribute("data-noprog") === C.prog) el.toggleAttribute("data-noprog", !C.prog);
         const t = C.prog && C.times;
         if (el.hasAttribute("data-times") !== t) el.toggleAttribute("data-times", t);
-        const c = el.dataset.mode === "canvas" && C.prog && !!C.center;
+        const c = el.dataset.mode === "canvas" && C.prog && !!C.center && C.size < 1;
         if (el.hasAttribute("data-center") !== c) el.toggleAttribute("data-center", c);
         cineProg();
     }
@@ -1705,76 +1714,69 @@
         g.className = "cs-gap";
         g.hidden = true;
         g.append(document.createElement("i"));
-        g.addEventListener("pointerdown", (e) => ghostDrag(e, side));
+        g.addEventListener("pointerdown", (e) => liveDrag(e, side));
         // doble clic: lo mismo que en la barra de Spotify
         g.addEventListener("dblclick", () => { const bar = gapBar(side); if (bar) bar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); });
         document.body.append(g);
         return g;
     }
-    // Arrastre con guía: cada cambio de ancho obliga a Spotify a recolocar toda la página (en Inicio
-    // 200-300 ms por movimiento: el panel iba a saltos). Mientras se arrastra solo se mueve el asa
-    // (un transform) y al soltar se le pasa a la barra de Spotify el gesto completo de una vez.
-    function ghostDrag(e, side) {
+    // Arrastre en vivo: se le pasa el pointerdown a la barra de Spotify (que sigue el ratón en
+    // document). El ratón está en el centro del hueco y no en el borde del panel: mientras dura, los
+    // movimientos reales se cambian por otros con esa distancia descontada (si no, el panel saltaba
+    // unos px al empezar), y de paso no llegan al resto de la página (sin :hover que recalcular).
+    // Cada cambio de ancho hace que Spotify recoloque la página entera (también sin el tema); para
+    // abaratarlo, las secciones de Inicio que no se ven se saltan mientras dura (data-cs-skip).
+    function liveDrag(e, side) {
         const bar = gapBar(side), g = gapEl(side);
         if (e.button !== 0 || !bar || g.hidden) return;
         e.preventDefault();
         e.stopPropagation();
-        const panel = bar.parentElement, input = panel.querySelector(".LayoutResizer__input");
-        const w0 = panel.getBoundingClientRect().width, min = +(input && input.min) || 72, max = +(input && input.max) || 640;
-        const dir = side === "l" ? 1 : -1, x0 = e.clientX, root = document.documentElement;
-        // desplazamiento permitido (el ancho final lo decide Spotify; esto solo acota la guía)
-        const clampDx = (dx) => dir * (Math.max(min, Math.min(max, w0 + dir * dx)) - w0);
-        let dx = 0, raf = 0;
-        // la guía es un elemento aparte, fino y sin eventos de ratón: desplazar el asa entera bajo el
-        // puntero obligaba a recomponer las capas de toda la página en cada fotograma (~35 fps)
-        const gr = g.getBoundingClientRect(), guide = document.createElement("div");
-        guide.className = "cs-gap-guide";
-        guide.style.cssText = `left:${gr.left + gr.width / 2 - 1}px;top:${gr.top}px;height:${gr.height}px`;
-        guide.append(document.createElement("i"));
-        document.body.append(guide);
+        const pr = bar.parentElement.getBoundingClientRect();
+        const off = e.clientX - (side === "l" ? pr.right : pr.left);
+        const at = (x, y, b) => ({ bubbles: true, cancelable: true, composed: true, clientX: x - off, clientY: y, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: b });
+        const skipped = dragSkip();
+        bar.dispatchEvent(new PointerEvent("pointerdown", at(e.clientX, e.clientY, 1)));
         g.setAttribute("data-on", "");
-        root.setAttribute("data-cs-drag", "");
         const move = (ev) => {
-            dx = clampDx(ev.clientX - x0);
-            if (!raf) raf = requestAnimationFrame(() => { raf = 0; guide.style.transform = `translateX(${dx}px)`; });
+            if (!ev.isTrusted) return;
+            ev.stopImmediatePropagation();
+            document.dispatchEvent(new PointerEvent("pointermove", at(ev.clientX, ev.clientY, 1)));
         };
-        const up = () => {
-            document.removeEventListener("pointermove", move, true);
-            cancelAnimationFrame(raf);
+        const up = (ev) => {
+            if (!ev.isTrusted) return;
+            window.removeEventListener("pointermove", move, true);
+            window.removeEventListener("pointerup", up, true);
+            ev.stopImmediatePropagation();
+            document.dispatchEvent(new PointerEvent("pointerup", at(ev.clientX, ev.clientY, 0)));
+            document.documentElement.removeAttribute("data-cs-drag");
             g.removeAttribute("data-on");
-            root.removeAttribute("data-cs-drag");
-            if (Math.abs(dx) < 1) return void guide.remove();
-            // el gesto entero, de golpe: Spotify escucha los movimientos en document tras su pointerdown
-            const at = (x) => ({ bubbles: true, cancelable: true, composed: true, clientX: x, clientY: e.clientY, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0 });
-            const bx = bar.getBoundingClientRect().left + bar.getBoundingClientRect().width / 2;
-            // (con un fotograma entre pasos: Spotify guarda el arrastre en el estado de React)
-            const frame = () => new Promise((r) => requestAnimationFrame(r));
-            (async () => {
-                // sin la animación de paneles del tema (esperaba a que Spotify se calmara: hasta 4 s)
-                root.setAttribute("data-cs-resizing", "");
-                // después del pointerup real: si no, Spotify lo recibía como el final de este gesto
-                await frame();
-                bar.dispatchEvent(new PointerEvent("pointerdown", { ...at(bx), buttons: 1 }));
-                await frame();
-                document.dispatchEvent(new PointerEvent("pointermove", { ...at(bx + dx), buttons: 1 }));
-                await frame();
-                document.dispatchEvent(new PointerEvent("pointerup", at(bx + dx)));
-                // el asa vuelve a su sitio cuando el panel ya tiene el ancho nuevo
-                await frame(); await frame(); await frame();
-                root.removeAttribute("data-cs-resizing");
-                guide.remove();
-                gapPlace();
-            })();
+            dragUnskip(skipped);
+            requestAnimationFrame(gapPlace);
         };
-        document.addEventListener("pointermove", move, true);
-        document.addEventListener("pointerup", up, { capture: true, once: true });
+        window.addEventListener("pointermove", move, true);
+        window.addEventListener("pointerup", up, true);
     }
-    // la barra original de Spotify también: mismo arrastre con guía
+    // secciones de Inicio fuera de la vista: se saltan (content-visibility: hidden) con su altura
+    // (primero todas las medidas y luego las marcas: medir tras marcar forzaba un layout por sección)
+    function dragSkip() {
+        const mv = document.querySelector(".Root__main-view"), vr = mv && mv.getBoundingClientRect();
+        if (!vr) return [];
+        const secs = [...document.querySelectorAll(".main-home-content > section")].map((sec) => [sec, sec.getBoundingClientRect()]), out = [];
+        for (const [sec, r] of secs) {
+            if (r.bottom > vr.top - 150 && r.top < vr.bottom + 150) continue;
+            sec.style.setProperty("--cs-skip-h", r.height + "px");
+            sec.setAttribute("data-cs-skip", "");
+            out.push(sec);
+        }
+        return out;
+    }
+    function dragUnskip(list) { for (const sec of list) { sec.removeAttribute("data-cs-skip"); sec.style.removeProperty("--cs-skip-h"); } }
+    // la barra original de Spotify: igual (en vivo, sin el salto) y con las secciones saltadas
     document.addEventListener("pointerdown", (e) => {
         const b = e.isTrusted && e.target instanceof Element && e.target.closest(".LayoutResizer__resize-bar");
         if (!b) return;
         const side = b.parentElement.classList.contains("Root__nav-bar") ? "l" : b.parentElement.classList.contains("Root__right-sidebar") ? "r" : "";
-        if (side) ghostDrag(e, side);
+        if (side) liveDrag(e, side);
     }, true);
     function gapPlace() {
         const root = document.documentElement, main = document.querySelector(".Root__main-view");
@@ -1907,7 +1909,7 @@
             // (con la letra a pantalla completa ni se ven, y el tween alargaba 1-2 s el tirón)
             if (fsOn || performance.now() - fsChangeAt < 2500) return;
             const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
-            if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || root.hasAttribute("data-cs-resizing") || !top) return;
+            if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
             // Cortafuegos: si la rejilla no es la de Spotify 1.2 (p. ej. 1.3.x en Windows) o el ancho
             // final no coincide con el pedido, el observador relanzaba la animación sin parar
             // (relayout continuo → cierre de la app). Tras una animación, 1,5 s sin otra; y como
