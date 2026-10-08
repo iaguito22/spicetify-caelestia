@@ -326,7 +326,9 @@
         try { return JSON.parse(localStorage.getItem(OPT_KEY)) || {}; } catch (e) { return {}; }
     })());
     // vista cine (Sonando a pantalla completa, sin letra)
+    // y con Canvas: cada una con sus propias opciones (también el tamaño)
     OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
+    OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.canvas);
     const CINE_SIZES = [0.76, 0.88, 1, 1.12];
     const SIZES = [0.8, 0.9, 1, 1.12, 1.25];
     function optSave() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {} }
@@ -335,11 +337,11 @@
         h.toggleAttribute("data-cs-nobv", !OPT.bv);
         const k = SIZES[OPT.size + 2] || 1;
         if (k === 1) h.style.removeProperty("--cs-lyr-k"); else h.style.setProperty("--cs-lyr-k", String(k));
-        const C = OPT.cine, ck = CINE_SIZES[C.size + 2] || 1;
-        h.toggleAttribute("data-cs-cine-notitle", !C.title);
-        h.toggleAttribute("data-cs-cine-noprog", !C.prog);
-        h.toggleAttribute("data-cs-cine-times", C.prog && C.times);
-        if (ck === 1) h.style.removeProperty("--cs-cine-k"); else h.style.setProperty("--cs-cine-k", String(ck));
+        for (const [k, C] of [["--cs-cine-k", OPT.cine], ["--cs-canvas-k", OPT.canvas]]) {
+            const v = CINE_SIZES[C.size + 2] || 1;
+            if (v === 1) h.style.removeProperty(k); else h.style.setProperty(k, String(v));
+        }
+        cineOpts();
     }
     const lyrOffset = () => (lyr.id && OPT.offs[lyr.id]) || 0;
     // repasa las líneas en pantalla (romanización/traducción puestas o quitadas)
@@ -427,6 +429,7 @@
                 m.append(r);
             },
             sep() { m.append(Object.assign(document.createElement("hr"), { className: "cs-lm-sep" })); },
+            head(label) { m.append(Object.assign(document.createElement("div"), { className: "cs-lm-head", textContent: label })); },
             btn(label, fn, dis) {
                 const b = document.createElement("button");
                 b.className = "cs-lm-item";
@@ -479,14 +482,16 @@
         }, !(lyr.lines && lyr.lines.length));
     }
     function cineMenuFill(ui) {
-        const C = OPT.cine, flip = (k) => () => { C[k] = !C[k]; optSave(); optApply(); if (k === "tilt" && !C.tilt) tiltLeave(); };
+        const canvas = cineMode() === "canvas", C = canvas ? OPT.canvas : OPT.cine;
+        const flip = (k) => () => { C[k] = !C[k]; optSave(); optApply(); if (k === "tilt" && !C.tilt) tiltLeave(); };
+        ui.head(canvas ? "Con Canvas" : "Con portada");
         ui.sw("Título y artista", C.title, flip("title"));
         ui.sw("Barra de progreso", C.prog, flip("prog"), "A pantalla completa");
         ui.sw("Tiempos", C.times, flip("times"), "Debajo de la barra", !C.prog);
-        ui.sw("Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
+        ui.sw(canvas ? "Inclinación del Canvas" : "Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
         ui.sep();
         const setSize = (d) => { C.size = Math.max(-2, Math.min(1, C.size + d)); optSave(); optApply(); };
-        ui.stepper("Portada", ["Pequeña", "Mediana", "Normal", "Grande"][C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
+        ui.stepper(canvas ? "Canvas" : "Portada", ["Pequeño", "Mediano", "Normal", "Grande"].map((x) => canvas ? x : x.replace(/o$/, "a"))[C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
     }
     document.addEventListener("contextmenu", (e) => {
         const t = e.target instanceof Element ? e.target : null;
@@ -1203,10 +1208,30 @@
 
     // ---- Vista cine / pantalla completa: título y artista bajo la portada -----
     // Spotify solo los enseña en el dock (que se esconde sin mover el ratón)
+    // Con Canvas no hay portada: el título va bajo el vídeo (data-cs-canvasvid), con sus opciones
+    // (el Canvas es vertical; un videoclip, apaisado: ese sigue con la miniatura y el título al lado)
+    const cineCanvasVid = () => {
+        const v = document.querySelector('.Root__cinema-view :is(.cs-cine-stage, [style*="--cinema-mode-bg-color-from"]) video');
+        return v && v.videoHeight > v.videoWidth ? v : null;
+    };
+    const cineMode = () => cineCanvasVid() ? "canvas" : document.querySelector(".Root__cinema-view .cover-art") ? "cover" : "";
+    function cineOpts(el) {
+        el = el || document.getElementById("cs-cine-title");
+        if (!el) return;
+        const C = el.dataset.mode === "canvas" ? OPT.canvas : OPT.cine;
+        if (el.hasAttribute("data-notitle") === C.title) el.toggleAttribute("data-notitle", !C.title);
+        if (el.hasAttribute("data-noprog") === C.prog) el.toggleAttribute("data-noprog", !C.prog);
+        const t = C.prog && C.times;
+        if (el.hasAttribute("data-times") !== t) el.toggleAttribute("data-times", t);
+    }
     function cineTitle() {
-        const cover = document.querySelector(".Root__cinema-view .cover-art");
+        // con Canvas el título sigue abajo a la izquierda junto a la miniatura (en reposo), con sus opciones;
+        // el vídeo lleva data-cs-canvasvid (tamaño e inclinación)
+        const vid = cineCanvasVid(), cover = document.querySelector(".Root__cinema-view .cover-art");
+        markAll("data-cs-canvasvid", vid ? [vid.parentElement] : []);
+        const anchor = cover;
         let el = document.getElementById("cs-cine-title");
-        if (!cover) return void (el && (markAll("data-cs-cinebox", []), el.remove()));
+        if (!anchor) return void (el && (markAll("data-cs-cinebox", []), el.remove()));
         const host = cover.parentElement, it = Spicetify.Player.data && Spicetify.Player.data.item;
         if (!it) return;
         if (!el || el.previousElementSibling !== host) {
@@ -1216,10 +1241,13 @@
             host.after(el);
         }
         markAll("data-cs-cinebox", [el.parentElement]);
-        // con Canvas o vídeo la portada es la miniatura de abajo a la izquierda: el título va al lado, alineado a la izquierda
-        const cw = cover.offsetWidth, side = cw > 0 && cw < 200;
-        // la barra de progreso mide lo mismo que la portada (Spotify la encoge con `scale`)
-        const vw = Math.round(cw * (parseFloat(getComputedStyle(cover).scale) || 1));
+        const mode = vid ? "canvas" : "cover";
+        if (el.dataset.mode !== mode) { el.dataset.mode = mode; delete el.dataset.k; }
+        cineOpts(el);
+        // con vídeo la portada es la miniatura de abajo a la izquierda: el título va al lado, alineado a la izquierda
+        const cw = anchor.offsetWidth, side = cw > 0 && cw < 200;
+        // la barra de progreso mide lo mismo que la portada o el Canvas (Spotify encoge la portada con `scale`)
+        const vw = Math.round(cw * (parseFloat(getComputedStyle(anchor).scale) || 1));
         if (vw && el.__cw !== vw) { el.__cw = vw; el.style.setProperty("--cs-cover-w", vw + "px"); }
         if (el.classList.contains("cs-cine-side") !== side) el.classList.toggle("cs-cine-side", side);
         const name = it.name || "", artists = (it.artists || []).map((a) => a.name).join(", ");
@@ -1241,7 +1269,7 @@
         const bar = document.querySelector("#cs-cine-title .cs-cine-prog i");
         if (!bar) return;
         if (bar.offsetParent) progBar(bar);
-        const tm = OPT.cine.times && document.querySelector("#cs-cine-title .cs-cine-times");
+        const tm = document.querySelector("#cs-cine-title[data-times] .cs-cine-times");
         if (tm && tm.offsetParent) {
             const P = Spicetify.Player, f = (ms) => { const x = Math.max(0, Math.floor(ms / 1000)); return Math.floor(x / 60) + ":" + String(x % 60).padStart(2, "0"); };
             const [a, b] = tm.children, ta = f(P.getProgress() || 0), tb = f(P.getDuration() || 0);
@@ -1574,7 +1602,7 @@
     // ---- Carátula que se inclina hacia el ratón (pantalla completa) ---------------------------
     // La de la letra a pantalla completa y la de la vista cine: gira hasta 9° hacia la esquina que
     // tiene el ratón, con un brillo que lo sigue; al salir vuelve suave a su sitio.
-    const TILT_SEL = "#cs-fslyr-art .cs-fa-tilt, .Root__cinema-view .cover-art";
+    const TILT_SEL = "#cs-fslyr-art .cs-fa-tilt, .Root__cinema-view .cover-art, .Root__cinema-view [data-cs-canvasvid]";
     let tiltEl = null, tiltRaf = 0, tiltEv = null;
     function tiltApply() {
         tiltRaf = 0;
@@ -1595,7 +1623,7 @@
     }
     document.addEventListener("pointermove", (e) => {
         let el = e.target instanceof Element && e.target.closest(TILT_SEL);
-        if (el && !OPT.cine.tilt && el.classList.contains("cover-art")) el = null;
+        if (el && ((!OPT.cine.tilt && el.classList.contains("cover-art")) || (!OPT.canvas.tilt && el.hasAttribute("data-cs-canvasvid")))) el = null;
         if (el !== tiltEl) { tiltLeave(); if (el) { tiltEl = el; el.setAttribute("data-cs-tilt", ""); } }
         if (!el) return;
         tiltEv = e;
@@ -1654,22 +1682,77 @@
         g.className = "cs-gap";
         g.hidden = true;
         g.append(document.createElement("i"));
-        g.addEventListener("pointerdown", (e) => {
-            const bar = gapBar(side);
-            if (e.button !== 0 || !bar) return;
-            e.preventDefault();
-            bar.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, composed: true, clientX: e.clientX, clientY: e.clientY,
-                pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0, buttons: 1 }));
-            g.setAttribute("data-on", "");
-            const follow = () => { gapPlace(); gaps.raf = requestAnimationFrame(follow); };
-            gaps.raf = requestAnimationFrame(follow);
-            document.addEventListener("pointerup", () => { g.removeAttribute("data-on"); cancelAnimationFrame(gaps.raf); requestAnimationFrame(gapPlace); }, { once: true });
-        });
+        g.addEventListener("pointerdown", (e) => ghostDrag(e, side));
         // doble clic: lo mismo que en la barra de Spotify
         g.addEventListener("dblclick", () => { const bar = gapBar(side); if (bar) bar.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })); });
         document.body.append(g);
         return g;
     }
+    // Arrastre con guía: cada cambio de ancho obliga a Spotify a recolocar toda la página (en Inicio
+    // 200-300 ms por movimiento: el panel iba a saltos). Mientras se arrastra solo se mueve el asa
+    // (un transform) y al soltar se le pasa a la barra de Spotify el gesto completo de una vez.
+    function ghostDrag(e, side) {
+        const bar = gapBar(side), g = gapEl(side);
+        if (e.button !== 0 || !bar || g.hidden) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const panel = bar.parentElement, input = panel.querySelector(".LayoutResizer__input");
+        const w0 = panel.getBoundingClientRect().width, min = +(input && input.min) || 72, max = +(input && input.max) || 640;
+        const dir = side === "l" ? 1 : -1, x0 = e.clientX, root = document.documentElement;
+        // desplazamiento permitido (el ancho final lo decide Spotify; esto solo acota la guía)
+        const clampDx = (dx) => dir * (Math.max(min, Math.min(max, w0 + dir * dx)) - w0);
+        let dx = 0, raf = 0;
+        // la guía es un elemento aparte, fino y sin eventos de ratón: desplazar el asa entera bajo el
+        // puntero obligaba a recomponer las capas de toda la página en cada fotograma (~35 fps)
+        const gr = g.getBoundingClientRect(), guide = document.createElement("div");
+        guide.className = "cs-gap-guide";
+        guide.style.cssText = `left:${gr.left + gr.width / 2 - 1}px;top:${gr.top}px;height:${gr.height}px`;
+        guide.append(document.createElement("i"));
+        document.body.append(guide);
+        g.setAttribute("data-on", "");
+        root.setAttribute("data-cs-drag", "");
+        const move = (ev) => {
+            dx = clampDx(ev.clientX - x0);
+            if (!raf) raf = requestAnimationFrame(() => { raf = 0; guide.style.transform = `translateX(${dx}px)`; });
+        };
+        const up = () => {
+            document.removeEventListener("pointermove", move, true);
+            cancelAnimationFrame(raf);
+            g.removeAttribute("data-on");
+            root.removeAttribute("data-cs-drag");
+            if (Math.abs(dx) < 1) return void guide.remove();
+            // el gesto entero, de golpe: Spotify escucha los movimientos en document tras su pointerdown
+            const at = (x) => ({ bubbles: true, cancelable: true, composed: true, clientX: x, clientY: e.clientY, pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: true, button: 0 });
+            const bx = bar.getBoundingClientRect().left + bar.getBoundingClientRect().width / 2;
+            // (con un fotograma entre pasos: Spotify guarda el arrastre en el estado de React)
+            const frame = () => new Promise((r) => requestAnimationFrame(r));
+            (async () => {
+                // sin la animación de paneles del tema (esperaba a que Spotify se calmara: hasta 4 s)
+                root.setAttribute("data-cs-resizing", "");
+                // después del pointerup real: si no, Spotify lo recibía como el final de este gesto
+                await frame();
+                bar.dispatchEvent(new PointerEvent("pointerdown", { ...at(bx), buttons: 1 }));
+                await frame();
+                document.dispatchEvent(new PointerEvent("pointermove", { ...at(bx + dx), buttons: 1 }));
+                await frame();
+                document.dispatchEvent(new PointerEvent("pointerup", at(bx + dx)));
+                // el asa vuelve a su sitio cuando el panel ya tiene el ancho nuevo
+                await frame(); await frame(); await frame();
+                root.removeAttribute("data-cs-resizing");
+                guide.remove();
+                gapPlace();
+            })();
+        };
+        document.addEventListener("pointermove", move, true);
+        document.addEventListener("pointerup", up, { capture: true, once: true });
+    }
+    // la barra original de Spotify también: mismo arrastre con guía
+    document.addEventListener("pointerdown", (e) => {
+        const b = e.isTrusted && e.target instanceof Element && e.target.closest(".LayoutResizer__resize-bar");
+        if (!b) return;
+        const side = b.parentElement.classList.contains("Root__nav-bar") ? "l" : b.parentElement.classList.contains("Root__right-sidebar") ? "r" : "";
+        if (side) ghostDrag(e, side);
+    }, true);
     function gapPlace() {
         const root = document.documentElement, main = document.querySelector(".Root__main-view");
         // sin paneles a la vista (letra a pantalla completa, vista cine): sin asas
@@ -1801,7 +1884,7 @@
             // (con la letra a pantalla completa ni se ven, y el tween alargaba 1-2 s el tirón)
             if (fsOn || performance.now() - fsChangeAt < 2500) return;
             const dl = Math.abs(l - oldL) >= 3, dr = Math.abs(r - oldR) >= 3;
-            if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || !top) return;
+            if ((!dl && !dr) || root.hasAttribute("data-cs-drag") || root.hasAttribute("data-cs-resizing") || !top) return;
             // Cortafuegos: si la rejilla no es la de Spotify 1.2 (p. ej. 1.3.x en Windows) o el ancho
             // final no coincide con el pedido, el observador relanzaba la animación sin parar
             // (relayout continuo → cierre de la app). Tras una animación, 1,5 s sin otra; y como
