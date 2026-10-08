@@ -2196,6 +2196,23 @@ html:is(.fullscreen, :fullscreen) #cs-cine-title[data-times]:not(.cs-cine-side) 
    el tamaño y la inclinación del vídeo van aparte de los de la portada */
 :is(html.fullscreen, :fullscreen) #cs-cine-title.cs-cine-side[data-mode="canvas"] .cs-cine-prog { display: block; width: 280px; margin: 14px 0 0; }
 :is(html.fullscreen, :fullscreen) #cs-cine-title.cs-cine-side[data-mode="canvas"][data-times] .cs-cine-times { display: flex; width: 280px; margin: 6px 0 0; }
+/* barra centrada (opción del Canvas): la del título se oculta y sale una abajo en el centro, solo en reposo */
+#cs-cine-title[data-center] :is(.cs-cine-prog, .cs-cine-times) { display: none !important; }
+#cs-cine-cbar { display: none; }
+:is(html.fullscreen, :fullscreen) .Root__cinema-view--controls-hidden > #cs-cine-cbar,
+:is(html.fullscreen, :fullscreen) .Root__cinema-view--controls-hidden #cs-cine-cbar {
+    display: block; position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); width: min(560px, 42vw); z-index: 5;
+    animation: cs-page-in 600ms var(--cs-ease) both;
+}
+#cs-cine-cbar .cs-cine-prog {
+    display: block; width: 100%; height: 3px; border-radius: 3px; overflow: hidden; background: rgba(var(--spice-rgb-text), 0.14);
+}
+#cs-cine-cbar .cs-cine-prog i {
+    display: block; height: 100%; border-radius: inherit; background: var(--spice-text); opacity: 0.85;
+    transform: scaleX(0); transform-origin: left; transition: transform 500ms linear;
+}
+#cs-cine-cbar .cs-cine-times { display: none; justify-content: space-between; margin-top: 6px; font-size: 13px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--spice-subtext); }
+#cs-cine-cbar[data-times] .cs-cine-times { display: flex; }
 .Root__cinema-view [data-cs-canvasvid] {
     height: calc(53vh * var(--cs-canvas-k, 1)) !important; width: auto !important; aspect-ratio: 9 / 16; flex: none;
     position: relative; border-radius: 14px; overflow: hidden;

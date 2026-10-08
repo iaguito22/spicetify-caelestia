@@ -328,7 +328,7 @@
     // vista cine (Sonando a pantalla completa, sin letra)
     // y con Canvas: cada una con sus propias opciones (también el tamaño)
     OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
-    OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.canvas);
+    OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0, center: false }, OPT.canvas);
     const CINE_SIZES = [0.76, 0.88, 1, 1.12];
     const SIZES = [0.8, 0.9, 1, 1.12, 1.25];
     function optSave() { try { localStorage.setItem(OPT_KEY, JSON.stringify(OPT)); } catch (e) {} }
@@ -488,6 +488,7 @@
         ui.sw("Título y artista", C.title, flip("title"));
         ui.sw("Barra de progreso", C.prog, flip("prog"), "A pantalla completa");
         ui.sw("Tiempos", C.times, flip("times"), "Debajo de la barra", !C.prog);
+        if (canvas) ui.sw("Barra centrada", C.center, flip("center"), "Abajo, en el centro", !C.prog);
         ui.sw(canvas ? "Inclinación del Canvas" : "Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
         ui.sep();
         const setSize = (d) => { C.size = Math.max(-2, Math.min(1, C.size + d)); optSave(); optApply(); };
@@ -1223,6 +1224,9 @@
         if (el.hasAttribute("data-noprog") === C.prog) el.toggleAttribute("data-noprog", !C.prog);
         const t = C.prog && C.times;
         if (el.hasAttribute("data-times") !== t) el.toggleAttribute("data-times", t);
+        const c = el.dataset.mode === "canvas" && C.prog && !!C.center;
+        if (el.hasAttribute("data-center") !== c) el.toggleAttribute("data-center", c);
+        cineProg();
     }
     function cineTitle() {
         // con Canvas el título sigue abajo a la izquierda junto a la miniatura (en reposo), con sus opciones;
@@ -1264,12 +1268,31 @@
         cineProg();
     }
     let cineProgT = 0;
+    // Canvas con la barra centrada: una copia de la barra (y los tiempos) abajo en el centro de la vista
+    function cineCenterBar() {
+        const t = document.querySelector("#cs-cine-title[data-center]"), view = t && t.closest(".Root__cinema-view");
+        let cb = document.getElementById("cs-cine-cbar");
+        if (!view) return void (cb && cb.remove());
+        if (!cb || cb.parentElement !== view) {
+            if (cb) cb.remove();
+            cb = document.createElement("div");
+            cb.id = "cs-cine-cbar";
+            const pr = document.createElement("div"), tm = document.createElement("div");
+            pr.className = "cs-fa-prog cs-cine-prog"; pr.append(document.createElement("i"));
+            tm.className = "cs-cine-times"; tm.append(document.createElement("span"), document.createElement("span"));
+            cb.append(pr, tm);
+            view.append(cb);
+        }
+        cb.toggleAttribute("data-times", t.hasAttribute("data-times"));
+        return cb;
+    }
     function cineProg() {
         clearTimeout(cineProgT);
-        const bar = document.querySelector("#cs-cine-title .cs-cine-prog i");
+        const cb = cineCenterBar(), host = cb || document.querySelector("#cs-cine-title");
+        const bar = host && host.querySelector(".cs-cine-prog i");
         if (!bar) return;
         if (bar.offsetParent) progBar(bar);
-        const tm = document.querySelector("#cs-cine-title[data-times] .cs-cine-times");
+        const tm = cb ? cb.hasAttribute("data-times") && cb.querySelector(".cs-cine-times") : document.querySelector("#cs-cine-title[data-times] .cs-cine-times");
         if (tm && tm.offsetParent) {
             const P = Spicetify.Player, f = (ms) => { const x = Math.max(0, Math.floor(ms / 1000)); return Math.floor(x / 60) + ":" + String(x % 60).padStart(2, "0"); };
             const [a, b] = tm.children, ta = f(P.getProgress() || 0), tb = f(P.getDuration() || 0);
