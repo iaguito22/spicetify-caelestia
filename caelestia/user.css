@@ -429,9 +429,7 @@ img[class*="playingIcon"] { filter: grayscale(1) brightness(1.6) !important; }
     background: var(--spice-button) !important;
 }
 
-::selection {
-    background: color-mix(in srgb, var(--cs-accent) 32%, transparent);
-}
+/* ::selection: lo escribe theme.js (setAccent) con el color ya resuelto */
 
 /* Foco: sin anillo ni halo (quedaba pegado tras un clic y se veía como un aro amarillo) */
 button:focus-visible,
@@ -1962,7 +1960,8 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 
 /* --------------------------------------------------------------------------
    23. Cambio de página (p. ej. de una playlist a otra)
-   theme.js pone data-cs-route ~0.9 s: el contenido entra deslizándose y en
+   theme.js marca la página recién montada (data-cs-in) y data-cs-route ~0.9 s:
+   el contenido entra deslizándose y en
    cascada (cabecera, luego las primeras filas). Solo opacity/transform.
    -------------------------------------------------------------------------- */
 @keyframes cs-page-in {
@@ -1971,7 +1970,7 @@ html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76
 @keyframes cs-row-in {
     from { opacity: 0; transform: translateY(12px); }
 }
-html[data-cs-route] .Root__main-view .main-view-container__scroll-node-child {
+.Root__main-view [data-cs-in] {
     animation: cs-page-in 560ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
     transform-origin: 50% 0;
 }

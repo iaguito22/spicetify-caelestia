@@ -64,8 +64,14 @@
         return `hsl(${hue.toFixed(0)} ${(s * 100).toFixed(0)}% ${light ? 40 : 70}%)`;
     }
 
+    // ::selection con var(--cs-accent) encarecía cada layout completo de la página ~25 % (Chrome
+    // resuelve la variable para cada texto): se escribe el color ya resuelto, una vez por canción
+    let selStyle = null;
     function setAccent(color) {
-        document.documentElement.style.setProperty("--cs-accent", color || baseAccent);
+        const c = color || baseAccent;
+        document.documentElement.style.setProperty("--cs-accent", c);
+        if (!selStyle) { selStyle = document.createElement("style"); selStyle.id = "cs-selection"; document.head.append(selStyle); }
+        selStyle.textContent = `::selection { background: color-mix(in srgb, ${c} 32%, transparent); }`;
     }
 
     function coverUrl(track) {
@@ -1581,10 +1587,16 @@
 
     // ---- Dock: en ventanas estrechas conserva su tamaño y flota sobre los paneles
     const DOCK_W = 760, DOCK_INSET = 12;
-    function dockLayout() {
+    function dockLayout(ents) {
         const root = document.documentElement;
         const main = document.querySelector(".Root__main-view"), dock = document.querySelector(".Root__now-playing-bar");
         if (!main || !dock || root.hasAttribute("data-cs-anim")) return; // en plena animación el rect va transformado
+        // Lo normal (panel central ancho, dock en su sitio): el ResizeObserver ya trae el ancho y no
+        // hace falta medir nada. Medir aquí forzaba un layout en cada cambio de tamaño, y al arrancar
+        // Spotify cambia de tamaño muchas veces (~400 ms forzados)
+        const ent = Array.isArray(ents) && ents.find((e) => e.target === main);
+        const mw = ent && ent.borderBoxSize && ent.borderBoxSize[0] ? ent.borderBoxSize[0].inlineSize : 0;
+        if (mw - 2 * DOCK_INSET >= DOCK_W && !needAliases() && !root.hasAttribute("data-cs-dock-float") && !root.style.getPropertyValue("--cs-dock-lift")) return;
         const vw = root.clientWidth;
         // Vista "Sonando" expandida: el panel central se oculta (display:none) y el dock, sin
         // celda de rejilla, flota centrado en la ventana
@@ -1660,10 +1672,12 @@
         // transición CSS: el panel se desliza de verdad (a costa de que Spotify recoloque el
         // panel central en cada fotograma; el CSS lo abarata con `contain`)
         const top = document.querySelector(".Root__top-container");
-        sideRO = new ResizeObserver(() => {
+        sideRO = new ResizeObserver((ents) => {
             const root = document.documentElement;
             if (root.hasAttribute("data-cs-anim")) return; // fotogramas de la propia animación
-            const l = width(nav), r = width(rs), oldL = sideW.left, oldR = sideW.right;
+            // anchos que trae el observador (medirlos con getBoundingClientRect forzaba un layout)
+            const sz = (el, old) => { const e = ents.find((x) => x.target === el); return e && e.borderBoxSize && e.borderBoxSize[0] ? e.borderBoxSize[0].inlineSize : old; };
+            const l = sz(nav, sideW.left), r = sz(rs, sideW.right), oldL = sideW.left, oldR = sideW.right;
             sideW.left = l;
             sideW.right = r;
             // Spotify >= 1.3.2: sin animación. Interpolar la rejilla desde JS compite con su propio
@@ -1813,11 +1827,29 @@
             const skip = path === "/lyrics" || lastPath === "/lyrics";
             lastPath = path;
             if (skip) return;
-            root.removeAttribute("data-cs-route");
-            void root.offsetWidth; // reinicia la animación si se navega otra vez enseguida
+            // La entrada se anima cuando Spotify ya ha montado la página nueva, y sobre esa página
+            // (no sobre el contenedor, que es el mismo): animar mientras React la montaba duplicaba lo
+            // que tardaba en salir (playlist 0,45 → 0,85 s), y forzar un layout para reiniciar la
+            // animación costaba otros 100-300 ms
+            routeArm = performance.now();
+            const host = document.querySelector(".Root__main-view .main-view-container__scroll-node-child");
+            if (!host) return;
+            routeMO ||= new MutationObserver(onMount);
+            routeMO.disconnect();
+            routeMO.observe(host, { childList: true });
+            for (const c of host.children) routeMO.observe(c, { childList: true });
+        };
+        let routeArm = 0, routeMO = null;
+        const onMount = (ms) => {
+            if (!routeArm || performance.now() - routeArm > 3000) { routeArm = 0; return routeMO.disconnect(); }
+            const page = ms.flatMap((m) => [...m.addedNodes]).find((n) => n.nodeType === 1 && !n.classList.contains("main-loadingPage-container") && n.tagName !== "MAIN");
+            if (!page) return;
+            routeArm = 0;
+            routeMO.disconnect();
+            page.setAttribute("data-cs-in", "");
             root.setAttribute("data-cs-route", "");
             clearTimeout(routeT);
-            routeT = setTimeout(() => root.removeAttribute("data-cs-route"), 900);
+            routeT = setTimeout(() => { root.removeAttribute("data-cs-route"); page.removeAttribute("data-cs-in"); }, 900);
         };
         const bindHistory = () => {
             const H = Spicetify.Platform && Spicetify.Platform.History;
