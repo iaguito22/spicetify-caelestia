@@ -84,6 +84,7 @@ It installs in **dark mode**. For light: `spicetify config color_scheme light`, 
 | Linux, Spotify 1.2.96 | Built and tested here |
 | Windows, Spotify 1.3.1 | Tested ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Supported, being tested ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
+| Windows, Spotify 1.3.4 | not yet supported |
 | macOS | Untested |
 
 Spotify renames its CSS classes between versions; lyrics and side panels break first. If something looks off, open an issue with a screenshot.
@@ -177,6 +178,7 @@ Se instala en **modo oscuro**. Si lo prefieres claro: `spicetify config color_sc
 | Linux, Spotify 1.2.96 | Desarrollado y probado aquí |
 | Windows, Spotify 1.3.1 | Probado ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Compatible, en pruebas ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
+| Windows, Spotify 1.3.4 | not yet supported |
 | macOS | Sin probar |
 
 Spotify cambia los nombres de sus clases CSS de una versión a otra, y lo primero que suele romperse es la letra y los paneles laterales. Si ves algo raro, abre un issue con una captura.
