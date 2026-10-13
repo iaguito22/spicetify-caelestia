@@ -330,6 +330,8 @@
     // y con Canvas: cada una con sus propias opciones (también el tamaño)
     OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
     OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0, center: false }, OPT.canvas);
+    // letra a pantalla completa: la portada de la izquierda
+    OPT.fs = Object.assign({ beat: true, tilt: true }, OPT.fs);
     const CINE_SIZES = [0.76, 0.88, 1, 1.12];
     // Canvas: alto del vídeo. Pequeño, Normal (deja sitio a la barra centrada) y Grande (casi toda la
     // altura: no cabe con la barra centrada)
@@ -504,10 +506,20 @@
             ui.stepper("Portada", ["Pequeña", "Mediana", "Normal", "Grande"][C.size + 2], () => setSize(-1), () => setSize(1), () => setSize(-C.size));
         }
     }
+    function fsMenuFill(ui) {
+        ui.head("Portada");
+        ui.sw("Latido al ritmo", OPT.fs.beat, () => {
+            OPT.fs.beat = !OPT.fs.beat;
+            optSave();
+            if (OPT.fs.beat) fsBeatTick(); else fsBeatStop();
+        }, "Late con cada beat de la canción");
+        ui.sw("Inclinación", OPT.fs.tilt, () => { OPT.fs.tilt = !OPT.fs.tilt; optSave(); if (!OPT.fs.tilt) tiltLeave(); }, "Al pasar el ratón");
+    }
     document.addEventListener("contextmenu", (e) => {
         const t = e.target instanceof Element ? e.target : null;
         if (!t || t.closest("#cs-lyrmenu")) return;
-        const fill = t.closest(".lyrics-lyrics-container") ? lyrMenuFill : t.closest(".Root__cinema-view") ? cineMenuFill : null;
+        const fill = t.closest(".lyrics-lyrics-container") ? lyrMenuFill : t.closest(".Root__cinema-view") ? cineMenuFill :
+            t.closest("#cs-fslyr-art") ? fsMenuFill : null;
         if (!fill) return;
         e.preventDefault();
         e.stopPropagation();
@@ -1534,7 +1546,7 @@
     function fsBeatTick() {
         clearTimeout(fsBeat.t);
         const B = fsBeat.beats, cover = fsOn && B && document.querySelector("#cs-fslyr-art .cs-fa-cover");
-        if (!cover || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        if (!cover || !OPT.fs.beat || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         if (!Spicetify.Player.isPlaying()) return void (fsBeat.t = setTimeout(fsBeatTick, 400));
         const t = Spicetify.Player.getProgress();
         let lo = 0, hi = B.length;
@@ -1549,6 +1561,13 @@
                 { duration: Math.max(220, Math.min(700, b.d * 0.95)), easing: "cubic-bezier(0.3, 0.7, 0.4, 1)" });
             fsBeatTick();
         }, Math.max(0, wait));
+    }
+
+    // apagado desde el menú: el pulso que esté en marcha se corta
+    function fsBeatStop() {
+        clearTimeout(fsBeat.t);
+        const cover = document.querySelector("#cs-fslyr-art .cs-fa-cover");
+        if (cover) for (const a of cover.getAnimations()) a.cancel();
     }
 
     // Entrar o salir de pantalla completa recoloca toda la ventana (unos cientos de ms a
@@ -1734,6 +1753,7 @@
             else {
                 clearTimeout(fsProgT);
                 clearTimeout(fsBeat.t);
+                fsCanvasHold(false);
                 fsNoLyrN = 0;
                 root.removeAttribute("data-cs-fsnolyr");
                 document.removeEventListener("pointermove", fsWake, true);
