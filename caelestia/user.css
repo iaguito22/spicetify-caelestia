@@ -1442,7 +1442,7 @@ html[data-cs-clock] .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsConten
 html[data-cs-clock] .lyrics-lyrics-container[data-cs-ready] .lyrics-lyricsContent-lyric[data-cs-d="-1"] {
     animation: cs-clk-leave calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1) var(--cs-ad, 0ms) backwards;
 }
-html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="-1"]) .cs-w {
+html[data-cs-clock] .lyrics-lyricsContent-lyric:is([data-cs-d="0"], [data-cs-d="-1"], [data-cs-bv]) .cs-w {
     --dim: color-mix(in srgb, var(--lyrics-color-active) 62%, transparent);
     color: transparent;
     background-image: linear-gradient(90deg,
@@ -1525,19 +1525,26 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-rom][data-cs-rt]:is([dat
     padding: 2px 0 8px !important;
 }
 .lyrics-lyricsContent-lyric[data-cs-bvl] .cs-bv { font-size: 1em; opacity: 0.86; }
-/* la frase ya acabó pero su coro sigue sonando (theme.js: data-cs-bvhold): la voz se apaga como
-   siempre y la fila de coros sigue encendida, con el acento, hasta que termina */
-html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"][data-cs-bvhold] {
+/* La fila de coros es una frase aparte (theme.js: data-cs-bv on/off según su propio final): se
+   apaga sola cuando acaba aunque la voz siga, y sigue encendida aunque la voz ya haya pasado a otra
+   frase. La línea se queda a opacidad 1 y lo que se apaga son la voz y la fila, cada una a su hora
+   (el producto es el mismo que el de una línea pasada: al soltar data-cs-bv no salta nada). */
+html[data-cs-clock] .lyrics-lyrics-container .lyrics-lyricsContent-lyric[data-cs-bv]:not([data-cs-d="0"]) {
     opacity: 1;
-    transform: scale(1.03);
+    color: var(--lyrics-color-active) !important;
+    transform: scale(1);
     animation: none !important;
     filter: none !important;
+    transition: transform calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1) !important;
 }
-html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvhold] > .lyrics-lyricsContent-text > :not(.cs-bvrow) { opacity: 0.34; }
-html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-d="-1"] > .lyrics-lyricsContent-text > :not(.cs-bvrow) {
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bv]:not([data-cs-d="0"]) > .lyrics-lyricsContent-text > :not(.cs-bvrow),
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bv="off"] .cs-bvrow > * {
+    opacity: 0.34;
     transition: opacity calc(var(--cs-lyr-dur, 620ms) * 1.4) cubic-bezier(0.25, 1, 0.5, 1);
 }
-html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvhold] .cs-bvrow {
+/* la romanización de la voz va al principio de la fila de coros: se apaga con la voz */
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-romrow][data-cs-bv]:not([data-cs-d="0"]) .cs-bvrow[data-cs-rom]::before { opacity: 0.3; }
+html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bv="on"]:not([data-cs-d="0"]) .cs-bvrow {
     filter: drop-shadow(0 0 18px color-mix(in srgb, var(--cs-accent) 45%, transparent));
 }
 /* la línea de coro que suena brilla menos que una frase principal */

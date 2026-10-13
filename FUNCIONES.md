@@ -99,7 +99,7 @@ apartado y mira la columna «Cómo comprobarlo».
 | **Palabra a palabra** y **letra a letra** con tiempos reales (lyricsplus → Apple Music; Netease de reserva) o estimados | `lyricsPlusWords`, `neteaseWords`, `buildLine` | |
 | Cada letra **sube y crece** al cantarse; relevo entre frases sin hueco | CSS 16 | |
 | **Scroll suave** propio de la letra (en la GPU), en el mismo tiempo que el cambio de frase | `smoothCenter` | |
-| **Coros** (lo que va entre paréntesis) en su propia fila, más pequeños, con sus tiempos; siguen encendidos mientras suenan | `bvText`, `bvEnd` · CSS 16 | Canción con coros |
+| **Coros** (lo que va entre paréntesis) en su propia fila, más pequeños, con sus tiempos. La fila es una **frase aparte**: se apaga a su hora y no con su línea (sola si acaba antes que la voz; encendida aunque la voz ya vaya por otra frase). Con tiempos estimados, dura hasta 1 s después de la voz | `bvText`, `bvEnd`, `bvMark` (`data-cs-bv` on/off) · CSS 16 | Canción con coros |
 | **Romanización** de japonés, chino, coreano (Google) y cirílico (tabla local), rellenándose con la voz | `romanize`, `romLine` · CSS 16 | Canción en coreano/japonés |
 | Entrada de la letra en cascada; cierre animado; el botón de cerrar vuelve a la última página | CSS 16 · `lyricsBack`, `closeLyrics` | |
 | Botón **«Sincronizar»** de cristal por encima del dock | CSS 25 | Desplazar la letra a mano |

@@ -818,7 +818,14 @@
                     else { if (row.firstChild) row.append(" "); row.append(cur); }
                 }
                 parText(cur, part);
-            } else { cur = null; frag.append(part); }
+            } else {
+                // la voz en su span: con la fila de coros como frase aparte (bvMark) se apagan por separado
+                cur = null;
+                const vo = document.createElement("span");
+                vo.className = "cs-vo";
+                vo.textContent = part;
+                frag.append(vo);
+            }
             if (/[)）]/.test(part)) { depth = Math.max(0, depth - 1); if (!depth) cur = null; }
         }
         // sin ningún "(" (p. ej. un ")" suelto) no hay coro: no se toca el DOM, o el observador
@@ -911,31 +918,71 @@
         }
     }
 
-    // Coros que siguen sonando cuando ya empieza la frase siguiente: hasta cuándo suena la fila de
-    // coros de la línea i (0 si no tiene). La línea anterior lleva data-cs-bvhold mientras tanto
-    // y su fila sigue encendida (la voz se apaga como siempre).
+    // Hasta cuándo suena la fila de coros de la línea i (0 si no tiene): la fila es una frase
+    // aparte, que se apaga a esa hora y no con su línea (bvMark).
     const bvEnds = new Map();
     function bvEnd(i) {
         const k = lyr.id + ":" + i;
         if (bvEnds.has(k)) return bvEnds.get(k);
         let end = 0;
         if (lyr.lines && lyr.lines[i] && BV_RE.test(lyr.lines[i].text + (lyr.lines[i].bw ? "(" : "")) && splitBv(lyr.lines[i].text).main) {
-            let depth = 0;
+            let depth = 0, voice = 0;
             for (const u of lineUnits(i)) {
                 const opens = (u.text.match(/[(（]/g) || []).length, closes = (u.text.match(/[)）]/g) || []).length;
                 const bv = !!u.bv || depth > 0 || opens > 0;
                 depth = Math.max(0, depth + opens - closes);
-                if (bv && u.end !== undefined && u.text.trim()) end = Math.max(end, u.hold || u.end);
+                if (u.end === undefined || !u.text.trim()) continue;
+                if (bv) end = Math.max(end, u.hold || u.end); else voice = Math.max(voice, u.hold || u.end);
             }
+            // tiempos estimados (sin palabra a palabra): no se sabe cuándo acaba el coro; suele ser un
+            // eco de la frase, así que dura hasta un poco después de la voz en vez de apagarse a mitad
+            if (end && !lyr.lines[i].w) end = Math.max(end, voice + 1000);
         }
         bvEnds.set(k, end);
         return end;
+    }
+    // La línea con fila de coros lleva data-cs-bv="on" mientras su coro suena y "off" cuando acaba,
+    // aunque la voz siga (o vaya ya por otra frase: el coro puede pisar la siguiente o varias). El
+    // CSS enciende y apaga la voz y la fila cada una a su hora.
+    const bvOn = new Set();
+    function bvMark(cur, t) {
+        const keep = new Set();
+        for (let i = Math.max(0, cur - 6); i <= cur; i++) {
+            const end = bvEnd(i), e = end && clk.els[i + clk.off];
+            if (!e) continue;
+            const on = t < end;
+            // ya pasada y con el coro acabado: se queda como esté (abajo)
+            if (!on && i < cur - 1) continue;
+            e.__bvi = i;
+            keep.add(e);
+            const v = on ? "on" : "off";
+            if (e.getAttribute("data-cs-bv") !== v) e.setAttribute("data-cs-bv", v);
+            // Spotify recrea el texto de las líneas que cambian de estado: la fila que sigue sonando se vuelve a trocear
+            if (on && i < cur) {
+                const el = e.querySelector(".lyrics-lyricsContent-text");
+                if (el && !el.querySelector(".cs-w")) buildLine(el, i, t);
+            }
+        }
+        // una pasada se queda en "off" (quitarlo hacía parpadear la línea: la opacidad pasaba de la
+        // voz a la línea, que lleva transición); solo se suelta si vuelve a estar por delante (salto atrás)
+        for (const e of bvOn) {
+            if (keep.has(e)) continue;
+            if (e.isConnected && e.__bvi < cur && e.getAttribute("data-cs-bv") === "off") keep.add(e);
+            else {
+                // sin transición ese fotograma: la opacidad vuelve de la voz a la línea de golpe (si no, destello)
+                e.style.setProperty("transition", "none", "important");
+                e.removeAttribute("data-cs-bv");
+                requestAnimationFrame(() => requestAnimationFrame(() => e.style.removeProperty("transition")));
+            }
+        }
+        bvOn.clear();
+        for (const e of keep) bvOn.add(e);
     }
 
     // ---- Frase actual por el reloj de la canción -----------------------------
     // Spotify marca la activa 250-400 ms tarde (hasta 1 s tras un ♪): aquí se calcula con
     // el progreso y cada línea lleva data-cs-d (distancia a la actual; ver el CSS)
-    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null, t: 0, wall: 0, playing: null, jump: false, hold: null };
+    const clk = { on: false, box: null, wrap: null, els: null, off: 0, id: "", cur: -2, at: 0, follow: true, mo: null, t: 0, wall: 0, playing: null, jump: false };
     function clockOff() {
         if (!clk.on) return;
         clk.on = false;
@@ -943,6 +990,8 @@
         if (clk.mo) clk.mo.disconnect();
         clk.mo = null;
         if (clk.els) for (const e of clk.els) e.removeAttribute("data-cs-d");
+        for (const e of bvOn) e.removeAttribute("data-cs-bv");
+        bvOn.clear();
         clk.box = clk.wrap = clk.els = null;
     }
     function clockMark() {
@@ -1000,6 +1049,7 @@
             const o = lyr.lines && findOff(clk.els, lyr.lines);
             if (o !== null && o !== undefined && o !== clk.off) clk.off = o;
             clockMark();
+            if (clk.cur >= 0) bvMark(clk.cur, Spicetify.Player.getProgress() + lyrOffset());
         });
         clk.mo.observe(wrap, { childList: true });
         return true;
@@ -1143,14 +1193,7 @@
         const seekd = resumed || (playing ? clk.wall && Math.abs(t - (clk.t + (wall - clk.wall))) > 350 : Math.abs(t - clk.t) > 350);
         clk.t = t; clk.wall = playing ? wall : 0;
         if (seekd) clk.jump = true; // se aplica al llegar a una frase con texto
-        const prevEl = cur >= 1 && clk.els[cur - 1 + clk.off];
-        if (prevEl || clk.hold) {
-            const hold = prevEl && t < bvEnd(cur - 1) ? prevEl : null;
-            // al acabar el coro la línea hace ahora su salida (desde el principio)
-            if (clk.hold && clk.hold !== hold) { clk.hold.style.setProperty("--cs-ad", "0ms"); clk.hold.removeAttribute("data-cs-bvhold"); }
-            if (hold && !hold.hasAttribute("data-cs-bvhold")) hold.setAttribute("data-cs-bvhold", "");
-            clk.hold = hold;
-        }
+        bvMark(cur, t);
         if (cur < 0) return;
         const lineEl = clk.els[cur + clk.off];
         const el = lineEl && lineEl.querySelector(".lyrics-lyricsContent-text");
