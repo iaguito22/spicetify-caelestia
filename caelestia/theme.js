@@ -5,7 +5,7 @@
     let active = 0;
     let lastSrc = "";
     let token = 0;        // descarta cargas obsoletas si cambia la canción rápido
-    let baseAccent = null; // el botón del esquema de Caelestia: vuelve a él si la portada es gris
+    let baseAccent = null; // el botón del esquema de Caelestia: sin portada o si no se puede leer
 
     function ensureBackdrop() {
         root = root && root.isConnected ? root : null;
@@ -57,10 +57,11 @@
             const wt = s * s * (1 - Math.abs(2 * l - 1));
             sx += Math.cos(h) * wt; sy += Math.sin(h) * wt; sat += s * wt; w += wt;
         }
-        if (w < N * N * 0.02) return null; // portada casi en escala de grises
+        const light = document.documentElement.dataset.csMode === "light";
+        // portada casi en escala de grises: acento neutro (el del esquema sale del fondo de pantalla y no pega)
+        if (w < N * N * 0.02) return light ? "hsl(0 0% 30%)" : "hsl(0 0% 86%)";
         const hue = ((Math.atan2(sy, sx) * 180) / Math.PI + 360) % 360;
         const s = Math.min(0.85, Math.max(0.5, (sat / w) * 1.15));
-        const light = document.documentElement.dataset.csMode === "light";
         return `hsl(${hue.toFixed(0)} ${(s * 100).toFixed(0)}% ${light ? 40 : 70}%)`;
     }
 
