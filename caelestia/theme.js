@@ -1502,7 +1502,20 @@
         if (!bar) return;
         progBar(bar);
         fsNoLyrics();
+        fsCanvasHold(true);
         fsProgT = setTimeout(fsProg, 500);
+    }
+
+    // El Canvas del panel derecho sigue sonando oculto bajo la letra a pantalla completa: se pausa
+    // mientras tanto (en Linux, sin GPU, decodificarlo costaba ~45 % de un núcleo) y vuelve al salir
+    const fsPaused = new Set();
+    function fsCanvasHold(on) {
+        if (on) {
+            for (const v of document.querySelectorAll(".Root__right-sidebar video")) if (!v.paused) { v.pause(); fsPaused.add(v); }
+            return;
+        }
+        for (const v of fsPaused) if (v.isConnected) v.play().catch(() => {});
+        fsPaused.clear();
     }
 
     // Sin letra (ni sincronizada ni sin sincronizar), la portada se centra como en la vista sin letra
@@ -1660,6 +1673,14 @@
             root.setAttribute(fsOn ? "data-cs-fsin" : "data-cs-fsback", "");
             fsAnimT = setTimeout(() => { root.removeAttribute("data-cs-fsin"); root.removeAttribute("data-cs-fsback"); }, 1600);
             v.classList.remove("cs-on");
+            // ya oculto el velo (520 ms), fuera la carátula: su "respiración" infinita seguía bajo el
+            // velo transparente y obligaba a pintar toda la pantalla en cada fotograma (17 fps a
+            // pantalla completa en Linux, sin aceleración)
+            setTimeout(() => {
+                if (n !== fsVeilN) return;
+                img.getAnimations().forEach((x) => x.cancel());
+                img.classList.remove("cs-on");
+            }, 600);
         };
         const lift = () => {
             // espera a que la recolocación acabe: 3 fotogramas rápidos seguidos (máx. 1,2 s de
@@ -1718,7 +1739,8 @@
     }
     document.addEventListener("pointermove", (e) => {
         let el = e.target instanceof Element && e.target.closest(TILT_SEL);
-        if (el && ((!OPT.cine.tilt && el.classList.contains("cover-art")) || (!OPT.canvas.tilt && el.hasAttribute("data-cs-canvasvid")))) el = null;
+        if (el && ((!OPT.cine.tilt && el.classList.contains("cover-art")) || (!OPT.canvas.tilt && el.hasAttribute("data-cs-canvasvid")) ||
+            (!OPT.fs.tilt && el.classList.contains("cs-fa-tilt")))) el = null;
         if (el !== tiltEl) { tiltLeave(); if (el) { tiltEl = el; el.setAttribute("data-cs-tilt", ""); } }
         if (!el) return;
         tiltEv = e;

@@ -113,6 +113,8 @@ apartado y mira la columna «Cómo comprobarlo».
 | La letra ocupa la pantalla sobre el fondo de la carátula, con **portada, título, artista y barra de progreso** a la izquierda | CSS 25 · `fsLyrics`, `fsArt`, `fsProg` | Letra abierta + botón de pantalla completa del dock |
 | Sin letra disponible: portada, título y barra centrados | `fsNoLyrics` (`data-cs-fsnolyr`) | |
 | La portada **late con los beats** | `fsBeatLoad`, `fsBeatTick` | |
+| **Clic derecho sobre la portada**: Latido al ritmo, Inclinación | `fsMenuFill`, `OPT.fs` | Clic derecho en la portada |
+| El Canvas del panel derecho (oculto) se pausa mientras tanto y vuelve al salir | `fsCanvasHold` | |
 | **Transición**: la carátula vuela (FLIP) del dock al centro y a su sitio, bajo un velo | `fsVeil`, `flyCover` | Entrar y salir |
 | En reposo se esconden el dock y el cursor | CSS 25 (`data-cs-idle`) | No mover el ratón 3 s |
 
