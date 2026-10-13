@@ -2148,7 +2148,7 @@
                 fsVeil(async () => {
                     const p = fsDone();
                     spotifyFs(b);
-                    if (!wasFs) return p;
+                    if (!wasFs) { await p; if (!cine && !fromTop) await cineArtwork(); return; }
                     for (let i = 0; i < 20 && document.fullscreenElement && document.querySelector(".Root__cinema-view"); i++) await wait(50);
                     if (document.fullscreenElement && !document.querySelector(".Root__cinema-view")) await document.exitFullscreen().catch(() => {});
                     return p;
@@ -2157,6 +2157,15 @@
             }
             fsVeil(() => document.documentElement.requestFullscreen());
         }, true);
+        // 1.3.4: la vista cine recuerda su modo (material gráfico / Canvas / artista / letra). Si se
+        // quedó en «letra», al abrirla a pantalla completa sale la letra de Spotify en vez de la
+        // portada; la letra a pantalla completa es la del tema (botón de letra), así que se pasa a la portada
+        async function cineArtwork() {
+            for (let i = 0; i < 30 && !document.querySelector(".Root__cinema-view"); i++) await wait(50);
+            const radio = (v) => document.querySelector(`.Root__cinema-view button[role="radio"][value="${v}"]`);
+            const lyr = radio("lyrics"), art = radio("artwork");
+            if (lyr && art && lyr.getAttribute("aria-checked") === "true") { art.click(); await wait(250); }
+        }
         // cierra la vista cine sin soltar la pantalla completa: en 1.2 basta con ir a otra ruta; si
         // sigue abierta (1.3), se minimiza en ventana y se vuelve a pedir la pantalla completa (el
         // gesto del clic sigue valiendo unos segundos)
@@ -2199,7 +2208,7 @@
                 lyricsBack();
                 await wait(350);
                 const fb = document.querySelector('.Root__now-playing-bar [data-testid="fullscreen-mode-button"]');
-                if (document.fullscreenElement && !document.querySelector(".Root__cinema-view") && fb) spotifyFs(fb);
+                if (document.fullscreenElement && !document.querySelector(".Root__cinema-view") && fb) { spotifyFs(fb); await cineArtwork(); }
                 await wait(300);
             });
         }, true);
