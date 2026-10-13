@@ -2223,7 +2223,8 @@
         document.addEventListener("click", (e) => {
             const b = e.target instanceof Element && e.target.closest('[data-testid="lyrics-button"]');
             const H = Spicetify.Platform.History;
-            if (!b || lyrBypass || lyrPageBroken || document.documentElement.dataset.csOs === "linux" || !H.location || H.location.pathname === "/lyrics" ||
+            // en Linux 1.2 el botón ya va a /lyrics; desde la 1.3.4 abre la capa de Windows también allí
+            if (!b || lyrBypass || lyrPageBroken || (document.documentElement.dataset.csOs === "linux" && !needAliases()) || !H.location || H.location.pathname === "/lyrics" ||
                 document.querySelector(".Root__cinema-view")) return;
             e.preventDefault();
             e.stopImmediatePropagation();
