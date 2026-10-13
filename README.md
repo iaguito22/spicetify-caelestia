@@ -81,7 +81,7 @@ It installs in **dark mode**. For light: `spicetify config color_scheme light`, 
 
 | | |
 |---|---|
-| Linux, Spotify 1.2.96 | Built and tested here |
+| Linux, Spotify 1.3.4 | Built and tested here (1.2.96 too) |
 | Windows, Spotify 1.3.1 | Tested ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Supported, being tested ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
 | Windows, Spotify 1.3.4 | not yet supported |
@@ -175,7 +175,7 @@ Se instala en **modo oscuro**. Si lo prefieres claro: `spicetify config color_sc
 
 | | |
 |---|---|
-| Linux, Spotify 1.2.96 | Desarrollado y probado aquí |
+| Linux, Spotify 1.3.4 | Desarrollado y probado aquí (también 1.2.96) |
 | Windows, Spotify 1.3.1 | Probado ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Compatible, en pruebas ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
 | Windows, Spotify 1.3.4 | not yet supported |
