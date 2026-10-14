@@ -1358,6 +1358,10 @@ html:not([data-cs-clock]) .lyrics-lyrics-contentWrapper :is(.lyrics-lyricsConten
 .lyrics-lyricsContent-lyric .cs-w {
     --sw: 0.05;
     display: inline-block;
+    /* el relleno es un fondo recortado al texto y solo se pinta dentro de la caja: los acentos que
+       sobresalen (la tilde de la "í", arriba a la derecha) se cortaban. Más caja, mismo sitio */
+    padding: 0.2em 0.14em 0.06em;
+    margin: -0.2em -0.14em -0.06em;
     transform-origin: 50% 88%;
     animation: cs-fill var(--fd, 1ms) linear var(--f0, 0ms) both,
         cs-up var(--ud, 420ms) cubic-bezier(0.34, 1.56, 0.64, 1) var(--f0, 0ms) both,
