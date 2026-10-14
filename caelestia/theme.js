@@ -936,7 +936,7 @@
             row.append(sinks[1].frag);
             el.append(row);
         }
-        el.__cs = { idx, timed, real: !!lyr.lines[idx].w };
+        el.__cs = { idx, timed, real: !!lyr.lines[idx].w, t0: t };
         el.__bv = el.textContent;
         const line = el.parentElement;
         if (line) {
@@ -1241,6 +1241,18 @@
         if (jump || !el.__cs || el.__cs.idx !== cur || !el.querySelector(".cs-w") || el.__cs.real !== !!L[cur].w) buildLine(el, cur, t);
         const cs = el.__cs;
         if (jump) cs.prepped = -9;
+        // Deriva: las animaciones arrancan cuando el navegador recalcula estilos (tarde si Spotify va
+        // atascado, p. ej. al cambiar de canción) y Spotify corrige su posición a saltitos (~0,3 s al
+        // empezar una canción) que no cuentan como salto. Si el reloj de la animación y el de la
+        // canción se separan, se rehace la línea (lo mismo que conseguía pausar y reanudar)
+        if (playing && wall - (cs.chk || 0) > 500) {
+            cs.chk = wall;
+            // una animación aún en marcha (una acabada para su reloj): las de la última palabra duran más
+            let a = null;
+            for (let k = cs.timed.length - 1; k >= 0 && k >= cs.timed.length - 3 && !a; k--)
+                a = cs.timed[k].getAnimations().find((x) => x.playState === "running" && x.currentTime !== null) || null;
+            if (a && Math.abs(a.currentTime - (t - cs.t0)) > 200) clk.jump = true;
+        }
         // La siguiente se trocea ya (sus trozos solo tienen estilo cuando es la actual): al
         // encenderse sale directamente con el relleno por palabras
         if (cs.prepped !== cur) {
