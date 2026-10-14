@@ -275,8 +275,10 @@
     }).join("");
     // clave de una línea que no cambia al pasar los coros a su fila (ver bvText)
     const romKey = (t) => { const sp = splitBv(t || ""); return norm(sp.main) + "|" + norm(sp.bv); };
-    async function romanize(id, texts, lang) {
-        if (romCache.has(id)) return;
+    // canciones cuya romanización falló (red, límite de Google): el menú lo dice en vez de "no la necesita"
+    const romFail = new Set(), romBusy = new Set();
+    async function romanize(id, texts, lang, tries = 0) {
+        if (romCache.has(id) || romBusy.has(id)) return;
         // se romaniza solo la voz (sin los coros entre paréntesis: van en su fila y salían repetidos,
         // y Google destroza el inglés: "the mūn"); una línea entera de coro, entera
         const src = (t) => splitBv(t).main || t;
@@ -286,22 +288,40 @@
         for (const t of uniq) if (!CJK_RE.test(src(t))) m.set(romKey(t), cyrLatin(src(t)));
         const cjk = uniq.filter((t) => CJK_RE.test(src(t)));
         const sl = /^(ja|zh|ko)/.test(lang || "") ? lang : "auto";
-        try {
-            // de 25 en 25 líneas, separadas por " | " (sobrevive a la romanización; "\n" no)
-            for (let i = 0; i < cjk.length; i += 25) {
-                const part = cjk.slice(i, i + 25), q = part.map((t) => src(t).replace(/\|/g, " ")).join(" | ");
-                const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
-                let j;
-                try {
-                    j = await (await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=en&dt=rm&q=${encodeURIComponent(q)}`, { signal: ctl.signal })).json();
-                } finally { clearTimeout(to); }
-                const out = ((j && j[0]) || []).map((x) => (x && x[3]) || "").join("").split(/\s*\|\s*/);
-                if (out.length !== part.length) continue; // no casa línea a línea: mejor nada
+        // líneas separadas por " | " (sobrevive a la romanización; "\n" no). Si un bloque no casa línea
+        // a línea, se pide en trozos más pequeños (antes se tiraba y la canción se quedaba sin nada)
+        const ask = async (part) => {
+            const q = part.map((t) => src(t).replace(/\|/g, " ")).join(" | ");
+            const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 12000);
+            let j;
+            try {
+                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=en&dt=rm&q=${encodeURIComponent(q)}`, { signal: ctl.signal });
+                if (!res.ok) throw new Error("HTTP " + res.status);
+                j = await res.json();
+            } finally { clearTimeout(to); }
+            const out = ((j && j[0]) || []).map((x) => (x && x[3]) || "").join("").split(/\s*\|\s*/);
+            if (out.length === part.length) {
                 part.forEach((t, k) => { const r = out[k].trim(); if (r) m.set(romKey(t), r[0].toLowerCase() + r.slice(1)); });
+            } else if (part.length > 1) {
+                const h = Math.ceil(part.length / 2);
+                await ask(part.slice(0, h));
+                await ask(part.slice(h));
             }
-        } catch (e) { return; } // sin red: se reintenta la próxima vez que suene
+        };
+        romBusy.add(id);
+        try {
+            for (let i = 0; i < cjk.length; i += 25) await ask(cjk.slice(i, i + 25));
+        } catch (e) {
+            // sin red o con límite: se reintenta mientras siga sonando (3, 10 y 30 s)
+            romBusy.delete(id);
+            romFail.add(id);
+            if (tries < 3) setTimeout(() => { if (lyr.id === id) romanize(id, texts, lang, tries + 1); }, [3000, 10000, 30000][tries]);
+            return;
+        }
+        romBusy.delete(id);
+        romFail.delete(id);
         romCache.set(id, m.size ? m : null);
-        if (lyr.id === id) lyr.rom = m.size ? m : null;
+        if (lyr.id === id) { lyr.rom = m.size ? m : null; if (m.size) lyrRefresh(); }
     }
     // si la línea tiene fila de coros, la romanización va al principio de esa fila (::before):
     // pegada a la voz y con el coro debajo (data-cs-romrow oculta el ::after de la línea)
@@ -458,6 +478,10 @@
     }
     function lyrMenuFill(ui) {
         const hasRom = !!(lyr.rom && lyr.rom.size);
+        // ¿la canción la necesita? (japonés, chino, coreano o cirílico, sin contar los coros)
+        const needRom = !!(lyr.lines && lyr.lines.some((l) => { const t = splitBv(l.text).main || l.text; return CJK_RE.test(t) || CYR_RE.test(t); }));
+        const romNote = hasRom ? "" : !needRom ? "Esta canción no la necesita" :
+            romFail.has(lyr.id) ? "No se pudo cargar (se reintenta)" : "Cargando…";
         const fmt = (ms) => (ms > 0 ? "+" : ms < 0 ? "−" : "") + (Math.abs(ms) / 1000).toFixed(2).replace(".", ",") + " s";
         const flip = (key) => () => {
             OPT[key] = !OPT[key];
@@ -465,7 +489,7 @@
             if (key === "tr" && OPT.tr && lyr.id && lyr.lines && !trCache.has(lyr.id)) translate(lyr.id, lyr.lines.map((l) => l.text));
             lyrRefresh();
         };
-        ui.sw("Romanización", OPT.rom, flip("rom"), hasRom ? "" : "Esta canción no la necesita", !hasRom);
+        ui.sw("Romanización", OPT.rom, flip("rom"), romNote, !hasRom);
         ui.sw("Traducción", OPT.tr, flip("tr"), OPT.tr && lyr.id && trCache.has(lyr.id) && !trCache.get(lyr.id) ? "Ya está en tu idioma" : "");
         ui.sw("Coros", OPT.bv, flip("bv"));
         ui.sep();
