@@ -129,7 +129,7 @@ apartado y mira la columna «Cómo comprobarlo».
 | **Modo ambiente** con Canvas: los colores del vídeo alrededor (como YouTube) | CSS 23+ · `ambient` | Canción con Canvas |
 | Vídeo (videoclip) redondeado, sin bandas, centrado; ventana y pantalla completa | CSS 24 | «Cambiar a vídeo» |
 | Con **Canvas**: miniatura y título abajo a la izquierda (en reposo), con barra y tiempos debajo | CSS 24 · `cineTitle` (`data-mode="canvas"`) | Canción con Canvas, sin mover el ratón |
-| **Clic derecho, con portada**: Título y artista, Barra de progreso, Tiempos, Inclinación, Tamaño de portada (4) | `cineMenuFill` · `OPT.cine` | Clic derecho en la vista |
+| **Clic derecho, con portada**: Título y artista, Barra de progreso, Tiempos, Inclinación, Latido al ritmo (solo a pantalla completa: `beatOn`, el pulso se suma a la inclinación), Tamaño de portada (4) | `cineMenuFill` · `OPT.cine` | Clic derecho en la vista |
 | **Clic derecho, con Canvas** (configuración **independiente**, también el tamaño): Título y artista, Barra, Tiempos, **Barra centrada** (abajo en el centro), Inclinación, Tamaño (Pequeño / Normal / Grande; Grande ocupa casi toda la altura y no admite la barra centrada) | `cineMenuFill`, `cineCenterBar` · `OPT.canvas` | Clic derecho con Canvas |
 | Arreglos de estados atascados de Spotify (vista que se reabre sola al quitar la letra, panel central oculto tras salir, dock que no vuelve) | `cineReopened`, `cineUnstick`, `cineWake`, `cineSkip` | |
 | Botones de letra y salir a pantalla completa arriba repiten los del dock | `cineDup` | |

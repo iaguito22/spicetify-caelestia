@@ -348,7 +348,7 @@
     })());
     // vista cine (Sonando a pantalla completa, sin letra)
     // y con Canvas: cada una con sus propias opciones (también el tamaño)
-    OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0 }, OPT.cine);
+    OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, beat: true, size: 0 }, OPT.cine);
     OPT.canvas = Object.assign({ title: true, prog: true, times: false, tilt: true, size: 0, center: false }, OPT.canvas);
     // letra a pantalla completa: la portada de la izquierda
     OPT.fs = Object.assign({ beat: true, tilt: true }, OPT.fs);
@@ -521,6 +521,11 @@
         ui.sw("Tiempos", C.times, flip("times"), "Debajo de la barra", !C.prog);
         if (canvas) ui.sw("Barra centrada", C.center && C.size < 1, flip("center"), C.size === 1 ? "No cabe con el Canvas grande" : "Abajo, en el centro", !C.prog || C.size === 1);
         ui.sw(canvas ? "Inclinación del Canvas" : "Inclinación de la portada", C.tilt, flip("tilt"), "Al pasar el ratón");
+        if (!canvas) ui.sw("Latido al ritmo", C.beat, () => {
+            C.beat = !C.beat;
+            optSave();
+            if (C.beat) fsBeatTick(); else fsBeatStop();
+        }, "A pantalla completa");
         ui.sep();
         if (canvas) {
             const setSize = (d) => { C.size = Math.max(-1, Math.min(1, C.size + d)); optSave(); optApply(); };
@@ -1592,10 +1597,16 @@
             fsBeatTick();
         } catch (e) { /* sin análisis: la portada se queda quieta */ }
     }
+    // late la portada de la letra a pantalla completa o la de la vista cine a pantalla completa
+    // (con portada; con Canvas o videoclip no hay)
+    const beatOn = () => fsOn ? OPT.fs.beat : !!document.fullscreenElement && OPT.cine.beat && !!document.querySelector(".Root__cinema-view");
+    const beatCover = () => fsOn ? document.querySelector("#cs-fslyr-art .cs-fa-cover") :
+        cineCanvasVid() ? null : document.querySelector(".Root__cinema-view .cover-art");
     function fsBeatTick() {
         clearTimeout(fsBeat.t);
-        const B = fsBeat.beats, cover = fsOn && B && document.querySelector("#cs-fslyr-art .cs-fa-cover");
-        if (!cover || !OPT.fs.beat || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+        fsBeat.t = 0;
+        const B = fsBeat.beats;
+        if (!B || !beatOn() || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         if (!Spicetify.Player.isPlaying()) return void (fsBeat.t = setTimeout(fsBeatTick, 400));
         const t = Spicetify.Player.getProgress();
         let lo = 0, hi = B.length;
@@ -1605,9 +1616,13 @@
         const wait = b.t - t;
         if (wait > 1200) return void (fsBeat.t = setTimeout(fsBeatTick, 1000));
         fsBeat.t = setTimeout(() => {
-            if (!fsOn) return;
-            cover.animate([{ transform: "scale(1)" }, { transform: `scale(${(1 + b.a).toFixed(4)})`, offset: 0.16 }, { transform: "scale(1)" }],
-                { duration: Math.max(220, Math.min(700, b.d * 0.95)), easing: "cubic-bezier(0.3, 0.7, 0.4, 1)" });
+            if (!beatOn()) return void (fsBeat.t = 0);
+            // la de la vista cine lleva su inclinación en transform: el pulso se le suma (composite add);
+            // mientras la carátula vuela (entrada/salida) no late
+            const cover = beatCover(), root = document.documentElement;
+            if (cover && !root.hasAttribute("data-cs-fsfly") && !root.hasAttribute("data-cs-fsin"))
+                cover.animate([{ transform: "scale(1)" }, { transform: `scale(${(1 + b.a).toFixed(4)})`, offset: 0.16 }, { transform: "scale(1)" }],
+                    { duration: Math.max(220, Math.min(700, b.d * 0.95)), easing: "cubic-bezier(0.3, 0.7, 0.4, 1)", composite: fsOn ? "replace" : "add" });
             fsBeatTick();
         }, Math.max(0, wait));
     }
@@ -1615,8 +1630,9 @@
     // apagado desde el menú: el pulso que esté en marcha se corta
     function fsBeatStop() {
         clearTimeout(fsBeat.t);
-        const cover = document.querySelector("#cs-fslyr-art .cs-fa-cover");
-        if (cover) for (const a of cover.getAnimations()) a.cancel();
+        fsBeat.t = 0;
+        for (const cover of document.querySelectorAll("#cs-fslyr-art .cs-fa-cover, .Root__cinema-view .cover-art"))
+            for (const a of cover.getAnimations()) if (!(a instanceof CSSTransition) && !(a instanceof CSSAnimation)) a.cancel();
     }
 
     // Entrar o salir de pantalla completa recoloca toda la ventana (unos cientos de ms a
@@ -1811,6 +1827,7 @@
             else {
                 clearTimeout(fsProgT);
                 clearTimeout(fsBeat.t);
+                fsBeat.t = 0;
                 fsCanvasHold(false);
                 fsNoLyrN = 0;
                 root.removeAttribute("data-cs-fsnolyr");
@@ -2373,7 +2390,7 @@
         Spicetify.Player.addEventListener("songchange", update);
         Spicetify.Player.addEventListener("songchange", loadLyrics);
         Spicetify.Player.addEventListener("songchange", cineTitle);
-        Spicetify.Player.addEventListener("songchange", () => { fsArt(); if (fsOn) fsBeatLoad(); });
+        Spicetify.Player.addEventListener("songchange", () => { fsArt(); if (beatOn()) fsBeatLoad(); });
         setInterval(ambient, 1000);
         document.addEventListener("visibilitychange", ambient);
         document.addEventListener("fullscreenchange", () => {
@@ -2390,6 +2407,8 @@
             if (sp) searchH = sp.getBoundingClientRect().height;
             const mv = document.querySelector(".Root__main-view");
             watchSides();
+            // la vista cine a pantalla completa no pasa por fsLyrics: el latido arranca aquí
+            if (!fsBeat.t && beatOn()) { fsBeatLoad(); fsBeatTick(); }
             bindHistory();
             // "Reproduciendo en Nothing phone de user" → data-dev="Nothing phone" (la pastilla del dock)
             const cb = document.querySelector(".main-connectBar-connectBar");
