@@ -85,9 +85,10 @@ It installs in **dark mode**. For light: `spicetify config color_scheme light`, 
 | Windows, Spotify 1.3.1 | Tested ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Supported, being tested ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
 | Windows, Spotify 1.3.4 | **Compatible**, tested |
+| Windows, Spotify 1.3.5 | **Compatible**, tested on two PCs |
 | macOS | Untested |
 
-After a Spotify update, run `spicetify upgrade` and then `spicetify restore backup apply`.
+After a Spotify update, run `spicetify upgrade` and then `spicetify restore backup apply`. Use `upgrade`: in older Spicetify versions `update` only reloads the theme and does not update Spicetify, so the theme stays broken on newer Spotify versions.
 
 Spotify renames its CSS classes between versions; lyrics and side panels break first. If something looks off, open an issue with a screenshot.
 
@@ -181,9 +182,10 @@ Se instala en **modo oscuro**. Si lo prefieres claro: `spicetify config color_sc
 | Windows, Spotify 1.3.1 | Probado ([#3](https://github.com/iaguito22/spicetify-caelestia/issues/3)) |
 | Windows, Spotify 1.3.3 | Compatible, en pruebas ([#6](https://github.com/iaguito22/spicetify-caelestia/issues/6), [#10](https://github.com/iaguito22/spicetify-caelestia/issues/10)) |
 | Windows, Spotify 1.3.4 | **Compatible**, probado |
+| Windows, Spotify 1.3.5 | **Compatible**, probado en dos PC |
 | macOS | Sin probar |
 
-Después de una actualización de Spotify, ejecuta `spicetify upgrade` y luego `spicetify restore backup apply`.
+Después de una actualización de Spotify, ejecuta `spicetify upgrade` y luego `spicetify restore backup apply`. Usa `upgrade`: en versiones antiguas de Spicetify `update` solo recarga el tema y no actualiza Spicetify, así que con un Spotify más nuevo el tema sigue roto.
 
 Spotify cambia los nombres de sus clases CSS de una versión a otra, y lo primero que suele romperse es la letra y los paneles laterales. Si ves algo raro, abre un issue con una captura.
 
