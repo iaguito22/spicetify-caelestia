@@ -2129,7 +2129,13 @@
         // fotograma de scroll invalida el estilo de TODO el documento (y leer después fuerza el recálculo)
         function syncStuck(t) {
             raf = 0;
-            const h = document.querySelector(".main-trackList-trackListHeader");
+            // Discografía (vista lista): una lista por álbum, cada una con su cabecera, y encima la barra
+            // de Spotify (artista · filtro · orden), siempre pegada. Esa barra es la que lleva el cristal;
+            // mirar la primera cabecera daba "pegada" en cuanto se iba con su álbum, y el cristal salía en todas
+            const sb = document.querySelector('[data-testid="artist-page"] .x-sortBox-sortDropdown');
+            const disco = sb && sb.parentElement;
+            if (disco && !disco.hasAttribute("data-cs-disco")) disco.setAttribute("data-cs-disco", "");
+            const h = disco || document.querySelector(".main-trackList-trackListHeader");
             let stuck = false;
             if (h) {
                 let off = stickyTop.get(h);

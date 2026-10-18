@@ -931,7 +931,8 @@ html[data-cs-stuck] .main-trackList-trackListHeader {
     background: transparent !important;
     backdrop-filter: none !important;
 }
-html[data-cs-stuck] .main-trackList-trackListHeader::before {
+/* (en la discografía hay una cabecera por álbum, sin pegar: el cristal lo lleva la barra de Spotify) */
+html[data-cs-stuck] :is(.main-trackList-trackListHeader:not([data-testid="artist-page"] *), [data-cs-disco])::before {
     content: "";
     position: absolute;
     z-index: -1;
@@ -1575,9 +1576,9 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvl][data-cs-d="0"] { te
 /* --------------------------------------------------------------------------
    17. Modo claro: los textos que Spotify fija en blanco (cabeceras "sobre imagen")
    -------------------------------------------------------------------------- */
-.main-entityHeader-metaData .encore-text,
-.main-entityHeader-metaDataText .encore-text,
-.main-entityHeader-subtitle .encore-text { color: var(--spice-subtext) !important; }
+.main-entityHeader-metaData :is(.encore-text, [data-encore-id="text"]),
+.main-entityHeader-metaDataText :is(.encore-text, [data-encore-id="text"]),
+.main-entityHeader-subtitle :is(.encore-text, [data-encore-id="text"]) { color: var(--spice-subtext) !important; }
 
 /* Vista "Sonando" con vídeo/canvas (siempre oscuro): cabecera y título en blanco
    sobre la imagen, y el degradado baja al color del panel por debajo del título */
@@ -2627,3 +2628,30 @@ html[data-cs-nobv] .lyrics-lyricsContent-lyric[data-cs-romrow]::after { display:
 .cs-gap:hover > i { opacity: 1; transform: translate(-50%, -50%); }
 .cs-gap[data-on] > i { opacity: 1; transform: translate(-50%, -50%) scaleY(1.5); background: var(--cs-accent); }
 html[data-cs-drag] { cursor: col-resize; }
+
+/* --------------------------------------------------------------------------
+   Discografía en lista (artista → Discografía): un bloque por álbum con su lista
+   -------------------------------------------------------------------------- */
+/* La barra de Spotify (artista · filtro · orden) va siempre pegada bajo la del título: el mismo
+   cristal que una cabecera de columnas pegada (theme.js la marca con data-cs-disco y data-cs-stuck) */
+[data-cs-disco] { background: transparent !important; border: 0 !important; box-shadow: none !important; }
+/* Cada álbum: Spotify le pone el fondo OPACO de la página (rectángulos sobre el panel translúcido),
+   una sombra negra de 60 px que en claro es una mancha gris, y el texto de debajo del título en
+   blanco (variable en línea) */
+[data-testid="artist-page"] div:has(> .main-entityHeader-image) {
+    background: transparent !important;
+}
+[data-testid="artist-page"] div:has(> .main-entityHeader-image) > .main-entityHeader-image {
+    border-radius: var(--cs-r-inner) !important;
+    overflow: hidden;
+    box-shadow: 0 10px 26px color-mix(in srgb, var(--cs-accent) 26%, rgba(var(--spice-rgb-shadow), 0.4)) !important;
+}
+[data-testid="artist-page"] div:has(> .main-entityHeader-image) img { border-radius: inherit !important; box-shadow: none !important; }
+[data-testid="artist-page"] .main-entityHeader-metaData { --text-subdued: var(--spice-subtext) !important; }
+/* Las cabeceras de columnas de cada álbum se pegaban a la misma altura que la barra y por encima
+   de ella (z-index del tema): aquí van en su sitio, sin fondo */
+[data-testid="artist-page"] .main-trackList-trackListHeader {
+    position: relative !important;
+    top: auto !important;
+    background: transparent !important;
+}
