@@ -1582,26 +1582,34 @@ html[data-cs-clock] .lyrics-lyricsContent-lyric[data-cs-bvl][data-cs-d="0"] { te
 
 /* Vista "Sonando" con vídeo/canvas (siempre oscuro): cabecera y título en blanco
    sobre la imagen, y el degradado baja al color del panel por debajo del título */
-html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve] .main-nowPlayingView-headerWrapper,
-html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve] .main-nowPlayingView-headerWrapper * {
+html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve]:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerWrapper,
+html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve]:has(.canvasVideoContainerNPV video) .main-nowPlayingView-headerWrapper * {
     color: #fff !important;
     text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+}
+/* …pero al hacer scroll la cabecera es de cristal claro (Spotify le añade una 2.ª clase, ofuscada):
+   sin el degradado negro de encima y con el texto oscuro */
+html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve] .main-nowPlayingView-headerContainer:not([class="main-nowPlayingView-headerContainer"]) { background: none !important; }
+html[data-cs-mode="light"] .Root__right-sidebar[data-cs-canvasve] .main-nowPlayingView-headerContainer:not([class="main-nowPlayingView-headerContainer"]) .main-nowPlayingView-headerWrapper :is(*, *::before) {
+    color: var(--spice-text) !important; text-shadow: none !important;
 }
 /* El título cae sobre el degradado ya claro: texto oscuro; el botón de vídeo, sobre la imagen: blanco */
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo,
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo :is(a, div, span) { color: var(--spice-text) !important; text-shadow: none; }
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo .main-trackInfo-artists * { color: var(--spice-subtext) !important; }
 html[data-cs-mode="light"] .main-nowPlayingView-actionButton { color: #fff !important; }
-/* Fondo opaco bajo el título solo con vídeo/Canvas detrás (el contenido sube por encima de él); con
-   la portada, que se desplaza con el panel, sobre el cristal translúcido se veía como una franja */
-html[data-cs-mode="light"] .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo { position: relative; background: var(--spice-main) !important; box-shadow: -24px 0 0 var(--spice-main), 24px 0 0 var(--spice-main); }
-html[data-cs-mode="light"] .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo::after {
-    content: ""; position: absolute; left: -24px; right: -24px; bottom: 100%; height: 30px;
-    background: linear-gradient(to bottom, transparent, var(--spice-main)); pointer-events: none;
+/* Con Canvas, el vídeo baja ~175 px por debajo del título. Antes se tapaba con un bloque opaco
+   (fondo del título + su ::before de 280 px) que acababa en seco y no llegaba a los bordes del
+   cristal: ahora es el vídeo el que se desvanece antes del título, y el título queda sobre el cristal */
+html[data-cs-mode="light"] .NowPlayingView .main-nowPlayingView-canvasVisualEnhancement {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 400px), transparent calc(100% - 240px)) !important;
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 400px), transparent calc(100% - 240px)) !important;
 }
-html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::before {
-    background: linear-gradient(to bottom, transparent 0%, transparent 18%, color-mix(in srgb, var(--spice-main) 88%, transparent) 40%, var(--spice-main) 52%) !important;
-}
+html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::before,
+html[data-cs-mode="light"] .main-nowPlayingView-canvasVisualEnhancement::after { background: none !important; }
+/* el botón "Cambiar a vídeo/canción" va sobre el vídeo (píldora oscura): texto blanco */
+html[data-cs-mode="light"] .Root__right-sidebar .encore-over-media-set button,
+html[data-cs-mode="light"] .Root__right-sidebar .encore-over-media-set button * { color: #fff !important; }
 
 /* Tarjetas de categorías (Explorar todo): fondo de color saturado, texto blanco */
 html[data-cs-mode="light"] a[href*="/genre/"] [class*="encore-text"],
@@ -2083,7 +2091,9 @@ html[data-cs-mode="light"] #cs-amb.cs-on { opacity: 0.6; }
 }
 .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo { text-shadow: 0 1px 12px rgb(0 0 0 / 0.45); }
 .NowPlayingView:not(:has(.canvasVideoContainerNPV video)) .main-nowPlayingView-contextItemInfo::before { background: none !important; }
+/* (Spotify lo hace del ancho del título: a los lados del panel quedaban dos bordes verticales) */
 .main-nowPlayingView-contextItemInfo::before {
+    left: -16px !important; right: -16px !important; /* = relleno del panel; más, y aparece scroll horizontal */
     background-image: linear-gradient(rgb(18 18 18 / 0) 0%, rgb(18 18 18 / .45) 18%, rgb(18 18 18 / .22) 55%, transparent 100%) !important;
 }
 /* Playlists propias: la fila de chips va justo debajo del play, alineada con él, sin pisar nada */
