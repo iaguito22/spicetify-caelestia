@@ -1144,7 +1144,8 @@
         if (runs.length === 3 && new Set(runs).size === 3) L13.state = { [runs[0]]: "previous", [runs[1]]: "active", [runs[2]]: "upcoming" };
     }
     function tagLyrics13() {
-        if (L13.wrap && L13.wrap.isConnected && L13.box && L13.box.isConnected && L13.wrap.children.length) return;
+        // (menos de 3 líneas: se etiquetó un nivel de más —p. ej. en el cambio de canción— y se rehace)
+        if (L13.wrap && L13.wrap.isConnected && L13.box && L13.box.isConnected && L13.wrap.children.length >= 3) return;
         const H = Spicetify.Platform && Spicetify.Platform.History;
         if (!H || !H.location || H.location.pathname !== "/lyrics") return;
         const mv = document.querySelector(".Root__main-view");
@@ -1161,7 +1162,12 @@
         const content = wrap.parentElement, box = content && content.parentElement && content.parentElement.parentElement;
         if (!box || box === mv) return;
         // al cambiar de canción Spotify rehace las líneas (y a veces el contenedor): se vuelve a etiquetar
+        // y se quitan las etiquetas viejas: si no, un contenedor marcado en otro nivel se queda con
+        // el relleno de la letra (a pantalla completa, columna de una palabra por renglón)
         if (L13.box && L13.box !== box) L13.box.classList.remove("lyrics-lyrics-container");
+        for (const k of ["lyrics-lyrics-contentWrapper", "lyrics-lyrics-background", "lyrics-lyricsContent-lyric", "lyrics-lyricsContent-text",
+            "lyrics-lyricsContent-previous", "lyrics-lyricsContent-active", "lyrics-lyricsContent-upcoming"])
+            for (const e of mv.querySelectorAll("." + k)) e.classList.remove(k);
         L13.box = box;
         box.classList.add("lyrics-lyrics-container");
         content.classList.add("lyrics-lyrics-contentWrapper");
