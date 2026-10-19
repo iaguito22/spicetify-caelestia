@@ -341,13 +341,18 @@
 
 
     // ---- Opciones de la letra (clic derecho sobre la letra) -------------------
-    // Se guardan en localStorage. La sincronía es un adelanto para todas (`lead`, +0,25 s por defecto:
-    // a la hora de leer, la letra exacta parece ir atrasada) más un ajuste por canción (`offs`).
+    // Se guardan en localStorage; el desfase de sincronía va por canción y cuenta desde LYR_LEAD:
+    // a la hora de leer, la letra exacta parece ir atrasada, así que su 0 va 0,25 s por delante.
     const OPT_KEY = "cs-lyrics-opts";
+    const LYR_LEAD = 250;
     const OPT_SAVED = (() => { try { return JSON.parse(localStorage.getItem(OPT_KEY)) || {}; } catch (e) { return {}; } })();
-    const OPT = Object.assign({ rom: true, tr: false, bv: true, size: 0, lead: 250, offs: {} }, OPT_SAVED);
-    // antes no había adelanto: los ajustes por canción guardados eran absolutos
-    if (!("lead" in OPT_SAVED)) for (const k in OPT.offs) if (!(OPT.offs[k] -= OPT.lead)) delete OPT.offs[k];
+    const OPT = Object.assign({ rom: true, tr: false, bv: true, size: 0, offs: {} }, OPT_SAVED);
+    // antes el 0 era la sincronía exacta: los desfases guardados se pasan a contar desde LYR_LEAD
+    // (`lead` lo dejó d513bd1, que ya los había pasado)
+    if (!OPT.offsRel) {
+        if (!("lead" in OPT)) for (const k in OPT.offs) if (!(OPT.offs[k] -= LYR_LEAD)) delete OPT.offs[k];
+        delete OPT.lead; OPT.offsRel = true; optSave();
+    }
     // vista cine (Sonando a pantalla completa, sin letra)
     // y con Canvas: cada una con sus propias opciones (también el tamaño)
     OPT.cine = Object.assign({ title: true, prog: true, times: false, tilt: true, beat: true, size: 0 }, OPT.cine);
@@ -373,7 +378,7 @@
         cineOpts();
     }
     const lyrSongOff = () => (lyr.id && OPT.offs[lyr.id]) || 0;
-    const lyrOffset = () => OPT.lead + lyrSongOff();
+    const lyrOffset = () => LYR_LEAD + lyrSongOff();
     // repasa las líneas en pantalla (romanización/traducción puestas o quitadas)
     function lyrRefresh() {
         const box = document.querySelector(".lyrics-lyrics-container");
@@ -507,12 +512,6 @@
             clk.jump = true; clk.cur = -2; // rehace la frase actual con el nuevo reloj
         };
         ui.stepper("Sincronía", fmt(lyrSongOff()), () => setOff(-250), () => setOff(250), () => setOff(null), "Doble clic: volver a 0 · solo esta canción");
-        const setLead = (d) => {
-            OPT.lead = d === null ? 250 : Math.max(-2000, Math.min(2000, OPT.lead + d));
-            optSave();
-            clk.jump = true; clk.cur = -2;
-        };
-        ui.stepper("Adelanto", fmt(OPT.lead), () => setLead(-50), () => setLead(50), () => setLead(null), "Doble clic: volver a +0,25 s · todas las canciones");
         ui.sep();
         ui.btn("Copiar letra", async () => {
             const txt = lyr.lines.map((l) => l.text).join("\n").replace(/♪/g, "").replace(/\n{3,}/g, "\n\n").trim();
