@@ -2088,7 +2088,9 @@ section[data-cs-entity] .contentSpacing > .main-actionBar-ActionBarContainer { m
 /* la fila (en 1.2 y 1.3.3) es el div con los botones y la caja de "Mezcla" como hijos */
 /* (button + div: en las listas mezcladas el chip "Mezcla" lleva dentro una píldora con un div y un
    botón, que con `:has(> button):has(> div)` también recibía el padding y se ensanchaba 210 px) */
-section[data-cs-entity] .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button + div) { padding: 6px 0 6px 210px !important; }
+/* (fuera de la tracklist: la última celda de cada fila es también botón + div y se ensanchaba 210 px,
+   empujando la duración fuera de la fila en los álbumes con columna de reproducciones) */
+section[data-cs-entity] .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button + div):not([role="grid"] *) { padding: 6px 0 6px 210px !important; }
 /* Listas mezcladas: Spotify rodea el play con un anillo SVG verde fijo (#1ED760) que no casa con
    el acento: plateado, como el propio botón */
 .main-actionBar-ActionBarRow div[aria-hidden="true"]:has(> div > svg[viewBox="0 0 240 240"]) { filter: grayscale(1) brightness(1.15); opacity: 0.85; }
