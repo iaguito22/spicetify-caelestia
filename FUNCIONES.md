@@ -104,7 +104,7 @@ apartado y mira la columna «Cómo comprobarlo».
 | Entrada de la letra en cascada; cierre animado; el botón de cerrar vuelve a la última página | CSS 16 · `lyricsBack`, `closeLyrics` | |
 | Botón **«Sincronizar»** de cristal por encima del dock | CSS 25 | Desplazar la letra a mano |
 | Letra en Spotify 1.3 (clases ofuscadas): se reconoce por la forma y se etiqueta | `tagLyrics13` | |
-| **Clic derecho sobre la letra** (en ventana y a pantalla completa): Romanización, **Traducción** (al idioma de Spotify), Coros, **Tamaño** (5 pasos), **Sincronía** ±0,25 s por canción, Copiar letra | CSS 26 · `lyrMenuFill`, `translate`, `OPT` (localStorage `cs-lyrics-opts`) | Clic derecho en la letra |
+| **Clic derecho sobre la letra** (en ventana y a pantalla completa): Romanización, **Traducción** (al idioma de Spotify), Coros, **Tamaño** (5 pasos), **Sincronía** ±0,25 s por canción, **Adelanto** para todas (+0,25 s por defecto, pasos de 0,05 s), Copiar letra | CSS 26 · `lyrMenuFill`, `translate`, `OPT` (localStorage `cs-lyrics-opts`) | Clic derecho en la letra |
 
 ## 8. Pantalla completa con letra
 
