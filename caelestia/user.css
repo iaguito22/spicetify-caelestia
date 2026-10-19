@@ -1633,6 +1633,11 @@ html[data-cs-os="windows"] .main-globalNav-contentRight { margin-right: 140px !i
 /* Spotify 1.3 ya reserva el hueco de los controles DENTRO de la píldora (135 px vacíos tras el avatar) */
 .main-globalNav-contentRightSpacer { display: none !important; }
 html[data-cs-os="mac"] .main-globalNav-historyButtonsContainer { margin-left: 76px !important; }
+/* Windows/macOS: ventana sin marco y .body-drag-top (60 px de arrastre) encima de la barra; Spotify solo
+   lo anula en la caja de .main-actionButtons, y lo que se sale de ella (avatar envuelto en position:absolute
+   en 1.3.5) se tragaba el clic como "arrastrar ventana". Las píldoras enteras no arrastran; los huecos sí */
+:is(.main-globalNav-historyButtonsContainer, .main-globalNav-searchContainer, .main-globalNav-contentRight),
+:is(.main-globalNav-historyButtonsContainer, .main-globalNav-searchContainer, .main-globalNav-contentRight) * { -webkit-app-region: no-drag !important; }
 
 /* --------------------------------------------------------------------------
    19. Marketplace: pestañas en píldora, cabecera de cristal y tarjetas concéntricas
