@@ -1592,8 +1592,10 @@ html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo,
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo :is(a, div, span) { color: var(--spice-text) !important; text-shadow: none; }
 html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo .main-trackInfo-artists * { color: var(--spice-subtext) !important; }
 html[data-cs-mode="light"] .main-nowPlayingView-actionButton { color: #fff !important; }
-html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo { position: relative; background: var(--spice-main) !important; box-shadow: -24px 0 0 var(--spice-main), 24px 0 0 var(--spice-main); }
-html[data-cs-mode="light"] .main-nowPlayingView-contextItemInfo::after {
+/* Fondo opaco bajo el título solo con vídeo/Canvas detrás (el contenido sube por encima de él); con
+   la portada, que se desplaza con el panel, sobre el cristal translúcido se veía como una franja */
+html[data-cs-mode="light"] .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo { position: relative; background: var(--spice-main) !important; box-shadow: -24px 0 0 var(--spice-main), 24px 0 0 var(--spice-main); }
+html[data-cs-mode="light"] .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo::after {
     content: ""; position: absolute; left: -24px; right: -24px; bottom: 100%; height: 30px;
     background: linear-gradient(to bottom, transparent, var(--spice-main)); pointer-events: none;
 }
@@ -2080,6 +2082,7 @@ html[data-cs-mode="light"] #cs-amb.cs-on { opacity: 0.6; }
     background: linear-gradient(rgb(0 0 0 / 0.34) 0%, transparent 22%) !important;
 }
 .NowPlayingView:has(.canvasVideoContainerNPV video) .main-nowPlayingView-contextItemInfo { text-shadow: 0 1px 12px rgb(0 0 0 / 0.45); }
+.NowPlayingView:not(:has(.canvasVideoContainerNPV video)) .main-nowPlayingView-contextItemInfo::before { background: none !important; }
 .main-nowPlayingView-contextItemInfo::before {
     background-image: linear-gradient(rgb(18 18 18 / 0) 0%, rgb(18 18 18 / .45) 18%, rgb(18 18 18 / .22) 55%, transparent 100%) !important;
 }
