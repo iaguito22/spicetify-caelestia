@@ -987,12 +987,12 @@ html[data-cs-stuck] :is(.main-trackList-trackListHeader:not([data-testid="artist
 .main-coverSlotCollapsed-container > div { width: 60px !important; height: 60px !important; }
 
 /* La info de la canción nunca invade la columna central */
-.main-nowPlayingBar-left { width: 100% !important; justify-self: stretch !important; }
-.main-nowPlayingWidget-nowPlaying { width: 100% !important; min-width: 0 !important; }
-.main-nowPlayingWidget-trackInfo { flex: 1 1 0 !important; min-width: 0 !important; overflow: hidden !important; }
+:is(.main-nowPlayingBar-left, [data-testid="now-playing-bar"] > div:first-child) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; justify-self: stretch !important; }
+:is(.main-nowPlayingWidget-nowPlaying, [data-testid="now-playing-widget"]) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; gap: 10px !important; }
+.main-nowPlayingWidget-trackInfo { flex: 1 1 0 !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; }
+.main-nowPlayingWidget-trackInfo :is(.main-trackInfo-name, .main-trackInfo-artists, .main-trackInfo-overlay, a, span) { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
 .main-nowPlayingWidget-actionButtonWrapper { flex: none !important; margin: 0 !important; padding: 0 !important; }
 .main-coverSlotCollapsed-container { align-self: center !important; margin: 0 !important; }
-.main-nowPlayingWidget-nowPlaying { gap: 10px !important; }
 .main-nowPlayingWidget-trackInfo .main-trackInfo-xsmallBadges { display: none !important; } /* la línea con el ▶ suelta */
 /* Solo título y artista: versiones nuevas de Spotify añaden más líneas (álbum • año) que pisaban los tiempos */
 .main-nowPlayingWidget-trackInfo > :not(.main-trackInfo-name):not(.main-trackInfo-artists) { display: none !important; }
@@ -2116,7 +2116,7 @@ section[data-cs-entity] .contentSpacing > .main-actionBar-ActionBarContainer { m
    botón, que con `:has(> button):has(> div)` también recibía el padding y se ensanchaba 210 px) */
 /* (fuera de la tracklist: la última celda de cada fila es también botón + div y se ensanchaba 210 px,
    empujando la duración fuera de la fila en los álbumes con columna de reproducciones) */
-section[data-cs-entity] .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button + div):not([role="grid"] *) { padding: 6px 0 6px 210px !important; }
+section[data-cs-entity] .main-actionBar-ActionBarContainer + .contentSpacing div:has(> button + div):not(:is([role="grid"], .main-trackList-trackList, .main-trackList-trackListContainer, [style*="tracklist-placeholder"], [data-testid="track-list"]) *) { padding: 6px 0 6px 210px !important; }
 /* Listas mezcladas: Spotify rodea el play con un anillo SVG verde fijo (#1ED760) que no casa con
    el acento: plateado, como el propio botón */
 .main-actionBar-ActionBarRow div[aria-hidden="true"]:has(> div > svg[viewBox="0 0 240 240"]) { filter: grayscale(1) brightness(1.15); opacity: 0.85; }

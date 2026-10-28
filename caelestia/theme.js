@@ -1711,12 +1711,15 @@
         root.removeAttribute("data-cs-fsback");
         // con el botón, la carátula vuela desde donde está (dock o pantalla completa) al centro
         // mientras la ventana se recoloca, y de ahí a su sitio en el modo nuevo
-        const fly = !!(action && src && !matchMedia("(prefers-reduced-motion: reduce)").matches);
+        const leaving = !!document.fullscreenElement || fsOn;
+        const fly = !!(src && !matchMedia("(prefers-reduced-motion: reduce)").matches);
         img.getAnimations().forEach((x) => x.cancel());
         img.classList.toggle("cs-on", fly);
         if (fly) {
             if (img.getAttribute("src") !== src) img.src = src;
-            const from = rectOf(fsCoverEl()), mid = centerRect();
+            const dockArt = document.querySelector(".Root__now-playing-bar :is(.main-coverSlotCollapsed-container, .main-nowPlayingWidget-coverArt, [data-testid='cover-art-button'])");
+            const fsArt = document.querySelector(fsOn ? "#cs-fslyr-art .cs-fa-cover" : ".Root__cinema-view .cover-art");
+            const from = rectOf(leaving ? (fsArt || fsCoverEl()) : (dockArt || fsCoverEl())), mid = centerRect();
             flyCover(img, from || mid, mid, 620);
             root.setAttribute("data-cs-fsfly", "");
             // la ventana cambia de tamaño: el centro se mueve, y la carátula lo sigue suave
@@ -1761,7 +1764,9 @@
                 root.removeAttribute("data-cs-fsgo");
                 if (!fly) return void setTimeout(reveal, 16);
                 // la carátula aterriza en su sitio nuevo y entonces se retira el velo
-                const cur = rectOf(img), to = rectOf(fsCoverEl()) || centerRect();
+                const cur = rectOf(img);
+                const dockArt = document.querySelector(".Root__now-playing-bar :is(.main-coverSlotCollapsed-container, .main-nowPlayingWidget-coverArt, [data-testid='cover-art-button'])");
+                const to = (leaving ? rectOf(dockArt) : rectOf(fsCoverEl())) || centerRect();
                 img.getAnimations().forEach((x) => x.cancel());
                 const an = flyCover(img, cur, to, 520);
                 if (an) { an.onfinish = reveal; setTimeout(reveal, 700); } else reveal();
@@ -2270,7 +2275,11 @@
             // la vista cine tiene su propio botón de salir arriba (sin data-testid): mismo texto que el del dock
             if (!b && e.target instanceof Element && e.target.closest(".Root__cinema-view")) {
                 const c = e.target.closest("button"), d = document.querySelector(FSB);
-                if (c && d && c.getAttribute("aria-label") && c.getAttribute("aria-label") === d.getAttribute("aria-label")) b = c;
+                const L = Spicetify.Locale, exitLabel = L && L.get("web-player.cinema-mode.fullscreen.exit");
+                if (c) {
+                    const aria = c.getAttribute("aria-label");
+                    if (aria && ((d && aria === d.getAttribute("aria-label")) || aria === exitLabel || /^(Salir de pantalla completa|Exit full screen)$/i.test(aria))) b = c;
+                }
             }
             const H = Spicetify.Platform.History;
             if (!b || fsPass) return;
@@ -2418,7 +2427,7 @@
             // cambio sin el botón (Esc, F11) con la letra o la vista cine abiertas: la misma coreografía
             // (la carátula vuela a su sitio nuevo) y el velo tapa la recolocación
             const H = Spicetify.Platform.History;
-            if ((fsOn || (H.location && H.location.pathname === "/lyrics") || document.querySelector(".Root__cinema-view")) && !fsVeilBusy) fsVeil(() => {});
+            if ((fsOn || (H.location && H.location.pathname === "/lyrics") || document.querySelector(".Root__cinema-view")) && !fsVeilBusy) fsVeil();
             setTimeout(fsLyrics, 50);
         });
         loadLyrics();
@@ -2611,6 +2620,12 @@
         [".main-globalNav-searchInputTextWrapper > span:first-child", "main-globalNav-searchInputText"],
         ['.main-globalNav-searchInputContainer [class*="form-input-icon__icon--trailing"] > div', "main-globalNav-browseButtonWrapper"],
         ['[data-testid="player-controls"]', "player-controls"],
+        ['[data-testid="now-playing-bar"] > div:first-child', "main-nowPlayingBar-left"],
+        ['[data-testid="now-playing-bar"] > div:nth-child(2)', "main-nowPlayingBar-center"],
+        ['[data-testid="now-playing-bar"] > div:nth-child(3)', "main-nowPlayingBar-right"],
+        ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-nowPlayingBar"],
+        ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-container", up(1)],
+        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-nowPlaying"],
         ['[data-testid="CoverSlotCollapsed__container"]', "main-coverSlotCollapsed-container"],
         ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArtContainer"],
         ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArt", ":scope > div"],
@@ -2685,6 +2700,7 @@
             const add = (e, ...c) => { if (e) for (const k of c) if (!e.classList.contains(k)) e.classList.add(k); };
             add(tl, "main-trackList-trackList");
             add(tl.parentElement, "main-trackList-trackListContainer");
+            if (!tl.getAttribute("role")) tl.setAttribute("role", "grid");
             const head = tl.firstElementChild, hrow = head && head.querySelector(":scope > div > div");
             if (!hrow || hrow.children.length < 3) continue;
             add(head, "main-trackList-trackListHeader");
