@@ -2625,14 +2625,14 @@
         ['[data-testid="now-playing-bar"] > div:nth-child(3)', "main-nowPlayingBar-right"],
         ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-nowPlayingBar"],
         ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-container", up(1)],
-        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-nowPlaying"],
-        ['[data-testid="CoverSlotCollapsed__container"]', "main-coverSlotCollapsed-container"],
-        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArtContainer"],
-        ['[data-testid="now-playing-widget"] [data-testid="cover-art-button"]', "main-nowPlayingWidget-coverArt", ":scope > div"],
-        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-trackInfo", ":scope > div:not([data-testid]):has(a)"],
-        ['[data-testid="now-playing-widget"]', "main-nowPlayingWidget-actionButtonWrapper", ":scope > div:not([data-testid]):not(:has(a)):has(button)"],
-        [".main-nowPlayingWidget-trackInfo > div:first-child", "main-trackInfo-name"],
-        [".main-nowPlayingWidget-trackInfo", "main-trackInfo-artists", ":scope > div:not(:first-child):has(a)"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-nowPlaying"],
+        [':is([data-testid="CoverSlotCollapsed__container"], [data-testid="cover-art-container"])', "main-coverSlotCollapsed-container"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) :is([data-testid="cover-art-button"], [data-testid="cover-art-container"])', "main-nowPlayingWidget-coverArtContainer"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) :is([data-testid="cover-art-button"], [data-testid="cover-art-container"])', "main-nowPlayingWidget-coverArt", ":scope > div"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-trackInfo", ":scope > div:is(:has([data-testid*='byline']), :not([data-testid]):has(a, span))"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-actionButtonWrapper", ":scope > div:has(button):not(.main-nowPlayingWidget-trackInfo):not([data-testid])"],
+        [".main-nowPlayingWidget-trackInfo > :first-child", "main-trackInfo-name"],
+        [".main-nowPlayingWidget-trackInfo", "main-trackInfo-artists", ":scope > :is([data-testid*='byline'], div:not(:first-child):has(a), div:nth-child(2))"],
         [".main-trackInfo-name, .main-trackInfo-artists", "main-trackInfo-overlay", firstDiv()],
         ['[data-testid="playback-progressbar"]', "playback-progressbar"],
         ['[data-testid="playback-progressbar"]', "playback-progressbar-container", up(1)],
@@ -2860,7 +2860,7 @@
     }
     const qa = (sel) => [...document.querySelectorAll(sel)];
     function tagHas() {
-        markAll("data-cs-entity", qa(".main-entityHeader-containerNormal").map((e) => e.closest("section")));
+        markAll("data-cs-entity", qa(":is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage, [data-testid='artist-page'] .main-entityHeader-container, [data-testid='entity-header'])").map((e) => e.closest("section")));
         markAll("data-cs-canvasve", qa(".Root__right-sidebar .main-nowPlayingView-canvasVisualEnhancement").map((e) => e.closest(".Root__right-sidebar")));
         const h2 = qa(".main-yourLibraryX-collapseButton h2");
         markAll("data-cs-h2", [

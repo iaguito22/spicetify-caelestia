@@ -223,7 +223,8 @@ main > div[data-cs-home] > div > div[style*="--background-base"] {
     box-shadow: inset 0 1px 0 rgba(var(--spice-rgb-text), 0.06), var(--cs-shadow) !important;
 }
 
-.main-entityHeader-containerNormal {
+.main-entityHeader-containerNormal,
+.main-entityHeader-withoutBackgroundImage {
     min-height: 0 !important;
     height: auto !important;
     margin: 0 !important;
@@ -233,29 +234,34 @@ main > div[data-cs-home] > div > div[style*="--background-base"] {
     border-radius: 0 !important;
 }
 
-.main-entityHeader-containerNormal .main-entityHeader-contentWrapper { min-height: 0 !important; height: auto !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-contentWrapper { min-height: 0 !important; height: auto !important; }
 
-.main-entityHeader-containerNormal .main-entityHeader-imageContainer,
-.main-entityHeader-containerNormal .main-entityHeader-imageContainer div { width: 178px !important; height: 178px !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-imageContainer,
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-imageContainer div { width: 178px !important; height: 178px !important; }
 
-.main-entityHeader-containerNormal .main-entityHeader-image {
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-image {
     border-radius: var(--cs-r-inner) !important;
     box-shadow: 0 12px 32px color-mix(in srgb, var(--cs-accent) 32%, rgba(var(--spice-rgb-shadow), 0.5)) !important;
 }
 
 /* 70px libres al pie del texto: ahí se sientan los controles */
-.main-entityHeader-containerNormal .main-entityHeader-headerText {
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-headerText {
     height: auto !important;
     justify-content: flex-end !important;
     padding-bottom: 80px !important;
+    width: 100% !important;
+    min-width: 0 !important;
 }
 
-.main-entityHeader-containerNormal .main-entityHeader-title {
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-title {
     font-weight: 700 !important;
     letter-spacing: -0.02em !important;
     font-size: clamp(28px, 3.6vw, 46px) !important;
     line-height: 1.05 !important;
 }
+
+:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText) { white-space: nowrap !important; }
+:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText) span { white-space: nowrap !important; }
 
 .main-entityHeader-withBackgroundImage .main-entityHeader-title { letter-spacing: -0.02em !important; }
 
@@ -871,9 +877,9 @@ html[data-cs-dock-float] .Root__now-playing-bar {
 }
 
 /* Título y portada: mismo tamaño en todas las playlists y alineados por abajo */
-.main-entityHeader-containerNormal .main-entityHeader-contentWrapper { align-items: flex-end !important; }
-.main-entityHeader-containerNormal .main-entityHeader-title,
-.main-entityHeader-containerNormal .main-entityHeader-title * {
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-contentWrapper { align-items: flex-end !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-title,
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-title * {
     font-size: clamp(24px, 2.7vw, 36px) !important;
     line-height: 1.08 !important;
     text-wrap: wrap !important; /* llena la línea antes de saltar (Spotify usa balance) */
@@ -988,11 +994,12 @@ html[data-cs-stuck] :is(.main-trackList-trackListHeader:not([data-testid="artist
 
 /* La info de la canción nunca invade la columna central */
 :is(.main-nowPlayingBar-left, [data-testid="now-playing-bar"] > div:first-child) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; justify-self: stretch !important; }
-:is(.main-nowPlayingWidget-nowPlaying, [data-testid="now-playing-widget"]) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; gap: 10px !important; }
-.main-nowPlayingWidget-trackInfo { flex: 1 1 0 !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; }
-.main-nowPlayingWidget-trackInfo :is(.main-trackInfo-name, .main-trackInfo-artists, .main-trackInfo-overlay, a, span) { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
-.main-nowPlayingWidget-actionButtonWrapper { flex: none !important; margin: 0 !important; padding: 0 !important; }
-.main-coverSlotCollapsed-container { align-self: center !important; margin: 0 !important; }
+:is(.main-nowPlayingWidget-nowPlaying, [data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; gap: 10px !important; }
+:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) { flex: 1 1 0 !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; }
+:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) :is(.main-trackInfo-name, .main-trackInfo-artists, .main-trackInfo-overlay, [data-testid*="byline"], a, span) { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; max-width: 100% !important; }
+:is(.main-nowPlayingWidget-actionButtonWrapper, [data-testid*="now-playing-widget"] > div:has(button):not([data-testid])) { flex: none !important; margin: 0 !important; padding: 0 !important; }
+:is(.main-coverSlotCollapsed-container, [data-testid="cover-art-container"]) { align-self: center !important; margin: 0 !important; width: 60px !important; height: 60px !important; flex: none !important; }
+:is(.main-coverSlotCollapsed-container, [data-testid="cover-art-container"]) :is(img, div) { width: 60px !important; height: 60px !important; border-radius: calc(var(--cs-r-inner) - 8px) !important; }
 .main-nowPlayingWidget-trackInfo .main-trackInfo-xsmallBadges { display: none !important; } /* la línea con el ▶ suelta */
 /* Solo título y artista: versiones nuevas de Spotify añaden más líneas (álbum • año) que pisaban los tiempos */
 .main-nowPlayingWidget-trackInfo > :not(.main-trackInfo-name):not(.main-trackInfo-artists) { display: none !important; }
@@ -2123,7 +2130,7 @@ section[data-cs-entity] .main-actionBar-ActionBarContainer + .contentSpacing div
 /* Spotify deja dos separadores seguidos ("iaguito22 • • 33 canciones") cuando falta el dato de en medio */
 [data-separator="true"] + [data-separator="true"] { display: none !important; }
 /* Portada a la misma distancia del borde izquierdo que del superior (estaba a 48 y 28) */
-.main-entityHeader-containerNormal .main-entityHeader-imageContainer { margin-left: -20px !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-imageContainer { margin-left: -20px !important; }
 
 /* Otro tema metido por JS a la vez (Default Dynamic): su botón claro/oscuro no hace nada aquí
    (theme.js quita sus colores) */
