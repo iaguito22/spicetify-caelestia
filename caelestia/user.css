@@ -206,6 +206,7 @@ body,
 .main-entityHeader-backgroundColor,
 .main-actionBarBackground-background,
 .playlist-playlist-actionBarBackground-background,
+.main-entityHeader-container + div > div:first-child:empty,
 .search-searchCategory-contentArea::before,
 .search-searchCategory-contentArea::after,
 /* Spotify 1.3: el degradado de Inicio (color de la primera tarjeta) y su cabecera fija, con clases ofuscadas */
@@ -234,7 +235,7 @@ main > div[data-cs-home] > div > div[style*="--background-base"] {
     border-radius: 0 !important;
 }
 
-:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-contentWrapper { min-height: 0 !important; height: auto !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) :is(.main-entityHeader-contentWrapper, .main-entityHeader-adaptiveHeaderContainer) { min-height: 0 !important; height: auto !important; }
 
 :is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-imageContainer,
 :is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-imageContainer div { width: 178px !important; height: 178px !important; }
@@ -260,8 +261,8 @@ main > div[data-cs-home] > div > div[style*="--background-base"] {
     line-height: 1.05 !important;
 }
 
-:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText) { white-space: nowrap !important; }
-:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText) span { white-space: nowrap !important; }
+:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText, .main-entityHeader-detailsText),
+:is(.main-entityHeader-metaData, .main-entityHeader-metaDataText, .main-entityHeader-detailsText) span { white-space: nowrap !important; }
 
 .main-entityHeader-withBackgroundImage .main-entityHeader-title { letter-spacing: -0.02em !important; }
 
@@ -877,7 +878,7 @@ html[data-cs-dock-float] .Root__now-playing-bar {
 }
 
 /* Título y portada: mismo tamaño en todas las playlists y alineados por abajo */
-:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-contentWrapper { align-items: flex-end !important; }
+:is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) :is(.main-entityHeader-contentWrapper, .main-entityHeader-adaptiveHeaderContainer) { align-items: flex-end !important; }
 :is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-title,
 :is(.main-entityHeader-containerNormal, .main-entityHeader-withoutBackgroundImage) .main-entityHeader-title * {
     font-size: clamp(24px, 2.7vw, 36px) !important;
@@ -993,10 +994,11 @@ html[data-cs-stuck] :is(.main-trackList-trackListHeader:not([data-testid="artist
 .main-coverSlotCollapsed-container > div { width: 60px !important; height: 60px !important; }
 
 /* La info de la canción nunca invade la columna central */
-:is(.main-nowPlayingBar-left, [data-testid="now-playing-bar"] > div:first-child) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; justify-self: stretch !important; }
+.main-nowPlayingBar-left,
+.main-nowPlayingBar-left > div { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; justify-self: stretch !important; }
 :is(.main-nowPlayingWidget-nowPlaying, [data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) { width: 100% !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; gap: 10px !important; }
-:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) { flex: 1 1 0 !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; }
-:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) :is(.main-trackInfo-name, .main-trackInfo-artists, .main-trackInfo-overlay, [data-testid*="byline"], a, span) { overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; max-width: 100% !important; }
+:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) { flex: 0 1 auto !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; margin: 0 !important; }
+:is(.main-nowPlayingWidget-trackInfo, [data-testid*="now-playing-widget"] > div:has([data-testid*="byline"])) :is(.main-trackInfo-name, .main-trackInfo-name :is(div, span, a), .main-trackInfo-artists, .main-trackInfo-artists div, .main-trackInfo-overlay, [data-testid*="byline"], [data-testid*="byline"] > span) { display: block !important; min-width: 0 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; margin-inline: 0 !important; padding-inline: 0 !important; mask-image: none !important; -webkit-mask-image: none !important; }
 :is(.main-nowPlayingWidget-actionButtonWrapper, [data-testid*="now-playing-widget"] > div:has(button):not([data-testid])) { flex: none !important; margin: 0 !important; padding: 0 !important; }
 :is(.main-coverSlotCollapsed-container, [data-testid="cover-art-container"]) { align-self: center !important; margin: 0 !important; width: 60px !important; height: 60px !important; flex: none !important; }
 :is(.main-coverSlotCollapsed-container, [data-testid="cover-art-container"]) :is(img, div) { width: 60px !important; height: 60px !important; border-radius: calc(var(--cs-r-inner) - 8px) !important; }

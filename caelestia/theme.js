@@ -2585,11 +2585,11 @@
         ['[data-testid="entity-header"]', "main-entityHeader-backgroundColor", ":scope > div:not(.contentSpacing):not(:has(*))"],
         ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-contentWrapper"],
         // en los álbumes la portada va dentro de un botón (abre la portada en grande)
-        ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-imageContainer", ":scope > :is(div, button):has(img):not(:has(h1))"],
+        ['[data-testid="entity-header"] > .contentSpacing', "main-entityHeader-imageContainer", ':scope > :is(div, button):has(img):not(:has(h1, [data-testid*="EntityTitle"], .main-entityHeader-headerText))'],
         ['[data-testid="entity-header"] .main-entityHeader-imageContainer img', "main-entityHeader-image"],
-        [".main-entityHeader-contentWrapper", "main-entityHeader-headerText", ":scope > div:has(h1)"],
-        ['[data-testid="entity-header"] [data-testid="entityTitle"]', "main-entityHeader-title"],
-        [".main-entityHeader-headerText > div:last-child", "main-entityHeader-metaData"],
+        [".main-entityHeader-contentWrapper", "main-entityHeader-headerText", ':scope > div:has(h1, [data-testid="entityTitle"]):not(.main-entityHeader-adaptiveHeaderContainer)'],
+        ['[data-testid="entity-header"] :is([data-testid="entityTitle"], [data-testid="adaptiveEntityTitle"])', "main-entityHeader-title"],
+        [".main-entityHeader-headerText > :last-child:not(.main-entityHeader-title)", "main-entityHeader-metaData"],
         ['[data-testid="action-bar"]', "main-actionBar-ActionBar"],
         ['[data-testid="action-bar"]', "main-actionBar-ActionBarContainer", up(2)],
         ['[data-testid="action-bar-row"]', "main-actionBar-ActionBarRow"],
@@ -2601,7 +2601,7 @@
             const next = h.nextElementSibling, st = (e) => e.getAttribute("style") || "";
             if (next && next.tagName === "DIV" && st(next).includes("background-color")) return next;
             return [...h.parentElement.children, ...(next ? next.children : [])].filter((e) =>
-                e !== h && e.tagName === "DIV" && !e.firstElementChild && st(e).includes("--background-highlight"));
+                e !== h && e.tagName === "DIV" && !e.firstElementChild && /background-color|--background-(highlight|base)/.test(st(e)));
         }],
         // bloque de la lista de una playlist: Spotify le pone fondo gris opaco, que tapaba el velo del panel
         ['[data-testid="playlist-page"] > [data-testid="entity-header"]', "playlist-playlist-playlistContent", (h) => {
@@ -2620,16 +2620,16 @@
         [".main-globalNav-searchInputTextWrapper > span:first-child", "main-globalNav-searchInputText"],
         ['.main-globalNav-searchInputContainer [class*="form-input-icon__icon--trailing"] > div', "main-globalNav-browseButtonWrapper"],
         ['[data-testid="player-controls"]', "player-controls"],
-        ['[data-testid="now-playing-bar"] > div:first-child', "main-nowPlayingBar-left"],
-        ['[data-testid="now-playing-bar"] > div:nth-child(2)', "main-nowPlayingBar-center"],
-        ['[data-testid="now-playing-bar"] > div:nth-child(3)', "main-nowPlayingBar-right"],
-        ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-nowPlayingBar"],
-        ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-container", up(1)],
+        ['[data-testid="now-playing-bar"]', "main-nowPlayingBar-container"],
+        ['[data-testid="now-playing-bar"] > div:has([data-testid="player-controls"])', "main-nowPlayingBar-nowPlayingBar"],
+        [".main-nowPlayingBar-nowPlayingBar > div:first-child", "main-nowPlayingBar-left"],
+        [".main-nowPlayingBar-nowPlayingBar > div:nth-child(2)", "main-nowPlayingBar-center"],
+        [".main-nowPlayingBar-nowPlayingBar > div:nth-child(3)", "main-nowPlayingBar-right"],
         [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-nowPlaying"],
         [':is([data-testid="CoverSlotCollapsed__container"], [data-testid="cover-art-container"])', "main-coverSlotCollapsed-container"],
         [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) :is([data-testid="cover-art-button"], [data-testid="cover-art-container"])', "main-nowPlayingWidget-coverArtContainer"],
         [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"]) :is([data-testid="cover-art-button"], [data-testid="cover-art-container"])', "main-nowPlayingWidget-coverArt", ":scope > div"],
-        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-trackInfo", ":scope > div:is(:has([data-testid*='byline']), :not([data-testid]):has(a, span))"],
+        [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-trackInfo", ':scope > div:not([data-testid]):is(:has([data-testid*="byline"], a, [dir="auto"]))'],
         [':is([data-testid="now-playing-widget"], [data-testid="now-playing-widget-v2"])', "main-nowPlayingWidget-actionButtonWrapper", ":scope > div:has(button):not(.main-nowPlayingWidget-trackInfo):not([data-testid])"],
         [".main-nowPlayingWidget-trackInfo > :first-child", "main-trackInfo-name"],
         [".main-nowPlayingWidget-trackInfo", "main-trackInfo-artists", ":scope > :is([data-testid*='byline'], div:not(:first-child):has(a), div:nth-child(2))"],
@@ -2881,10 +2881,11 @@
     const tagAll = () => {
         const all = tagQueued !== 1;
         tagQueued = 0;
+        if (needAliases()) {
+            if (all) { tagCine(); tagInner(); }
+            tagTrackList();
+        }
         if (all) { cineDup(); cineReopened(); tagHas(); }
-        if (!needAliases()) return;
-        if (all) { tagCine(); tagInner(); }
-        tagTrackList();
     };
     new MutationObserver((ms) => {
         // al hacer scroll en una lista larga entran filas en cada fotograma: entonces basta con la lista
